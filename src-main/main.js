@@ -67,12 +67,18 @@ function createWindow() {
 	});
 
 	// 加载页面
-	mainWindow.loadURL("http://localhost:5173"); // Vite 默认端口
+	if (app.isPackaged) {
+		// 生产环境，加载打包后的文件
+		mainWindow.loadFile(
+			path.join(__dirname, "../src-renderer/dist/index.html")
+		);
+	} else {
+		// 开发环境，加载 Vite 开发服务器
+		mainWindow.loadURL("http://localhost:5173"); // Vite 默认端口
+	}
 
 	// 开发环境打开开发者工具
-	if (process.env.NODE_ENV !== "production") {
-		mainWindow.webContents.openDevTools();
-	}
+	// mainWindow.webContents.openDevTools();
 
 	return mainWindow;
 }

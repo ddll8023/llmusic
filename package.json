@@ -9,6 +9,7 @@
 		"dev2": "electron .",
 		"dev1": "vite --port 5173",
 		"build": "vite build",
+		"pack": "electron-builder",
 		"preview": "vite preview"
 	},
 	"keywords": [],
@@ -34,5 +35,13 @@
 		"electron-builder": "^26.0.12",
 		"sass": "^1.89.2",
 		"vite": "^6.3.5"
+	},
+	"build": {
+		"appId": "com.electron.llmusic",
+		"productName": "LLMusic",
+		"asarUnpack": [
+			"**/node_modules/ffmpeg-static/**",
+			"**/node_modules/ffprobe-static/**"
+		]
 	}
 }

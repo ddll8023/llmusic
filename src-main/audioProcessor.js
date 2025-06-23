@@ -18,9 +18,16 @@ const path = require("path");
 const fs = require("fs");
 const os = require("os");
 
+// 修正打包后的二进制文件路径
+const correctedFfmpegPath = ffmpegPath.replace("app.asar", "app.asar.unpacked");
+const correctedFfprobePath = ffprobePath.replace(
+	"app.asar",
+	"app.asar.unpacked"
+);
+
 // 设置ffmpeg路径
-ffmpeg.setFfmpegPath(ffmpegPath);
-ffmpeg.setFfprobePath(ffprobePath);
+ffmpeg.setFfmpegPath(correctedFfmpegPath);
+ffmpeg.setFfprobePath(correctedFfprobePath);
 
 // 处理状态枚举
 const ProcessingState = {

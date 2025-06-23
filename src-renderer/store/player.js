@@ -315,9 +315,9 @@ export const usePlayerStore = defineStore("player", {
 						let weightedSongs = playlistWithDetails.map((song) => ({
 							id: song.id,
 							// 权重与播放次数成反比，播放次数越少，权重越高
-							// 使用平方根来缓和权重，降低播放次数的影响力
+							// 使用次数的平方来急剧增加高播放次数歌曲的"惩罚"
 							// 增加 `|| 0` 来处理 playCount 可能为 undefined 的情况
-							weight: 1 / (Math.sqrt(song.playCount || 0) + 1),
+							weight: 1 / ((song.playCount || 0) ** 2 + 1),
 						}));
 
 						// 如果当前歌曲也在加权列表中，暂时将其权重设为0，以避免立即重复播放
@@ -433,7 +433,7 @@ export const usePlayerStore = defineStore("player", {
 						let weightedSongs = playlistWithDetails.map((song) => ({
 							id: song.id,
 							// 增加 `|| 0` 来处理 playCount 可能为 undefined 的情况
-							weight: 1 / (Math.sqrt(song.playCount || 0) + 1),
+							weight: 1 / ((song.playCount || 0) ** 2 + 1),
 						}));
 
 						const currentSongInWeightedList = weightedSongs.find(
