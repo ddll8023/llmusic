@@ -27,8 +27,6 @@
 		"vue-virtual-scroller": "^2.0.0-beta.8"
 	},
 	"devDependencies": {
-		"@stagewise/toolbar": "^0.4.6",
-		"@stagewise/toolbar-vue": "^0.4.6",
 		"@vitejs/plugin-vue": "^5.2.4",
 		"concurrently": "^8.2.2",
 		"electron": "^36.5.0",

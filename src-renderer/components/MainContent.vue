@@ -62,6 +62,25 @@ const sortedSongs = computed(() => {
   return songs;
 });
 
+// 歌曲索引映射（用于修复虚拟滚动序号显示问题）
+const songIndexMap = computed(() => {
+  const map = new Map();
+  sortedSongs.value.forEach((song, index) => {
+    map.set(song.id, index);
+  });
+  return map;
+});
+
+// 获取歌曲在排序列表中的真实索引
+const getRealIndex = (song) => {
+  const index = songIndexMap.value.get(song.id);
+  if (index === undefined) {
+    console.warn(`无法找到歌曲 ${song.title} (ID: ${song.id}) 的索引`);
+    return -1;
+  }
+  return index;
+};
+
 // 右键菜单相关状态
 const contextMenu = reactive({
   show: false,
@@ -322,8 +341,8 @@ const handleScroll = (event) => {
   // 获取滚动位置
   const scrollTop = event?.target?.scrollTop || 0;
 
-  // 当滚动位置大于0时显示按钮，否则隐藏
-  showFixedButtons.value = scrollTop > 0;
+  // 当滚动位置大于0且歌词页面未显示时显示按钮，否则隐藏
+  showFixedButtons.value = scrollTop > 0 && !playerStore.showLyrics;
 };
 
 // 在组件挂载后加载歌曲
@@ -343,7 +362,7 @@ onMounted(async () => {
       if (newValue && (!oldValue || newValue.timestamp !== oldValue?.timestamp)) {
         const { id: songId, playCount } = newValue;
         console.log(`监听到媒体库中歌曲 ${songId} 播放次数更新为 ${playCount}`);
-        
+
         // 找到对应的行并高亮显示
         nextTick(() => {
           const songRow = document.querySelector(`[data-song-id="${songId}"]`);
@@ -357,6 +376,18 @@ onMounted(async () => {
       }
     },
     { deep: true }
+  );
+
+  // 监听歌词页面显示状态变化
+  watch(
+    () => playerStore.showLyrics,
+    (newValue) => {
+      // 当歌词页面状态改变时，重新计算按钮显示状态
+      if (scroller.value) {
+        const scrollTop = scroller.value.$el?.scrollTop || 0;
+        showFixedButtons.value = scrollTop > 0 && !newValue;
+      }
+    }
   );
 
   // 监听滚动事件，控制固定按钮的显示/隐藏
@@ -506,7 +537,7 @@ const fetchSongCovers = () => {
 <template>
   <div class="main-content">
     <div class="song-list-header">
-      <div class="header-col" style="width: 25px; flex-shrink: 0;">#</div>
+      <div class="header-col" style="width: 40px; flex-shrink: 0;">#</div>
       <div class="header-col" style="width: 60px; flex-shrink: 0;"></div>
       <div class="header-col sortable" style="width: 30%;" @click="toggleSort('title')">
         歌曲名
@@ -546,7 +577,7 @@ const fetchSongCovers = () => {
         :class="{ 'playing': playerStore.currentSong && playerStore.currentSong.id === song.id }"
         @mouseenter="hoveredSongId = song.id" @mouseleave="hoveredSongId = null"
         :data-song-id="song.id">
-        <div class="song-col" style="width: 25px; flex-shrink: 0;">{{ index + 1 }}</div>
+        <div class="song-col song-index" style="width: 40px; flex-shrink: 0;">{{ getRealIndex(song) + 1 }}</div>
         <div class="song-col" style="width: 60px; flex-shrink: 0;">
           <div class="song-cover-container">
             <img :src="songCovers[song.id] || placeholderCover" alt="封面" class="song-cover" />
@@ -763,6 +794,12 @@ const fetchSongCovers = () => {
   text-overflow: ellipsis;
   display: flex;
   align-items: center;
+}
+
+.song-index {
+  justify-content: center;
+  font-weight: 500;
+  color: #b3b3b3;
 }
 
 .song-cover-container {

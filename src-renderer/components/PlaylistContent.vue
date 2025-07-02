@@ -18,6 +18,25 @@ const props = defineProps({
 const playlistStore = usePlaylistStore();
 const playerStore = usePlayerStore();
 
+// 歌曲索引映射（用于修复虚拟滚动序号显示问题）
+const songIndexMap = computed(() => {
+    const map = new Map();
+    playlistStore.currentPlaylistSongs.forEach((song, index) => {
+        map.set(song.id, index);
+    });
+    return map;
+});
+
+// 获取歌曲在播放列表中的真实索引
+const getRealIndex = (song) => {
+    const index = songIndexMap.value.get(song.id);
+    if (index === undefined) {
+        console.warn(`无法找到歌曲 ${song.title} (ID: ${song.id}) 的索引`);
+        return -1;
+    }
+    return index;
+};
+
 // 加载状态
 const isLoading = ref(false);
 
@@ -278,8 +297,8 @@ const handleScroll = (event) => {
     // 获取滚动位置
     const scrollTop = event?.target?.scrollTop || 0;
 
-    // 当滚动位置大于0时显示按钮，否则隐藏
-    showFixedButtons.value = scrollTop > 0;
+    // 当滚动位置大于0且歌词页面未显示时显示按钮，否则隐藏
+    showFixedButtons.value = scrollTop > 0 && !playerStore.showLyrics;
 };
 
 // 滚动到顶部
@@ -343,6 +362,18 @@ watch(() => playlistStore.currentPlaylistId, (newId) => {
     }
 });
 
+// 监听歌词页面显示状态变化
+watch(
+    () => playerStore.showLyrics,
+    (newValue) => {
+        // 当歌词页面状态改变时，重新计算按钮显示状态
+        if (scroller.value) {
+            const scrollTop = scroller.value.$el?.scrollTop || 0;
+            showFixedButtons.value = scrollTop > 0 && !newValue;
+        }
+    }
+);
+
 // 组件挂载时加载歌单
 onMounted(() => {
     if (playlistStore.currentPlaylistId) {
@@ -404,7 +435,7 @@ onMounted(() => {
         <div v-else class="songs-container">
             <!-- 表头 -->
             <div class="song-list-header">
-                <div class="header-col" style="width: 25px; flex-shrink: 0;">#</div>
+                <div class="header-col" style="width: 40px; flex-shrink: 0;">#</div>
                 <div class="header-col" style="width: 60px; flex-shrink: 0;"></div>
                 <div class="header-col" style="width: 35%;">歌曲名</div>
                 <div class="header-col" style="width: 20%;">歌手</div>
@@ -420,7 +451,7 @@ onMounted(() => {
                 <div class="song-row" @dblclick="playSong(song, index)"
                     :class="{ 'playing': currentSongId === song.id }" @mouseenter="hoveredSongId = song.id"
                     @mouseleave="hoveredSongId = null" @contextmenu="handleContextMenu($event, song)">
-                    <div class="song-col" style="width: 25px; flex-shrink: 0;">{{ index + 1 }}</div>
+                    <div class="song-col song-index" style="width: 40px; flex-shrink: 0;">{{ getRealIndex(song) + 1 }}</div>
                     <div class="song-col" style="width: 60px; flex-shrink: 0;">
                         <div class="song-cover-container">
                             <img :src="songCovers[song.id] || placeholderCover" alt="封面" class="song-cover" />
@@ -777,6 +808,12 @@ onMounted(() => {
     text-overflow: ellipsis;
     display: flex;
     align-items: center;
+}
+
+.song-index {
+    justify-content: center;
+    font-weight: 500;
+    color: #b3b3b3;
 }
 
 .song-cover-container {

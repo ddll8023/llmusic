@@ -50,7 +50,7 @@ export const useUiStore = defineStore("ui", {
 			localStorage.setItem("sidebarVisible", "false");
 		},
 		setSidebarWidth(newWidth) {
-			const minWidth = 80;
+			const minWidth = 60;  // 减小最小宽度，为纯图标模式提供更紧凑的空间
 			const maxWidth = 300;
 			if (newWidth < minWidth) {
 				this.sidebarWidth = minWidth;

@@ -13,7 +13,6 @@ import TitleBar from './components/TitleBar.vue';
 import GlobalScanProgress from './components/GlobalScanProgress.vue';
 import { useUiStore } from './store/ui';
 import { usePlaylistStore } from './store/playlist';
-import { StagewiseToolbar } from '@stagewise/toolbar-vue';
 
 const uiStore = useUiStore();
 const playlistStore = usePlaylistStore();
@@ -24,17 +23,7 @@ uiStore.initCloseBehavior();
 // 播放器控制栏的高度，单位为px
 const playerBarHeight = 90; // 这个值应该与PlayerBar.vue中的height值一致
 
-// 判断是否在开发环境中 - 检查是否运行在localhost或开发服务器上
-const isDevelopment = ref(false);
-const toolbarContainer = ref(null);
-const showToolbar = ref(false);
-
 onMounted(() => {
-    // 在客户端检查是否在开发环境
-    isDevelopment.value = window.location.hostname === 'localhost' ||
-        window.location.hostname === '127.0.0.1' ||
-        window.location.port === '5173'; // Vite默认端口
-
     // 清除可能存在的任何焦点，防止元素在启动时自动高亮
     setTimeout(() => {
         if (document.activeElement) {
@@ -51,16 +40,6 @@ onMounted(() => {
             playlistStore.currentPlaylistId = null;
         }
     });
-
-    // 延迟初始化StagewiseToolbar，确保DOM已完全渲染
-    if (isDevelopment.value) {
-        nextTick(() => {
-            // 确保工具栏容器已渲染并有尺寸
-            setTimeout(() => {
-                showToolbar.value = true;
-            }, 300);
-        });
-    }
 
     onUnmounted(() => {
         // 移除事件监听器
@@ -170,11 +149,6 @@ onUnmounted(() => {
 
         <!-- 歌单管理对话框 -->
         <PlaylistManage />
-
-        <!-- Stagewise工具栏，只在开发环境中显示 -->
-        <div v-if="isDevelopment" ref="toolbarContainer" class="stagewise-container">
-            <StagewiseToolbar v-if="showToolbar" :config="{ plugins: [] }" />
-        </div>
     </div>
 </template>
 
@@ -363,22 +337,5 @@ button,
 
 ::-webkit-scrollbar-corner {
     background: transparent;
-}
-
-/* 为Stagewise工具栏添加样式，确保容器有明确的尺寸 */
-.stagewise-container {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 9999;
-    width: 300px;
-    height: 50px;
-    min-width: 300px;
-    min-height: 50px;
-    pointer-events: none;
-}
-
-.stagewise-container > * {
-    pointer-events: auto;
 }
 </style>

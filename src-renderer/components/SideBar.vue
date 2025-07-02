@@ -11,7 +11,7 @@ const uiStore = useUiStore();
 const playlistStore = usePlaylistStore();
 const mediaStore = useMediaStore();
 
-const isCollapsed = computed(() => uiStore.sidebarWidth < 100);
+const isCollapsed = computed(() => uiStore.sidebarWidth <= 130);
 
 // 加载歌单列表和音乐库
 onMounted(async () => {
@@ -33,37 +33,37 @@ const handleSetLibrary = (libraryId) => {
     </div>
 
     <div class="menu-section">
-      <div class="section-title"><span>在线音乐</span></div>
+      <div class="section-title"><span class="text-content">在线音乐</span></div>
       <div class="menu-item disabled">
         <Icon name="discovery" :size="isCollapsed ? '24px' : '20px'" />
-        <span>发现音乐</span>
+        <span class="text-content">发现音乐</span>
       </div>
       <div class="menu-item disabled">
         <Icon name="fm" :size="isCollapsed ? '24px' : '20px'" />
-        <span>私人FM</span>
+        <span class="text-content">私人FM</span>
       </div>
     </div>
 
     <div class="menu-section">
-      <div class="section-title"><span>我的音乐</span></div>
+      <div class="section-title"><span class="text-content">我的音乐</span></div>
       <div class="menu-item" :class="{ active: uiStore.currentView === 'main' && mediaStore.activeLibraryId === null }"
         @click="handleSetLibrary(null)">
         <Icon name="local" :size="isCollapsed ? '24px' : '20px'" />
-        <span>所有音乐</span>
+        <span class="text-content">所有音乐</span>
       </div>
       <div v-for="lib in mediaStore.libraries" :key="lib.id" class="menu-item"
         :class="{ active: uiStore.currentView === 'main' && mediaStore.activeLibraryId === lib.id }"
         @click="handleSetLibrary(lib.id)">
         <Icon name="music" :size="isCollapsed ? '24px' : '20px'" />
-        <span>{{ lib.name }}</span>
+        <span class="text-content">{{ lib.name }}</span>
       </div>
       <div class="menu-item disabled">
         <Icon name="recent" :size="isCollapsed ? '24px' : '20px'" />
-        <span>最近播放</span>
+        <span class="text-content">最近播放</span>
       </div>
       <div class="menu-item disabled">
         <Icon name="favorites" :size="isCollapsed ? '24px' : '20px'" />
-        <span>我的收藏</span>
+        <span class="text-content">我的收藏</span>
       </div>
     </div>
 
@@ -110,10 +110,10 @@ const handleSetLibrary = (libraryId) => {
     <div class="sidebar-spacer"></div>
 
     <!-- 设置按钮 -->
-    <div class="sidebar-item" :class="{ active: uiStore.currentView === 'settings' }"
+    <div class="menu-item sidebar-item" :class="{ active: uiStore.currentView === 'settings' }"
       @click="uiStore.setView('settings')">
       <Icon name="settings" :size="isCollapsed ? '24px' : '20px'" />
-      <span>设置</span>
+      <span class="text-content">设置</span>
     </div>
   </div>
 </template>
@@ -131,14 +131,34 @@ const handleSetLibrary = (libraryId) => {
   flex-shrink: 0;
   box-sizing: border-box;
   height: 100%;
-  /* 确保侧边栏占满整个高度 */
 }
 
+/* 收缩状态 */
 .sidebar.collapsed {
-  width: 100%;
-  padding: 24px 12px;
+  padding: 24px 8px;  /* 进一步减少内边距，为图标提供更紧凑的空间 */
 }
 
+/* 收缩状态下的文字隐藏 */
+.sidebar.collapsed .text-content,
+.sidebar.collapsed .logo h1,
+.sidebar.collapsed .section-title span,
+.sidebar.collapsed .menu-item span,
+.sidebar.collapsed .sidebar-item span,
+.sidebar.collapsed .playlist-name {
+  display: none;
+}
+
+/* 为文字内容添加过渡效果 */
+.sidebar .text-content,
+.sidebar .logo h1,
+.sidebar .section-title span,
+.sidebar .menu-item span,
+.sidebar .sidebar-item span,
+.sidebar .playlist-name {
+  transition: opacity 0.2s ease;
+}
+
+/* Logo 区域 */
 .logo {
   display: flex;
   align-items: center;
@@ -153,6 +173,7 @@ const handleSetLibrary = (libraryId) => {
   overflow: hidden;
 }
 
+/* 关闭按钮 */
 .close-sidebar-btn {
   background: none;
   border: none;
@@ -160,7 +181,11 @@ const handleSetLibrary = (libraryId) => {
   font-size: 24px;
   cursor: pointer;
   display: none;
-  /* Hidden on larger screens */
+  transition: color 0.2s ease;
+}
+
+.close-sidebar-btn:hover {
+  color: #fff;
 }
 
 @media (max-width: 768px) {
@@ -169,6 +194,7 @@ const handleSetLibrary = (libraryId) => {
   }
 }
 
+/* 菜单分区 */
 .menu-section {
   margin-bottom: 24px;
 }
@@ -187,23 +213,27 @@ const handleSetLibrary = (libraryId) => {
   justify-content: space-between;
 }
 
-.sidebar.collapsed .section-title span {
-  display: none;
-}
-
+/* 收缩状态下的分区标题 */
 .sidebar.collapsed .section-title {
   text-align: center;
-  padding-left: 0;
+  padding: 0;
+  margin-bottom: 12px;
 }
 
-/* Add a separator when collapsed */
+/* 改进的分隔线样式 */
 .sidebar.collapsed .section-title::after {
-  content: '---';
+  content: '';
   display: block;
-  letter-spacing: -2px;
+  width: 24px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #b3b3b3, transparent);
+  margin: 0 auto;
+  border-radius: 1px;
 }
 
-.menu-item {
+/* 菜单项基础样式 */
+.menu-item,
+.sidebar-item {
   display: flex;
   align-items: center;
   padding: 10px 8px;
@@ -215,42 +245,48 @@ const handleSetLibrary = (libraryId) => {
   font-size: 14px;
 }
 
-.sidebar.collapsed .menu-item {
+/* 收缩状态下的菜单项 */
+.sidebar.collapsed .menu-item,
+.sidebar.collapsed .sidebar-item {
   justify-content: center;
-  padding: 12px 0;
+  padding: 10px 4px;  /* 调整内边距，使图标更紧凑 */
 }
 
-.menu-item .icon-wrapper {
+/* 图标样式统一 */
+.menu-item .icon-wrapper,
+.sidebar-item .icon-wrapper {
   margin-right: 16px;
   flex-shrink: 0;
   font-size: 20px;
   color: inherit;
 }
 
-.sidebar.collapsed .menu-item .icon-wrapper {
+/* 收缩状态下的图标 */
+.sidebar.collapsed .menu-item .icon-wrapper,
+.sidebar.collapsed .sidebar-item .icon-wrapper {
   margin-right: 0;
   font-size: 24px;
   color: #fff;
 }
 
-.sidebar.collapsed .menu-item span {
-  display: none;
-}
-
-.menu-item:hover {
+/* 菜单项交互状态 */
+.menu-item:hover,
+.sidebar-item:hover {
   background-color: #282828;
   color: #fff;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   transform: translateY(-2px);
 }
 
-.menu-item:active {
+.menu-item:active,
+.sidebar-item:active {
   transform: scale(0.97) translateY(0);
   box-shadow: none;
   background-color: #333;
 }
 
-.menu-item.active {
+.menu-item.active,
+.sidebar-item.active {
   background-color: #282828;
   color: #fff;
 }
@@ -266,29 +302,15 @@ const handleSetLibrary = (libraryId) => {
   box-shadow: none;
 }
 
+/* 间距器 */
 .sidebar-spacer {
   flex-grow: 1;
   min-height: 20px;
-  /* 添加最小高度确保有一些空间 */
 }
 
+/* 底部设置项 */
 .sidebar-item {
-  display: flex;
-  align-items: center;
-  padding: 10px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.2s, color 0.2s;
-  white-space: nowrap;
-  overflow: hidden;
-  font-size: 14px;
   margin-top: 8px;
-}
-
-.sidebar-item:hover,
-.sidebar-item.active {
-  background-color: #282828;
-  color: #fff;
 }
 
 .sidebar-item .icon {
@@ -296,13 +318,6 @@ const handleSetLibrary = (libraryId) => {
   width: 20px;
   text-align: center;
   flex-shrink: 0;
-}
-
-.sidebar-item .icon-wrapper {
-  margin-right: 16px;
-  flex-shrink: 0;
-  font-size: 20px;
-  color: inherit;
 }
 
 /* 添加歌单按钮 */
