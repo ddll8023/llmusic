@@ -4,6 +4,7 @@ const { createScanHandlers } = require("./scanHandlers");
 const { createSongHandlers } = require("./songHandlers");
 const { createPlaylistHandlers } = require("./playlistHandlers");
 const { createLibraryHandlers } = require("./libraryHandlers");
+const { createTagHandlers } = require("./tagHandlers");
 
 /**
  * setupIpcHandlers(mainWindow)
@@ -18,6 +19,7 @@ function setupIpcHandlers(mainWindow) {
 		createSongHandlers(mainWindow),
 		createPlaylistHandlers(),
 		createLibraryHandlers(),
+		createTagHandlers(),
 	];
 
 	// 注册

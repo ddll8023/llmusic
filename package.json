@@ -40,6 +40,44 @@
 		"asarUnpack": [
 			"**/node_modules/ffmpeg-static/**",
 			"**/node_modules/ffprobe-static/**"
+		],
+		"fileAssociations": [
+			{
+				"ext": "mp3",
+				"name": "MP3 Audio File",
+				"description": "MP3 音频文件",
+				"role": "Editor"
+			},
+			{
+				"ext": "flac",
+				"name": "FLAC Audio File",
+				"description": "FLAC 无损音频文件",
+				"role": "Editor"
+			},
+			{
+				"ext": "wav",
+				"name": "WAV Audio File",
+				"description": "WAV 音频文件",
+				"role": "Editor"
+			},
+			{
+				"ext": "m4a",
+				"name": "M4A Audio File",
+				"description": "M4A 音频文件",
+				"role": "Editor"
+			},
+			{
+				"ext": "ogg",
+				"name": "OGG Audio File",
+				"description": "OGG 音频文件",
+				"role": "Editor"
+			},
+			{
+				"ext": "aac",
+				"name": "AAC Audio File",
+				"description": "AAC 音频文件",
+				"role": "Editor"
+			}
 		]
 	}
 }

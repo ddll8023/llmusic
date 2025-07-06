@@ -13,9 +13,11 @@ import TitleBar from './components/TitleBar.vue';
 import GlobalScanProgress from './components/GlobalScanProgress.vue';
 import { useUiStore } from './store/ui';
 import { usePlaylistStore } from './store/playlist';
+import { usePlayerStore } from './store/player';
 
 const uiStore = useUiStore();
 const playlistStore = usePlaylistStore();
+const playerStore = usePlayerStore();
 
 // 初始化窗口关闭行为
 uiStore.initCloseBehavior();
@@ -34,10 +36,39 @@ onMounted(() => {
     // 监听主进程发送的导航事件
     const removeNavigateListener = window.electronAPI.onNavigateToMain(() => {
         // 切换到主界面
-        uiStore.setActivePage('main');
+        uiStore.setView('main');
         // 清除当前歌单
         if (playlistStore) {
             playlistStore.currentPlaylistId = null;
+        }
+    });
+
+    // 监听文件打开事件
+    const removeFileOpenListener = window.electronAPI.onOpenAudioFile(async (filePath) => {
+        try {
+            // 解析文件信息
+            const parseResult = await window.electronAPI.parseSongFromFile(filePath);
+
+            if (parseResult.success && parseResult.song) {
+                const song = parseResult.song;
+
+                // 切换到主界面
+                uiStore.setView('main');
+
+                // 直接播放歌曲，不需要通过数据库
+                // 清空当前播放列表，设置为单首歌曲
+                playerStore.playlist = [song.id];
+                playerStore.currentIndex = 0;
+                playerStore.currentListId = 'temp-file-open';
+
+                // 直接播放歌曲
+                playerStore.playSong(song);
+
+                // 显示主窗口并聚焦
+                window.electronAPI.showWindow();
+            }
+        } catch (error) {
+            console.error('处理文件打开失败:', error);
         }
     });
 
@@ -45,6 +76,9 @@ onMounted(() => {
         // 移除事件监听器
         if (removeNavigateListener) {
             removeNavigateListener();
+        }
+        if (removeFileOpenListener) {
+            removeFileOpenListener();
         }
     });
 });

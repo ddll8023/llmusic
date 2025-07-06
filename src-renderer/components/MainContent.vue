@@ -5,6 +5,8 @@ import { RecycleScroller } from 'vue-virtual-scroller';
 import { useMediaStore } from '../store/media';
 import { usePlayerStore } from '../store/player';
 import ContextMenu from './ContextMenu.vue'; // 引入ContextMenu组件
+import TagEditor from './TagEditor.vue'; // 引入TagEditor组件
+import DeleteConfirmDialog from './DeleteConfirmDialog.vue'; // 引入删除确认对话框
 
 const mediaStore = useMediaStore();
 const playerStore = usePlayerStore();
@@ -127,6 +129,13 @@ const handleMenuAction = async ({ action, song }) => {
       playerStore.showLyricsDisplay();
       break;
 
+    case 'edit-tags':
+      // 打开标签编辑器
+      if (tagEditorRef.value) {
+        tagEditorRef.value.openEditor(song);
+      }
+      break;
+
     case 'song-info':
       // 使用更美观的自定义对话框而不是alert
       showSongInfoDialog(song);
@@ -163,15 +172,14 @@ const handleMenuAction = async ({ action, song }) => {
       break;
 
     case 'remove-from-list':
-      // 这里简单实现，仅隐藏UI上的歌曲（实际应该有确认对话框）
-      // 注意：这种方法不会从数据库中删除歌曲，仅UI层面的操作
-      mediaStore.setSearchTerm(mediaStore.searchTerm + ' ');
-      setTimeout(() => {
-        mediaStore.setSearchTerm(mediaStore.searchTerm.trim());
-      }, 10);
+      // 显示删除确认对话框
+      showDeleteConfirm(song);
       break;
   }
 };
+
+// TagEditor组件引用
+const tagEditorRef = ref(null);
 
 // 显示歌曲信息对话框
 const songInfoDialogVisible = ref(false);
@@ -184,6 +192,43 @@ const showSongInfoDialog = (song) => {
 
 const closeSongInfoDialog = () => {
   songInfoDialogVisible.value = false;
+};
+
+// 删除确认对话框状态
+const deleteConfirmVisible = ref(false);
+const songToDelete = ref(null);
+
+const showDeleteConfirm = (song) => {
+  songToDelete.value = song;
+  deleteConfirmVisible.value = true;
+};
+
+const closeDeleteConfirm = () => {
+  deleteConfirmVisible.value = false;
+  songToDelete.value = null;
+};
+
+// 处理删除确认
+const handleDeleteConfirm = async (result) => {
+  closeDeleteConfirm();
+
+  if (result.success) {
+    // 如果删除的是当前播放的歌曲，需要先处理播放状态
+    if (playerStore.currentSong && playerStore.currentSong.id === result.deletedSong.id) {
+      // 清除当前歌曲和播放状态
+      playerStore.clearCurrentSong();
+      console.log('已清除当前播放的歌曲');
+    }
+
+    // 刷新歌曲列表
+    await mediaStore.loadSongs();
+
+    // 显示成功提示
+    console.log(`歌曲 "${result.deletedSong.title}" 已删除`);
+  } else {
+    // 显示错误信息
+    console.error('删除失败:', result.error);
+  }
 };
 
 // 格式化时长为 mm:ss 格式
@@ -681,6 +726,17 @@ const fetchSongCovers = () => {
         <button @click="closeSongInfoDialog">关闭</button>
       </div>
     </div>
+
+    <!-- 标签编辑器组件 -->
+    <TagEditor ref="tagEditorRef" />
+
+    <!-- 删除确认对话框 -->
+    <DeleteConfirmDialog
+      :show="deleteConfirmVisible"
+      :song="songToDelete"
+      @close="closeDeleteConfirm"
+      @confirm="handleDeleteConfirm"
+    />
   </div>
 </template>
 

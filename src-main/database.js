@@ -893,6 +893,72 @@ async function incrementPlayCount(songId) {
 	}
 }
 
+/**
+ * 删除单个歌曲
+ * @param {string} songId 歌曲ID
+ * @returns {Promise<Object>} 删除结果
+ */
+async function deleteSong(songId) {
+	try {
+		if (!songId) {
+			return { success: false, error: "歌曲ID不能为空" };
+		}
+
+		await db.read();
+
+		// 查找要删除的歌曲
+		const songIndex = db.data.songs.findIndex((s) => s.id === songId);
+		if (songIndex === -1) {
+			return { success: false, error: "歌曲不存在" };
+		}
+
+		const songToDelete = db.data.songs[songIndex];
+
+		// 从数据库中删除歌曲
+		db.data.songs.splice(songIndex, 1);
+
+		// 从内存索引中移除
+		removeSongFromIndices(songToDelete.id, songToDelete.filePath);
+
+		// 从歌曲缓存中移除
+		if (songCache.has(songId)) {
+			songCache.delete(songId);
+		}
+
+		// 从所有播放列表中移除该歌曲
+		let removedFromPlaylists = 0;
+		db.data.playlists.forEach((playlist) => {
+			const initialLength = playlist.songs.length;
+			playlist.songs = playlist.songs.filter((id) => id !== songId);
+			if (playlist.songs.length < initialLength) {
+				removedFromPlaylists++;
+				playlist.updateTime = Date.now();
+			}
+		});
+
+		await db.write();
+
+		console.log(`已删除歌曲: ${songToDelete.title} (ID: ${songId})`);
+		if (removedFromPlaylists > 0) {
+			console.log(`从 ${removedFromPlaylists} 个播放列表中移除了该歌曲`);
+		}
+
+		return {
+			success: true,
+			message: "歌曲已删除",
+			deletedSong: {
+				id: songToDelete.id,
+				title: songToDelete.title,
+				artist: songToDelete.artist,
+			},
+			removedFromPlaylists,
+		};
+	} catch (error) {
+		console.error(`删除歌曲失败(ID: ${songId}):`, error);
+		return { success: false, error: error.message };
+	}
+}
+
 // 导出模块
 module.exports = {
 	initDb,
@@ -922,6 +988,7 @@ module.exports = {
 	removeLibrary,
 	rebuildIndices, // 新增导出
 	incrementPlayCount,
+	deleteSong, // 新增：删除单个歌曲
 };
 
 // 废弃的函数导出，以防万一

@@ -10,6 +10,7 @@ const {
 	validateSongFiles,
 	_clearAllSongs_DANGEROUS,
 	incrementPlayCount,
+	deleteSong,
 } = require("../database");
 const { audioProcessor } = require("../audioProcessor");
 const { parseLrc } = require("../lyricsParser");
@@ -347,6 +348,24 @@ function createSongHandlers(mainWindow) {
 					}
 					const updatedSong = await incrementPlayCount(songId);
 					return { success: true, song: updatedSong };
+				} catch (err) {
+					return { success: false, error: err.message };
+				}
+			},
+		},
+		{
+			channel: CHANNELS.DELETE_SONG,
+			handler: async (event, songId) => {
+				if (isScanRunning()) {
+					return { success: false, error: "扫描进行中，无法删除歌曲" };
+				}
+				try {
+					const result = await deleteSong(songId);
+					if (result.success) {
+						// 清除该歌曲的封面缓存
+						coverCache.delete(songId);
+					}
+					return result;
 				} catch (err) {
 					return { success: false, error: err.message };
 				}

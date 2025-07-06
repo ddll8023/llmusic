@@ -28,6 +28,7 @@ const CHANNELS = {
 	PARSE_SONG_FROM_FILE: "parse-song-from-file",
 	CLEAR_ALL_SONGS: "clear-all-songs",
 	INCREMENT_PLAY_COUNT: "increment-play-count", // 新增：增加播放次数
+	DELETE_SONG: "delete-song", // 新增：删除单个歌曲
 
 	// 播放控制
 	PLAYER_PLAY: "player-play",
@@ -67,6 +68,11 @@ const CHANNELS = {
 
 	// 封面处理
 	EXTRACT_COVER: "force-extract-cover",
+
+	// --- 标签编辑 ---
+	GET_SONG_TAGS: "get-song-tags",
+	UPDATE_SONG_TAGS: "update-song-tags",
+	VALIDATE_TAG_CHANGES: "validate-tag-changes",
 };
 
 module.exports = { CHANNELS };

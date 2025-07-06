@@ -13,7 +13,7 @@ const {
 } = require("electron");
 const path = require("path");
 const { initDb, validateSongFiles } = require("./database");
-const { setupIpcHandlers } = require("./ipcHandlers");
+const { setupIpcHandlers } = require("./ipc-handlers");
 const { CHANNELS } = require("./constants/ipcChannels");
 
 // 应用全局状态
@@ -22,6 +22,7 @@ const appState = {
 	tray: null,
 	closeWindowBehavior: "exit", // 'exit' 或 'minimize'
 	ipcDisposer: null,
+	pendingFileToOpen: null, // 待打开的文件路径
 };
 
 /**
@@ -176,6 +177,78 @@ function setCloseWindowBehavior(behavior) {
 }
 
 /**
+ * 处理文件打开请求
+ * @param {string} filePath - 要打开的文件路径
+ */
+function handleFileOpen(filePath) {
+	if (!filePath) return;
+
+	// 检查文件是否存在
+	const fs = require("fs");
+	if (!fs.existsSync(filePath)) {
+		return;
+	}
+
+	// 检查文件是否为支持的音频格式
+	const supportedExtensions = [".mp3", ".flac", ".wav", ".m4a", ".ogg", ".aac"];
+	const ext = path.extname(filePath).toLowerCase();
+
+	if (!supportedExtensions.includes(ext)) {
+		return;
+	}
+
+	if (appState.mainWindow && !appState.mainWindow.isDestroyed()) {
+		// 窗口已存在，直接发送文件路径
+		appState.mainWindow.webContents.send("open-audio-file", filePath);
+		appState.mainWindow.show();
+		appState.mainWindow.focus();
+	} else {
+		// 窗口不存在，保存文件路径待窗口创建后处理
+		appState.pendingFileToOpen = filePath;
+	}
+}
+
+/**
+ * 解析命令行参数获取文件路径
+ * @returns {string|null} 文件路径或null
+ */
+function getFilePathFromArgs() {
+	const args = process.argv;
+
+	// 在打包后的应用中，文件路径通常是最后一个参数
+	// 开发环境: electron . [file]
+	// 生产环境: app.exe [file]
+	for (let i = 1; i < args.length; i++) {
+		const arg = args[i];
+
+		// 跳过electron相关参数
+		if (arg === "." || arg.includes("electron") || arg.includes("main.js")) {
+			continue;
+		}
+
+		// 检查是否为文件路径
+		if (arg && !arg.startsWith("-")) {
+			// 对于Windows，也检查相对路径或者包含文件扩展名的路径
+			const supportedExtensions = [
+				".mp3",
+				".flac",
+				".wav",
+				".m4a",
+				".ogg",
+				".aac",
+			];
+			const ext = path.extname(arg).toLowerCase();
+
+			if (path.isAbsolute(arg) || supportedExtensions.includes(ext)) {
+				return arg;
+			}
+		}
+	}
+
+	return null;
+}
+
+/**
  * 注册IPC处理程序
  */
 function registerIpcHandlers() {
@@ -246,14 +319,96 @@ async function initializeApp() {
 
 		// 设置主进程IPC处理程序
 		appState.ipcDisposer = setupIpcHandlers(appState.mainWindow);
+
+		// 处理待打开的文件
+		if (appState.pendingFileToOpen) {
+			// 等待窗口完全加载后再发送文件
+			appState.mainWindow.webContents.once("did-finish-load", () => {
+				setTimeout(() => {
+					appState.mainWindow.webContents.send(
+						"open-audio-file",
+						appState.pendingFileToOpen
+					);
+					appState.pendingFileToOpen = null;
+				}, 2000); // 延迟2秒确保渲染进程完全准备好
+			});
+		}
 	} catch (error) {
 		console.error("应用初始化失败:", error);
 		// 在生产环境可以显示错误对话框
 	}
 }
 
-// 应用启动事件
-app.whenReady().then(initializeApp);
+// 单实例锁定
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+	// 如果获取锁失败，说明已有实例运行，退出当前实例
+	app.quit();
+} else {
+	// 处理第二个实例尝试启动的情况
+	app.on("second-instance", (event, commandLine, workingDirectory) => {
+		// 有人试图运行第二个实例，我们应该聚焦到我们的窗口
+		if (appState.mainWindow) {
+			if (appState.mainWindow.isMinimized()) appState.mainWindow.restore();
+			appState.mainWindow.focus();
+		}
+
+		// 检查是否有文件要打开
+		const filePath = getFilePathFromCommandLine(commandLine);
+		if (filePath) {
+			handleFileOpen(filePath);
+		}
+	});
+
+	// 应用启动事件
+	app.whenReady().then(() => {
+		// 检查启动时是否有文件要打开
+		const filePath = getFilePathFromArgs();
+
+		if (filePath) {
+			appState.pendingFileToOpen = filePath;
+		}
+
+		initializeApp();
+	});
+}
+
+/**
+ * 从命令行参数中提取文件路径
+ * @param {string[]} commandLine - 命令行参数数组
+ * @returns {string|null} 文件路径或null
+ */
+function getFilePathFromCommandLine(commandLine) {
+	for (let i = 1; i < commandLine.length; i++) {
+		const arg = commandLine[i];
+
+		// 跳过electron相关参数
+		if (arg === "." || arg.includes("electron") || arg.includes("main.js")) {
+			continue;
+		}
+
+		// 检查是否为文件路径
+		if (arg && !arg.startsWith("-")) {
+			// 对于Windows，也检查相对路径或者包含文件扩展名的路径
+			const supportedExtensions = [
+				".mp3",
+				".flac",
+				".wav",
+				".m4a",
+				".ogg",
+				".aac",
+			];
+			const ext = path.extname(arg).toLowerCase();
+
+			if (path.isAbsolute(arg) || supportedExtensions.includes(ext)) {
+				return arg;
+			}
+		}
+	}
+
+	return null;
+}
 
 // 应用激活事件（macOS）
 app.on("activate", () => {

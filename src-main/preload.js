@@ -40,6 +40,7 @@ const API = {
 			ipcRenderer.invoke("parse-song-from-file", filePath),
 		incrementPlayCount: (songId) =>
 			ipcRenderer.invoke("increment-play-count", songId),
+		deleteSong: (songId) => ipcRenderer.invoke("delete-song", songId),
 	},
 
 	// 音乐库相关
@@ -127,6 +128,11 @@ const API = {
 			createListener("navigate-to-main", callback),
 	},
 
+	// 文件打开相关
+	fileOpen: {
+		onOpenAudioFile: (callback) => createListener("open-audio-file", callback),
+	},
+
 	// 窗口控制
 	window: {
 		minimize: () => ipcRenderer.invoke("window-minimize"),
@@ -155,6 +161,15 @@ const API = {
 		onProcessedAudioData: (callback) =>
 			createListener("player-audio-data", callback),
 	},
+
+	// 标签编辑相关
+	tags: {
+		getSongTags: (songId) => ipcRenderer.invoke("get-song-tags", songId),
+		updateSongTags: (songId, tags) =>
+			ipcRenderer.invoke("update-song-tags", { songId, tags }),
+		validateTagChanges: (tags) =>
+			ipcRenderer.invoke("validate-tag-changes", tags),
+	},
 };
 
 // 创建扁平化API结构以保持向后兼容性
@@ -171,6 +186,7 @@ const compatAPI = {
 	validateSongFiles: API.songs.validateFiles,
 	parseSongFromFile: API.songs.parseFromFile,
 	incrementPlayCount: API.songs.incrementPlayCount,
+	deleteSong: API.songs.deleteSong,
 
 	// 目录选择
 	selectDirectory: API.library.selectDirectory,
@@ -227,6 +243,9 @@ const compatAPI = {
 	navigateToMain: API.navigation.toMain,
 	onNavigateToMain: API.navigation.onNavigateToMain,
 
+	// 文件打开相关
+	onOpenAudioFile: API.fileOpen.onOpenAudioFile,
+
 	// 窗口控制
 	windowMinimize: API.window.minimize,
 	windowMaximize: API.window.maximize,
@@ -246,6 +265,11 @@ const compatAPI = {
 	onProcessingComplete: API.audio.onProcessingComplete,
 	onProcessingError: API.audio.onProcessingError,
 	onProcessedAudioData: API.audio.onProcessedAudioData,
+
+	// 标签编辑
+	getSongTags: API.tags.getSongTags,
+	updateSongTags: API.tags.updateSongTags,
+	validateTagChanges: API.tags.validateTagChanges,
 };
 
 // 安全地暴露主进程的API给渲染进程
