@@ -137,8 +137,8 @@ watch(() => props.show, (newShow) => {
 
 <style lang="scss" scoped>
 // 导入样式变量
-@use "../styles/variables/_colors" as *;
-@use "../styles/variables/_layout" as *;
+@use "../../styles/variables/_colors" as *;
+@use "../../styles/variables/_layout" as *;
 
 .delete-confirm-overlay {
   position: fixed;

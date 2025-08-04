@@ -1,9 +1,9 @@
 <script setup>
-import { useMediaStore } from '../store/media';
-import { usePlayerStore } from '../store/player';
-import { useUiStore } from '../store/ui';
+import { useMediaStore } from '../../store/media';
+import { usePlayerStore } from '../../store/player';
+import { useUiStore } from '../../store/ui';
 import { ref, onMounted } from 'vue';
-import FAIcon from './FAIcon.vue'; // 修改为FAIcon组件
+import FAIcon from '../common/FAIcon.vue'; // 修改为FAIcon组件
 
 const mediaStore = useMediaStore();
 const playerStore = usePlayerStore();
@@ -238,8 +238,8 @@ const setCloseBehavior = async (behavior) => {
 
 <style lang="scss" scoped>
 // 导入样式变量
-@use "../styles/variables/_colors" as *;
-@use "../styles/variables/_layout" as *;
+@use "../../styles/variables/_colors" as *;
+@use "../../styles/variables/_layout" as *;
 @use "sass:color";
 
 .settings-page {

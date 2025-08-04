@@ -69,10 +69,10 @@
 
 <script setup>
 import { ref } from 'vue';
-import { useDiscoverStore } from '../store/discover.js';
-import { useUiStore } from '../store/ui.js';
-import { formatPlayCount } from '../utils/mockDiscoverData.js';
-import FAIcon from './FAIcon.vue';
+import { useDiscoverStore } from '../../store/discover.js';
+import { useUiStore } from '../../store/ui.js';
+import { formatPlayCount } from '../../utils/mockDiscoverData.js';
+import FAIcon from '../common/FAIcon.vue';
 
 const discoverStore = useDiscoverStore();
 const uiStore = useUiStore();
@@ -90,7 +90,7 @@ const playSong = (song) => {
 </script>
 
 <style lang="scss" scoped>
-@use "../styles/variables" as *;
+@use "../../styles/variables" as *;
 
 .discover-music {
   height: 100%;

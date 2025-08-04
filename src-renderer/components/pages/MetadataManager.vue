@@ -1,7 +1,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import TagEditor from './TagEditor.vue';
-import FAIcon from './FAIcon.vue';
+import TagEditor from '../common/TagEditor.vue';
+import SongTable from '../common/SongTable.vue'; // 引入新的SongTable组件
+import FAIcon from '../common/FAIcon.vue';
+
 const selectedSongs = ref([]);
 const searchQuery = ref('');
 const isLoading = ref(false);
@@ -28,6 +30,9 @@ const isDragging = ref(false);
 const importStatus = ref('idle'); // idle, importing, success, error
 const importResultMessage = ref('');
 
+// SongTable组件引用
+const songTableRef = ref(null);
+
 // 计算属性：过滤后的歌曲列表（只显示localSongs中的歌曲）
 const filteredSongs = computed(() => {
     if (!searchQuery.value) {
@@ -42,7 +47,27 @@ const filteredSongs = computed(() => {
     );
 });
 
-// 选择歌曲
+// 选中的歌曲ID数组
+const selectedSongIds = computed(() => selectedSongs.value.map(song => song.id));
+
+// 处理SongTable的选择变化
+const handleSelectionChange = ({ selectedIds }) => {
+    selectedSongs.value = filteredSongs.value.filter(song => selectedIds.includes(song.id));
+};
+
+// 处理SongTable的操作按钮点击
+const handleActionClick = ({ action, song }) => {
+    switch (action) {
+        case 'edit':
+            editSong(song);
+            break;
+        case 'search-online':
+            searchOnlineMetadata(song);
+            break;
+    }
+};
+
+// 选择歌曲（保留原有方法供兼容）
 const toggleSelectSong = (song) => {
     const index = selectedSongs.value.findIndex(s => s.id === song.id);
     if (index >= 0) {
@@ -59,13 +84,9 @@ const editSong = (song) => {
     }
 };
 
-
-
 // 导入音乐文件
 const importMusicFiles = async () => {
     try {
-
-
         // 调用Electron对话框选择文件
         if (!window.electronAPI || !window.electronAPI.showOpenDialog) {
             throw new Error('electronAPI.showOpenDialog 方法未定义，请检查预加载脚本');
@@ -79,8 +100,6 @@ const importMusicFiles = async () => {
             properties: ['openFile', 'multiSelections']
         });
 
-
-
         if (result.canceled || result.filePaths.length === 0) {
             return;
         }
@@ -88,8 +107,6 @@ const importMusicFiles = async () => {
         await processImportFiles(result.filePaths);
     } catch (error) {
         console.error('导入文件失败:', error);
-
-
         importStatus.value = 'error';
         importResultMessage.value = `导入失败: ${error.message}`;
     }
@@ -99,103 +116,68 @@ const importMusicFiles = async () => {
 const processImportFiles = async (filePaths) => {
     if (!filePaths || filePaths.length === 0) return;
 
+    isImporting.value = true;
+    importStatus.value = 'importing';
+    importResultMessage.value = '';
+
     try {
-        importStatus.value = 'importing';
-        isImporting.value = true;
+        // 使用Electron API处理文件
+        const results = await window.electronAPI.parseAudioFiles(filePaths);
 
-        // 调用主进程方法导入文件
-        const result = await window.electronAPI.importMusicFiles(filePaths);
+        if (results && results.length > 0) {
+            // 添加到本地歌曲列表，避免重复
+            const existingIds = new Set(localSongs.value.map(song => song.filePath));
+            const newSongs = results.filter(song => !existingIds.has(song.filePath));
 
-        if (result && result.success) {
+            localSongs.value.push(...newSongs);
+
             importStatus.value = 'success';
-            importResultMessage.value = `成功导入 ${result.importedCount} 首歌曲`;
-
-            // 将导入的歌曲添加到本地显示列表
-            if (result.importedSongs && Array.isArray(result.importedSongs)) {
-                localSongs.value.push(...result.importedSongs);
-            } else {
-                // 如果后端没有返回导入的歌曲详情，则从filePaths重新解析
-                const newSongs = await Promise.all(filePaths.map(async (filePath) => {
-                    try {
-                        const songResult = await window.electronAPI.parseSongFromFile(filePath);
-                        return songResult.success ? songResult.song : null;
-                    } catch (error) {
-                        console.error('解析歌曲失败:', error);
-                        return null;
-                    }
-                }));
-                const validSongs = newSongs.filter(song => song !== null);
-                localSongs.value.push(...validSongs);
-            }
+            importResultMessage.value = `成功导入 ${newSongs.length} 首歌曲`;
         } else {
             importStatus.value = 'error';
-            importResultMessage.value = result.error || '导入过程中发生错误';
+            importResultMessage.value = '没有找到有效的音乐文件';
         }
     } catch (error) {
         console.error('处理导入文件失败:', error);
         importStatus.value = 'error';
-        importResultMessage.value = `导入失败: ${error.message}`;
+        importResultMessage.value = `处理失败: ${error.message}`;
     } finally {
         isImporting.value = false;
-        // 5秒后自动清除导入状态信息
-        setTimeout(() => {
-            if (importStatus.value !== 'importing') {
-                importStatus.value = 'idle';
-                importResultMessage.value = '';
-            }
-        }, 5000);
     }
 };
 
-// 处理文件拖拽
-const handleDragOver = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+// 拖拽相关处理
+const handleDragOver = (event) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
     isDragging.value = true;
 };
 
-const handleDragLeave = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    isDragging.value = false;
+const handleDragLeave = (event) => {
+    event.preventDefault();
+    if (!event.relatedTarget || !event.currentTarget.contains(event.relatedTarget)) {
+        isDragging.value = false;
+    }
 };
 
-const handleDrop = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+const handleDrop = async (event) => {
+    event.preventDefault();
     isDragging.value = false;
 
-    const files = Array.from(e.dataTransfer.files);
-    if (files.length === 0) return;
-
-    // 过滤音频文件
-    const audioExtensions = ['mp3', 'flac', 'wav', 'm4a', 'ogg', 'aac'];
+    const files = Array.from(event.dataTransfer.files);
     const audioFiles = files.filter(file => {
-        const extension = file.name.split('.').pop().toLowerCase();
-        return audioExtensions.includes(extension);
+        const ext = file.name.split('.').pop().toLowerCase();
+        return ['mp3', 'flac', 'wav', 'm4a', 'ogg', 'aac'].includes(ext);
     });
 
     if (audioFiles.length === 0) {
         importStatus.value = 'error';
-        importResultMessage.value = '没有找到支持的音频文件';
+        importResultMessage.value = '没有发现有效的音频文件';
         return;
     }
 
-    // 获取文件路径并导入
-    const filePathPromises = audioFiles.map(async file => {
-        // 在Electron渲染进程中，需要使用electronAPI.getPathForFile来获取文件路径
-        try {
-            const result = await window.electronAPI.getPathForFile(file);
-            return result.success ? result.filePath : null;
-        } catch (error) {
-            console.error('获取文件路径失败:', error);
-            return null;
-        }
-    });
-
-    const filePaths = (await Promise.all(filePathPromises)).filter(path => path !== null);
-
-    if (filePaths.length === 0) {
+    const filePaths = audioFiles.map(file => file.path);
+    if (!filePaths || filePaths.length === 0) {
         importStatus.value = 'error';
         importResultMessage.value = '无法获取文件路径';
         return;
@@ -254,13 +236,10 @@ const applyOnlineMetadata = async (song, onlineData) => {
             year: onlineData.createTime ? new Date(onlineData.createTime).getFullYear().toString() : song.year
         };
 
-        // 注意：专辑封面下载功能暂未实现
-
         // 更新标签
         const updateResult = await window.electronAPI.updateSongTags(song.id, newTags);
 
         if (updateResult && updateResult.success) {
-            // 不再自动刷新歌曲列表，保持MetadataManager的独立性
             alert('元数据更新成功！');
         } else {
             alert('更新标签失败: ' + (updateResult.error || '未知错误'));
@@ -283,15 +262,6 @@ const toggleSelectAll = () => {
         selectedSongs.value = [...filteredSongs.value];
     }
 };
-
-// 初始化
-onMounted(async () => {
-    // 不再自动加载歌曲库，用户需要主动导入或扫描
-
-    // MetadataManager 初始化完成
-});
-
-
 
 // 清除工作区
 const clearWorkspace = () => {
@@ -339,6 +309,11 @@ const resetAllStates = () => {
     isLoading.value = false;
     isDragging.value = false;
 };
+
+// 初始化
+onMounted(async () => {
+    // MetadataManager 初始化完成
+});
 </script>
 
 <template>
@@ -367,7 +342,6 @@ const resetAllStates = () => {
                     :class="{ 'loading-icon': isClearing }" />
                 {{ isClearing ? '清除中...' : '清空工作区' }}
             </button>
-
         </div>
 
         <!-- 导入状态提示 -->
@@ -384,43 +358,14 @@ const resetAllStates = () => {
         </div>
 
         <div class="metadata-content">
-            <div class="song-table-container">
-                <table class="song-table">
-                    <thead>
-                        <tr>
-                            <th class="checkbox-column"></th>
-                            <th class="title-column">标题</th>
-                            <th class="artist-column">艺术家</th>
-                            <th class="album-column">专辑</th>
-                            <th class="actions-column">操作</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="song in filteredSongs" :key="song.id" class="song-row">
-                            <td class="checkbox-column">
-                                <input type="checkbox" :checked="selectedSongs.some(s => s.id === song.id)"
-                                    @change="toggleSelectSong(song)" />
-                            </td>
-                            <td class="title-column">{{ song.title || '未知歌曲' }}</td>
-                            <td class="artist-column">{{ song.artist || '未知艺术家' }}</td>
-                            <td class="album-column">{{ song.album || '未知专辑' }}</td>
-                            <td class="actions-column">
-                                <button class="btn btn--icon edit-btn" title="编辑元数据" @click="editSong(song)">
-                                    <FAIcon name="edit" size="small" color="primary" :clickable="true" />
-                                </button>
-                                <button class="btn btn--icon search-btn" title="搜索在线元数据"
-                                    @click="searchOnlineMetadata(song)">
-                                    <FAIcon name="search" size="small" color="primary" :clickable="true" />
-                                </button>
-                            </td>
-                        </tr>
-                        <tr v-if="filteredSongs.length === 0" class="empty-row">
-                            <td colspan="5">未找到歌曲</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+            <!-- 歌曲表格 -->
+            <SongTable ref="songTableRef" :songs="filteredSongs" :loading="isLoading" :show-sortable="false"
+                :show-play-count="false" :show-action-column="true" :action-column-type="'metadata'"
+                :show-selection="true" :selected-song-ids="selectedSongIds" :context-menu-type="'metadata'"
+                :current-list-id="'metadata'" :empty-text="'请导入音乐文件或拖拽文件到此区域'" :empty-icon="'upload'"
+                @action-click="handleActionClick" @selection-change="handleSelectionChange" />
 
+            <!-- 在线搜索面板 -->
             <div class="online-search-panel" v-if="onlineSearchStatus !== 'idle'">
                 <div class="panel-header">
                     <h3>在线元数据搜索结果</h3>
@@ -503,8 +448,8 @@ const resetAllStates = () => {
 
 <style lang="scss" scoped>
 // 导入样式变量
-@use "../styles/variables/_colors" as *;
-@use "../styles/variables/_layout" as *;
+@use "../../styles/variables/_colors" as *;
+@use "../../styles/variables/_layout" as *;
 @use "sass:color";
 
 .metadata-manager {

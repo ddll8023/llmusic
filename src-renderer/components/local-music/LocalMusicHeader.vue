@@ -1,8 +1,8 @@
 <script setup>
-import { useMediaStore } from '../store/media';
-import { usePlayerStore } from '../store/player';
+import { useMediaStore } from '../../store/media';
+import { usePlayerStore, PlayMode } from '../../store/player';
 import { ref, onMounted, watch, computed } from 'vue';
-import ContentHeader from './ContentHeader.vue';
+import ContentHeader from '../common/ContentHeader.vue';
 
 const mediaStore = useMediaStore();
 const playerStore = usePlayerStore();
@@ -52,7 +52,7 @@ const headerActions = computed(() => [
     label: '播放全部',
     icon: 'play',
     type: 'primary',
-    disabled: !mediaStore.songs.length || !mediaStore.activeLibraryId
+    disabled: !mediaStore.songs.length
   }
 ]);
 
@@ -76,16 +76,25 @@ const playAllSongs = () => {
     return;
   }
 
-  if (!mediaStore.activeLibraryId) {
-    alert("请先选择一个音乐库。");
-    return;
+  // activeLibraryId 为 null 代表"所有音乐"，这是有效的选择
+
+  // 根据当前播放模式确定起始歌曲
+  let songToPlayId;
+
+  if (playerStore.playMode === PlayMode.RANDOM) {
+    // 随机播放模式：随机选择一首歌曲
+    const randomIndex = Math.floor(Math.random() * mediaStore.songs.length);
+    songToPlayId = mediaStore.songs[randomIndex].id;
+  } else {
+    // 顺序播放和单曲循环模式：从第一首开始
+    songToPlayId = mediaStore.songs[0].id;
   }
 
   // 播放全部歌曲
   playerStore.playSongFromList({
-    listId: `library-${mediaStore.activeLibraryId}`,
+    listId: mediaStore.activeLibraryId ? `library-${mediaStore.activeLibraryId}` : 'library-all',
     songIds: mediaStore.songs.map(song => song.id),
-    songToPlayId: mediaStore.songs[0].id
+    songToPlayId: songToPlayId
   });
 };
 

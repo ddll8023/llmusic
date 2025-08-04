@@ -109,9 +109,9 @@ const handleActionClick = (actionKey) => {
 </template>
 
 <style lang="scss" scoped>
-@use "../styles/variables/_colors" as *;
-@use "../styles/variables/_layout" as *;
-@use "../styles/variables/_typography" as *;
+@use "../../styles/variables/_colors" as *;
+@use "../../styles/variables/_layout" as *;
+@use "../../styles/variables/_typography" as *;
 @use "sass:color";
 
 .content-header {
@@ -133,19 +133,18 @@ const handleActionClick = (actionKey) => {
 .content-header__info {
     display: flex;
     align-items: center;
-    gap: 24px;
+    gap: 12px;
     flex: 1;
     min-width: 0;
 
     @include respond-to("sm") {
         flex-direction: column;
-        gap: $content-padding;
+        gap: ($content-padding * 0.5);
         align-items: stretch;
     }
 }
 
 .content-header__text {
-    flex: 1;
     min-width: 0;
 
     @include respond-to("sm") {

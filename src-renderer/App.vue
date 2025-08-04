@@ -1,24 +1,26 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import SideBar from './components/SideBar.vue';
-import MainContent from './components/MainContent.vue';
-import Settings from './components/Settings.vue';
-import MetadataManager from './components/MetadataManager.vue';
-import PlayerBar from './components/PlayerBar.vue';
-import LocalMusicHeader from './components/LocalMusicHeader.vue';
-import Playlist from './components/Playlist.vue';
-import LyricPage from './components/LyricPage.vue';
-import PlaylistManage from './components/PlaylistManage.vue';
-import PlaylistContent from './components/PlaylistContent.vue';
-import TitleBar from './components/TitleBar.vue';
-import GlobalScanProgress from './components/GlobalScanProgress.vue';
+import SideBar from './components/common/SideBar.vue';
+import MainContent from './components/pages/MainContent.vue';
+import Settings from './components/pages/Settings.vue';
+import MetadataManager from './components/pages/MetadataManager.vue';
+import PlayerBar from './components/common/PlayerBar.vue';
+import LocalMusicHeader from './components/local-music/LocalMusicHeader.vue';
+import Playlist from './components/common/Playlist.vue';
+import LyricPage from './components/pages/LyricPage.vue';
+import PlaylistManage from './components/pages/PlaylistManage.vue';
+import PlaylistContent from './components/pages/PlaylistContent.vue';
+import TitleBar from './components/common/TitleBar.vue';
+import GlobalScanProgress from './components/common/GlobalScanProgress.vue';
 import { useUiStore } from './store/ui';
 import { usePlaylistStore } from './store/playlist';
 import { usePlayerStore } from './store/player';
+import { useMediaStore } from './store/media';
 
 const uiStore = useUiStore();
 const playlistStore = usePlaylistStore();
 const playerStore = usePlayerStore();
+const mediaStore = useMediaStore();
 
 // 初始化窗口关闭行为
 uiStore.initCloseBehavior();
@@ -30,7 +32,7 @@ const playerBarHeight = 90; // 这个值应该与PlayerBar.vue中的height值一
 let removeNavigateListener = null;
 let removeFileOpenListener = null;
 
-onMounted(() => {
+onMounted(async () => {
     // 初始化CSS变量
     updateLayoutVariables();
 
@@ -40,6 +42,19 @@ onMounted(() => {
             document.activeElement.blur();
         }
     }, 200);
+
+    // 初始化媒体库和歌曲数据
+    try {
+        // 加载音乐库列表
+        await mediaStore.loadLibraries();
+
+        // 如果有音乐库，加载歌曲数据
+        if (mediaStore.libraries.length > 0 || mediaStore.activeLibraryId) {
+            await mediaStore.loadSongs();
+        }
+    } catch (error) {
+        console.error('初始化媒体库失败:', error);
+    }
 
     // 监听主进程发送的导航事件
     removeNavigateListener = window.electronAPI.onNavigateToMain(() => {

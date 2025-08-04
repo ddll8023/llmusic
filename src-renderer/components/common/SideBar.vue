@@ -1,8 +1,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { useUiStore } from '../store/ui';
-import { usePlaylistStore } from '../store/playlist';
-import { useMediaStore } from '../store/media';
+import { useUiStore } from '../../store/ui';
+import { usePlaylistStore } from '../../store/playlist';
+import { useMediaStore } from '../../store/media';
 import FAIcon from './FAIcon.vue';
 
 const uiStore = useUiStore();
@@ -132,9 +132,9 @@ const handleSetLibrary = (libraryId) => {
 
 <style lang="scss" scoped>
 // 导入样式变量
-@use "../styles/variables/_colors" as *;
-@use "../styles/variables/_typography" as *;
-@use "../styles/variables/_layout" as *;
+@use "../../styles/variables/_colors" as *;
+@use "../../styles/variables/_typography" as *;
+@use "../../styles/variables/_layout" as *;
 
 .sidebar {
   width: 100%;

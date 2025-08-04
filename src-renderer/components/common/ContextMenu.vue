@@ -1,14 +1,19 @@
 <script setup>
 import { computed, ref, onMounted, onUnmounted, nextTick, watch } from 'vue';
-import { usePlayerStore } from '../store/player';
-import { usePlaylistStore } from '../store/playlist';
+import { usePlayerStore } from '../../store/player';
+import { usePlaylistStore } from '../../store/playlist';
 import FAIcon from './FAIcon.vue';
 
 const props = defineProps({
   show: Boolean,
   x: Number,
   y: Number,
-  song: Object
+  song: Object,
+  menuType: {
+    type: String,
+    default: 'main',
+    validator: (value) => ['main', 'playlist', 'metadata'].includes(value)
+  }
 });
 
 const emit = defineEmits(['close', 'action']);
@@ -63,6 +68,36 @@ const isCurrentSongPlaying = computed(() => {
   return playerStore.currentSong &&
     props.song && playerStore.currentSong.id === props.song.id &&
     playerStore.playing;
+});
+
+// 根据菜单类型计算可用的菜单项
+const availableMenuItems = computed(() => {
+  const baseItems = [
+    { key: 'play-toggle', label: isCurrentSongPlaying.value ? '暂停' : '播放', icon: isCurrentSongPlaying.value ? 'pause' : 'play', action: 'play-toggle' },
+    { key: 'add-to-playlist', label: '添加到播放列表', icon: 'plus-square-o', action: 'add-to-playlist' },
+    { key: 'show-lyrics', label: '显示歌词', icon: 'file-text-o', action: 'show-lyrics' },
+    { key: 'song-info', label: '歌曲信息', icon: 'info-circle', action: 'song-info' },
+    { key: 'show-in-folder', label: '显示文件位置', icon: 'folder-open', action: 'show-in-folder' },
+    { key: 'copy-info', label: '复制歌曲信息', icon: 'copy', action: 'copy-info' }
+  ];
+
+  const typeSpecificItems = {
+    main: [
+      { key: 'add-to-custom-playlist', label: '添加到歌单', icon: 'plus', action: 'add-to-custom-playlist', hasSubmenu: true },
+      { key: 'edit-tags', label: '编辑标签', icon: 'edit', action: 'edit-tags' },
+      { key: 'remove-from-list', label: '从列表中删除', icon: 'trash', action: 'remove-from-list', class: 'delete' }
+    ],
+    playlist: [
+      { key: 'add-to-custom-playlist', label: '添加到歌单', icon: 'plus', action: 'add-to-custom-playlist', hasSubmenu: true },
+      { key: 'remove-from-list', label: '从歌单移除', icon: 'trash', action: 'remove-from-list', class: 'delete' }
+    ],
+    metadata: [
+      { key: 'edit-tags', label: '编辑标签', icon: 'edit', action: 'edit-tags' },
+      { key: 'remove-from-list', label: '从列表中删除', icon: 'trash', action: 'remove-from-list', class: 'delete' }
+    ]
+  };
+
+  return [...baseItems, ...typeSpecificItems[props.menuType]];
 });
 
 // 处理菜单项点击
@@ -180,104 +215,65 @@ onUnmounted(() => {
     </div>
 
     <div class="menu-items">
-      <!-- 播放/暂停 -->
-      <div class="menu-item" @click="handleMenuAction('play-toggle')">
-        <FAIcon :name="isCurrentSongPlaying ? 'pause' : 'play'" size="medium" color="primary" class="menu-icon" />
-        <span>{{ isCurrentSongPlaying ? '暂停' : '播放' }}</span>
-      </div>
-
-      <!-- 添加到播放列表 -->
-      <div class="menu-item" @click="handleMenuAction('add-to-playlist')">
-        <FAIcon name="plus-square-o" size="medium" color="primary" class="menu-icon" />
-        <span>添加到播放列表</span>
-      </div>
-
-      <!-- 添加到歌单 - 折叠菜单 -->
-      <div class="menu-section">
-        <div class="menu-item toggle-submenu" @click="togglePlaylistSubmenu">
-          <FAIcon name="plus" size="medium" color="primary" class="menu-icon" />
-          <span>添加到歌单</span>
-          <FAIcon :name="showPlaylistSubmenu ? 'chevron-up' : 'chevron-down'" size="small" color="secondary"
-            class="submenu-icon" />
-        </div>
-
-        <!-- 内联子菜单 -->
-        <div v-if="showPlaylistSubmenu" class="inline-submenu">
-          <!-- 加载中状态 -->
-          <div v-if="isLoadingPlaylists" class="submenu-item loading">
-            加载中...
+      <template v-for="item in availableMenuItems" :key="item.key">
+        <!-- 有子菜单的项 -->
+        <div v-if="item.hasSubmenu" class="menu-section">
+          <div class="menu-item toggle-submenu" @click="togglePlaylistSubmenu">
+            <FAIcon :name="item.icon" size="medium" color="primary" class="menu-icon" />
+            <span>{{ item.label }}</span>
+            <FAIcon :name="showPlaylistSubmenu ? 'chevron-up' : 'chevron-down'" size="small" color="secondary"
+              class="submenu-icon" />
           </div>
 
-          <!-- 加载错误 -->
-          <div v-else-if="loadingError" class="submenu-item error">
-            <span>{{ loadingError }}</span>
-          </div>
-
-          <!-- 没有歌单提示 -->
-          <div v-else-if="localPlaylists.length === 0" class="submenu-item no-playlists">
-            <span>暂无歌单</span>
-          </div>
-
-          <!-- 歌单列表 -->
-          <template v-else>
-            <div v-for="playlist in localPlaylists" :key="playlist.id" class="submenu-item"
-              @click.stop="handleAddToPlaylist(playlist)">
-              <FAIcon name="music" size="small" color="primary" class="menu-icon small" />
-              <span>{{ playlist.name }}</span>
+          <!-- 内联子菜单 -->
+          <div v-if="showPlaylistSubmenu" class="inline-submenu">
+            <!-- 加载中状态 -->
+            <div v-if="isLoadingPlaylists" class="submenu-item loading">
+              加载中...
             </div>
-          </template>
 
-          <!-- 创建新歌单 -->
-          <div class="submenu-item create-new" @click.stop="handleCreateNewPlaylist">
-            <FAIcon name="plus-circle" size="small" color="accent" class="menu-icon small" />
-            <span>创建新歌单</span>
+            <!-- 加载错误 -->
+            <div v-else-if="loadingError" class="submenu-item error">
+              <span>{{ loadingError }}</span>
+            </div>
+
+            <!-- 没有歌单提示 -->
+            <div v-else-if="localPlaylists.length === 0" class="submenu-item no-playlists">
+              <span>暂无歌单</span>
+            </div>
+
+            <!-- 歌单列表 -->
+            <template v-else>
+              <div v-for="playlist in localPlaylists" :key="playlist.id" class="submenu-item"
+                @click.stop="handleAddToPlaylist(playlist)">
+                <FAIcon name="music" size="small" color="primary" class="menu-icon small" />
+                <span>{{ playlist.name }}</span>
+              </div>
+            </template>
+
+            <!-- 创建新歌单 -->
+            <div class="submenu-item create-new" @click.stop="handleCreateNewPlaylist">
+              <FAIcon name="plus-circle" size="small" color="accent" class="menu-icon small" />
+              <span>创建新歌单</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- 显示歌词 -->
-      <div class="menu-item" @click="handleMenuAction('show-lyrics')">
-        <FAIcon name="file-text-o" size="medium" color="primary" class="menu-icon" />
-        <span>显示歌词</span>
-      </div>
-
-      <!-- 编辑标签 -->
-      <div class="menu-item" @click="handleMenuAction('edit-tags')">
-        <FAIcon name="edit" size="medium" color="primary" class="menu-icon" />
-        <span>编辑标签</span>
-      </div>
-
-      <!-- 歌曲信息 -->
-      <div class="menu-item" @click="handleMenuAction('song-info')">
-        <FAIcon name="info-circle" size="medium" color="primary" class="menu-icon" />
-        <span>歌曲信息</span>
-      </div>
-
-      <!-- 显示文件位置 -->
-      <div class="menu-item" @click="handleMenuAction('show-in-folder')">
-        <FAIcon name="folder-open" size="medium" color="primary" class="menu-icon" />
-        <span>显示文件位置</span>
-      </div>
-
-      <!-- 复制歌曲信息 -->
-      <div class="menu-item" @click="handleMenuAction('copy-info')">
-        <FAIcon name="copy" size="medium" color="primary" class="menu-icon" />
-        <span>复制歌曲信息</span>
-      </div>
-
-      <!-- 从列表中删除 -->
-      <div class="menu-item delete" @click="handleMenuAction('remove-from-list')">
-        <FAIcon name="trash" size="medium" color="danger" class="menu-icon" />
-        <span>从列表中删除</span>
-      </div>
+        <!-- 普通菜单项 -->
+        <div v-else class="menu-item" :class="item.class" @click="handleMenuAction(item.action)">
+          <FAIcon :name="item.icon" size="medium" :color="item.class === 'delete' ? 'danger' : 'primary'"
+            class="menu-icon" />
+          <span>{{ item.label }}</span>
+        </div>
+      </template>
     </div>
   </div>
 </template>
 
 <style lang="scss" scoped>
 // 导入样式变量
-@use "../styles/variables/_colors" as *;
-@use "../styles/variables/_layout" as *;
+@use "../../styles/variables/_colors" as *;
+@use "../../styles/variables/_layout" as *;
 
 .context-menu {
   position: fixed;

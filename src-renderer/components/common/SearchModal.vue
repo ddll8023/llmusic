@@ -100,7 +100,7 @@
                         <div class="playlist-details">
                           <div class="playlist-name">{{ playlist.name }}</div>
                           <div class="playlist-info">{{ playlist.songCount }}首 · {{ formatPlayCount(playlist.playCount)
-                          }}次播放</div>
+                            }}次播放</div>
                         </div>
                       </div>
                     </div>
@@ -178,10 +178,10 @@
 
 <script setup>
 import { ref, computed, nextTick, watch } from 'vue';
-import { useUiStore } from '../store/ui.js';
-import { useDiscoverStore } from '../store/discover.js';
-import { formatPlayCount } from '../utils/mockDiscoverData.js';
-import { isValidUrl, isMusicLink } from '../utils/linkAnalyzer.js';
+import { useUiStore } from '../../store/ui.js';
+import { useDiscoverStore } from '../../store/discover.js';
+import { formatPlayCount } from '../../utils/mockDiscoverData.js';
+import { isValidUrl, isMusicLink } from '../../utils/linkAnalyzer.js';
 import FAIcon from './FAIcon.vue';
 
 const uiStore = useUiStore();
@@ -282,8 +282,8 @@ const getContentTypeText = (type) => {
 
 <style lang="scss" scoped>
 // 导入样式变量
-@use "../styles/variables/_colors" as *;
-@use "../styles/variables/_layout" as *;
+@use "../../styles/variables/_colors" as *;
+@use "../../styles/variables/_layout" as *;
 
 // 弹窗遮罩层动画
 .modal-enter-active,

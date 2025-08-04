@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import FAIcon from './FAIcon.vue';
-import { useUiStore } from '../store/ui';
+import { useUiStore } from '../../store/ui';
 
 // 最大化状态
 const isMaximized = ref(false);

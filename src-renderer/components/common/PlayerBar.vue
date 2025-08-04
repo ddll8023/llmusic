@@ -1,9 +1,9 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
-import { usePlayerStore, PlayMode } from '../store/player';
-import { useUiStore } from '../store/ui';
-import defaultCoverImage from '../assets/default_img.jpg';
-import FAIcon from '../components/FAIcon.vue';
+import { usePlayerStore, PlayMode } from '../../store/player';
+import { useUiStore } from '../../store/ui';
+import defaultCoverImage from '../../assets/default_img.jpg';
+import FAIcon from './FAIcon.vue';
 
 const playerStore = usePlayerStore();
 const uiStore = useUiStore();
@@ -1001,8 +1001,8 @@ const showLyrics = async () => {
 
 <style lang="scss" scoped>
 // 导入样式变量
-@use "../styles/variables/_colors" as *;
-@use "../styles/variables/_layout" as *;
+@use "../../styles/variables/_colors" as *;
+@use "../../styles/variables/_layout" as *;
 
 .player-bar-container {
     display: grid;

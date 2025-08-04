@@ -20,7 +20,7 @@
 
 <script setup>
 import { computed } from 'vue';
-import { useMediaStore } from '../store/media';
+import { useMediaStore } from '../../store/media';
 import FAIcon from './FAIcon.vue';
 
 const mediaStore = useMediaStore();
@@ -39,8 +39,8 @@ const cancelScan = () => {
 </script>
 
 <style lang="scss" scoped>
-@use "../styles/variables/_colors" as *;
-@use "../styles/variables/_layout" as *;
+@use "../../styles/variables/_colors" as *;
+@use "../../styles/variables/_layout" as *;
 @use "sass:color";
 
 .scan-progress-overlay {

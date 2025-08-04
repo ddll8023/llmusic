@@ -56,8 +56,8 @@ const handleClick = (event) => {
 
 <style lang="scss" scoped>
 // 导入样式变量
-@use "../styles/variables/_colors" as *;
-@use "../styles/variables/_layout" as *;
+@use "../../styles/variables/_colors" as *;
+@use "../../styles/variables/_layout" as *;
 
 // Font Awesome 图标基础样式
 .fa {

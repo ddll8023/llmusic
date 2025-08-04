@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { usePlaylistStore } from '../store/playlist';
-import FAIcon from './FAIcon.vue';
+import { usePlaylistStore } from '../../store/playlist';
+import FAIcon from '../common/FAIcon.vue';
 
 const playlistStore = usePlaylistStore();
 
@@ -106,8 +106,8 @@ async function handleSavePlaylist() {
 
 <style lang="scss" scoped>
 @use "sass:color";
-@use "../styles/variables/_colors" as *;
-@use "../styles/variables/_layout" as *;
+@use "../../styles/variables/_colors" as *;
+@use "../../styles/variables/_layout" as *;
 
 .modal-overlay {
     position: fixed;

@@ -95,9 +95,9 @@
 
 <script setup>
 import { ref, computed, watch, nextTick, onUnmounted, onMounted } from 'vue';
-import { usePlayerStore } from '../store/player';
-import { useUiStore } from '../store/ui';
-import FAIcon from './FAIcon.vue';
+import { usePlayerStore } from '../../store/player';
+import { useUiStore } from '../../store/ui';
+import FAIcon from '../common/FAIcon.vue';
 
 const playerStore = usePlayerStore();
 const uiStore = useUiStore();
@@ -300,8 +300,8 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss" scoped>
-@use "../styles/variables/_colors" as *;
-@use "../styles/variables/_layout" as *;
+@use "../../styles/variables/_colors" as *;
+@use "../../styles/variables/_layout" as *;
 
 .lyric-page {
     background-color: $overlay-dark;

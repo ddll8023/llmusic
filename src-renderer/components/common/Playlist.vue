@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch, onMounted, nextTick } from 'vue';
-import { usePlayerStore } from '../store/player';
-import { useUiStore } from '../store/ui';
+import { usePlayerStore } from '../../store/player';
+import { useUiStore } from '../../store/ui';
 import FAIcon from './FAIcon.vue';
 
 const playerStore = usePlayerStore();
@@ -141,8 +141,8 @@ watch(() => playerStore.currentSong, () => {
 </template>
 
 <style lang="scss" scoped>
-@use "../styles/variables/_colors" as *;
-@use "../styles/variables/_layout" as *;
+@use "../../styles/variables/_colors" as *;
+@use "../../styles/variables/_layout" as *;
 
 .playlist {
     display: flex;

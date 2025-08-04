@@ -106,7 +106,7 @@
 
 <script setup>
 import { ref, reactive, computed, watch } from 'vue';
-import { useMediaStore } from '../store/media';
+import { useMediaStore } from '../../store/media';
 import FAIcon from './FAIcon.vue';
 
 const mediaStore = useMediaStore();
@@ -308,9 +308,9 @@ defineExpose({
 
 <style lang="scss" scoped>
 // 导入样式变量
-@use "../styles/variables/_colors" as *;
-@use "../styles/variables/_typography" as *;
-@use "../styles/variables/_layout" as *;
+@use "../../styles/variables/_colors" as *;
+@use "../../styles/variables/_typography" as *;
+@use "../../styles/variables/_layout" as *;
 
 // 弹窗进入/退出动画
 @keyframes fadeIn {
