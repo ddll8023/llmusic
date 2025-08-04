@@ -1,0 +1,214 @@
+# LLMusic 项目结构文档
+
+## 项目概述
+
+LLMusic 是一个基于 Electron + Vue.js 的本地音乐播放器，支持本地音乐管理、在线音乐发现和播放控制。
+
+## 根目录结构
+
+```
+music/
+├── package.json                    # 项目配置和依赖管理
+├── vite.config.js                  # Vite 构建配置
+├── build.bat                       # Windows 构建脚本
+├── start.bat                       # Windows 启动脚本
+├── README.md                       # 项目说明文档
+├── LLMusic_技术文档.md             # 技术文档
+├── 项目结构文档.md                 # 项目结构说明
+├── img/                            # 图片资源
+├── src-main/                       # Electron 主进程代码
+├── src-renderer/                   # Vue 渲染进程代码
+└── python/                         # Python 后端服务
+```
+
+## 主进程代码 (src-main/)
+
+### 应用入口
+
+- **main.js** - Electron 应用入口，窗口管理、托盘集成、生命周期控制
+- **preload.js** - 预加载脚本，安全的 IPC API 暴露
+
+### IPC 处理器 (handlers/)
+
+按功能域组织的 IPC 请求处理器：
+
+- **index.js** - IPC 处理器统一注册管理
+- **audio/** - 音频相关处理器
+  - **songHandlers.js** - 歌曲信息和播放控制
+  - **playerHandlers.js** - 播放器状态管理
+  - **lyricsHandlers.js** - 歌词解析和获取
+  - **coverHandlers.js** - 专辑封面处理
+- **data/** - 数据相关处理器
+  - **libraryHandlers.js** - 音乐库管理操作
+  - **playlistHandlers.js** - 播放列表 CRUD 操作
+  - **tagHandlers.js** - 音频标签编辑处理
+- **scan/** - 扫描相关处理器
+  - **scanHandlers.js** - 音乐扫描、取消和进度推送
+- **system/** - 系统相关处理器
+  - **windowHandlers.js** - 窗口控制、剪贴板、文件位置处理
+
+### 核心服务 (services/)
+
+业务逻辑封装的核心服务模块：
+
+- **audio/** - 音频处理服务
+  - **AudioProcessor.js** - 音频处理和播放控制引擎
+  - **LyricsParser.js** - LRC 歌词文件解析服务
+  - **TagEditor.js** - 音频文件标签编辑服务
+- **data/** - 数据管理服务
+  - **Database.js** - 数据库操作，基于 lowdb 的 JSON 文件存储
+- **scan/** - 扫描服务
+  - **MusicScanner.js** - 音乐文件扫描和元数据解析
+  - **ScannerWorker.js** - 多进程音乐扫描工作器
+
+### 工具模块 (utils/)
+
+- **async/throttle.js** - 节流函数工具
+- **cache/LRUCache.js** - LRU 缓存实现
+- **ipc/ipcWrapper.js** - IPC 注册封装工具
+
+### 常量定义 (constants/)
+
+- **ipcChannels.js** - IPC 通道名称常量定义
+- **config.js** - 应用配置常量
+- **errors.js** - 错误代码和消息常量
+- **formats.js** - 支持的文件格式常量
+
+## 渲染进程代码 (src-renderer/)
+
+### 应用入口
+
+- **main.js** - Vue 应用初始化和 Pinia 配置
+- **App.vue** - 根组件，应用布局管理
+- **index.html** - HTML 模板文件
+
+### UI 组件 (components/)
+
+#### 主界面组件
+
+- **TitleBar.vue** - 自定义标题栏
+- **SideBar.vue** - 左侧导航栏
+- **MainContent.vue** - 主内容区，歌曲列表展示
+- **PlayerBar.vue** - 底部播放控制栏
+- **LocalMusicHeader.vue** - 本地音乐页头部
+
+#### 功能组件
+
+- **Settings.vue** - 设置页面
+- **LyricPage.vue** - 歌词显示页面
+- **Playlist.vue** - 播放队列显示
+- **PlaylistContent.vue** - 播放列表内容展示
+- **PlaylistManage.vue** - 播放列表管理
+
+#### 在线音乐组件
+
+- **DiscoverMusic.vue** - 在线音乐发现页面
+- **SearchModal.vue** - 搜索对话框
+
+#### 音频管理组件
+
+- **MetadataManager.vue** - 音频元数据管理器
+- **TagEditor.vue** - 音频标签编辑器
+
+#### 系统交互组件
+
+- **ContextMenu.vue** - 右键菜单
+- **DeleteConfirmDialog.vue** - 删除确认对话框
+- **GlobalScanProgress.vue** - 全局扫描进度显示
+
+#### 基础组件
+
+- **Icon.vue** - SVG 图标组件
+- **FAIcon.vue** - FontAwesome 图标组件
+
+### 状态管理 (store/)
+
+- **media.js** - 音乐库状态管理
+- **player.js** - 播放器状态管理
+- **playlist.js** - 播放列表状态管理
+- **ui.js** - UI 状态管理
+- **discover.js** - 在线音乐发现状态管理
+
+### 工具函数 (utils/)
+
+- **linkAnalyzer.js** - 链接分析工具
+- **mockDiscoverData.js** - 模拟数据生成
+
+### 样式系统 (styles/)
+
+- **main.scss** - 主样式入口
+- **variables.scss** - 样式变量
+- **base/** - 基础样式
+- **components/** - 组件样式
+- **themes/** - 主题样式
+- **variables/** - 变量定义
+
+### 资源文件 (assets/)
+
+- **default_img.jpg** - 默认专辑封面
+- **icons.js** - SVG 图标定义
+- **tray-icon.png** - 系统托盘图标
+
+## Python 后端服务 (python/)
+
+### 应用入口
+
+- **app.py** - Flask 应用主入口
+- **requirements.txt** - Python 依赖配置
+
+### 路由控制 (blueprint/)
+
+- **song.py** - 歌曲相关 API 路由控制器
+
+### 通用模块 (common/)
+
+- **configure_logging.py** - 日志系统配置
+- **result.py** - 统一 API 响应格式
+
+### 认证模块 (credential/)
+
+- **get_credential.py** - QQ 音乐 API 凭证管理
+- **request_credential.py** - 用户登录认证处理
+- **credential.json** - 凭证存储文件
+
+### 工具模块 (untils/)
+
+- **search_song.py** - 音乐搜索业务逻辑
+- **temp_song_detail.json** - 临时歌曲详情缓存
+- **temp_song_urls.json** - 临时 URL 缓存
+
+## 技术栈
+
+### 前端技术
+
+- **Electron** - 跨平台桌面应用框架
+- **Vue.js** - 响应式前端框架
+- **Pinia** - Vue 状态管理
+- **Vite** - 现代构建工具
+- **SCSS** - CSS 预处理器
+- **Element Plus** - UI 组件库
+
+### 音频处理
+
+- **music-metadata** - 音频元数据解析
+- **ffmpeg-static** - 静态 FFmpeg 二进制
+- **fluent-ffmpeg** - FFmpeg Node.js 包装器
+
+### 数据存储
+
+- **lowdb** - 轻量级 JSON 数据库
+- **uuid** - 唯一 ID 生成
+
+### 后端技术
+
+- **Flask** - Python Web 框架
+- **qqmusic-api-python** - QQ 音乐 API
+
+### 性能优化
+
+- **vue-virtual-scroller** - 虚拟滚动组件
+- **concurrently** - 并行任务执行
+
+### 构建与部署
+
+- **electron-builder** - Electron 应用打包工具

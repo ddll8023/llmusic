@@ -100,12 +100,9 @@ export const useMediaStore = defineStore("media", {
 					if (!this.activeLibraryId && this.libraries.length > 0) {
 						this.setActiveLibrary(this.libraries[0].id);
 					}
-				} else {
-					console.error("加载音乐库列表失败:", result.error);
 				}
 				return result;
 			} catch (error) {
-				console.error("加载音乐库列表时出错:", error);
 				return { success: false, error: error.message };
 			}
 		},
@@ -133,7 +130,6 @@ export const useMediaStore = defineStore("media", {
 				}
 				return result;
 			} catch (error) {
-				console.error("添加音乐库失败:", error);
 				return { success: false, error: error.message };
 			}
 		},
@@ -156,7 +152,6 @@ export const useMediaStore = defineStore("media", {
 				}
 				return result;
 			} catch (error) {
-				console.error("更新音乐库失败:", error);
 				return { success: false, error: error.message };
 			}
 		},
@@ -173,7 +168,6 @@ export const useMediaStore = defineStore("media", {
 				}
 				return result;
 			} catch (error) {
-				console.error("移除音乐库时出错:", error);
 				return { success: false, error: error.message };
 			}
 		},
@@ -189,7 +183,6 @@ export const useMediaStore = defineStore("media", {
 			this.error = null;
 
 			try {
-				console.log("正在加载歌曲，当前活动库ID:", this.activeLibraryId);
 				const result = await window.electronAPI.getSongs({
 					libraryId: this.activeLibraryId,
 				});
@@ -202,25 +195,17 @@ export const useMediaStore = defineStore("media", {
 
 					// 更新歌曲列表
 					this.songs = result.songs;
-					console.log(`成功加载 ${result.songs.length} 首歌曲`);
 
 					// 如果当前正在播放歌曲，检查它是否在新加载的列表中
 					if (currentSongId) {
 						const songInNewList = this.songs.find(
 							(song) => song.id === currentSongId
 						);
-						if (!songInNewList) {
-							console.log(
-								"当前播放的歌曲不在新加载的歌曲列表中，可能需要更新播放状态"
-							);
-						} else {
+						if (songInNewList) {
 							// 如果在新列表中找到了当前播放的歌曲，确保其播放次数是正确的
 							if (typeof currentSongPlayCount === "number") {
 								// 保留原来的播放次数
 								songInNewList.playCount = currentSongPlayCount;
-								console.log(
-									`保留当前播放歌曲 ${currentSongId} 的播放次数: ${currentSongPlayCount}`
-								);
 							}
 						}
 					}
@@ -231,18 +216,13 @@ export const useMediaStore = defineStore("media", {
 						const songToUpdate = this.songs.find((song) => song.id === id);
 						if (songToUpdate) {
 							songToUpdate.playCount = playCount;
-							console.log(
-								`应用之前记录的播放次数更新: 歌曲 ${id} 播放次数为 ${playCount}`
-							);
 						}
 					}
 				} else {
 					this.error = result.error || "加载歌曲失败";
-					console.error(this.error);
 				}
 			} catch (error) {
 				this.error = error.message || "加载歌曲时出错";
-				console.error("加载歌曲出错:", error);
 			} finally {
 				this.loading = false;
 			}
@@ -251,7 +231,6 @@ export const useMediaStore = defineStore("media", {
 		// 开始扫描音乐
 		async scanMusic(libraryId, clearExisting = true) {
 			if (!libraryId) {
-				console.error("scanMusic: 必须提供 libraryId");
 				return;
 			}
 			this.scanning = true;
@@ -300,12 +279,10 @@ export const useMediaStore = defineStore("media", {
 
 					// 验证并清理播放列表中无效的歌曲ID
 					this.scanProgress.message = "正在验证播放列表...";
-					console.log("验证播放列表中的歌曲...");
 					await playerStore.validatePlaylist();
 
 					// 验证当前播放的歌曲是否仍然存在
 					if (currentSongId) {
-						console.log("验证当前播放歌曲是否仍然存在...");
 						await playerStore.validateCurrentSong();
 
 						// 如果验证成功且之前在播放，则恢复播放
@@ -321,12 +298,10 @@ export const useMediaStore = defineStore("media", {
 					this.scanProgress.message = `扫描完成，共找到 ${this.songs.length} 首歌曲。播放列表已更新。`;
 
 					// 重新加载音乐库信息，确保界面上显示的歌曲数量是最新的
-					console.log("扫描完成，重新加载音乐库信息...");
 					await this.loadLibraries();
 				}
 				return result;
 			} catch (error) {
-				console.error("扫描音乐时出错:", error);
 				this.scanProgress.phase = "error";
 				this.scanProgress.message = error.message;
 				return { success: false, error: error.message };
@@ -345,13 +320,9 @@ export const useMediaStore = defineStore("media", {
 				this.scanProgress.message = "扫描已取消";
 
 				const result = await window.electronAPI.cancelScan();
-				if (!result.success) {
-					console.warn("取消扫描失败:", result.message);
-				}
 
 				return result;
 			} catch (error) {
-				console.error("取消扫描时出错:", error);
 				this.scanning = false;
 				this.scanProgress.phase = "canceled";
 				this.scanProgress.message = "扫描已取消";
@@ -359,54 +330,9 @@ export const useMediaStore = defineStore("media", {
 			}
 		},
 
-		// 加载最后扫描路径
-		async loadLastScanPath() {
-			try {
-				const result = await window.electronAPI.getLastScanPath();
-				if (result.success) {
-					this.lastScanPath = result.path;
-				}
-				return result;
-			} catch (error) {
-				console.error("获取最后扫描路径时出错:", error);
-				return { success: false, error: error.message };
-			}
-		},
-
-		// 清空歌曲库
-		async clearSongs() {
-			try {
-				this.clearingSongs = true;
-
-				// 调用主进程清空歌曲库
-				const result = await window.electronAPI.clearSongs();
-
-				if (result.success) {
-					// 清空本地歌曲列表
-					this.songs = [];
-
-					// 重置播放器状态
-					const playerStore = usePlayerStore();
-					playerStore.resetPlayerState();
-
-					console.log("歌曲库已清空，播放器已重置");
-				} else {
-					console.error("清空歌曲库失败:", result.error);
-				}
-
-				this.clearingSongs = false;
-				return result;
-			} catch (error) {
-				console.error("清空歌曲库时出错:", error);
-				this.clearingSongs = false;
-				return { success: false, error: error.message };
-			}
-		},
-
 		// 更新单首歌曲的播放次数
 		updateSongPlayCount(songId, playCount) {
 			if (!songId || typeof playCount !== "number") {
-				console.warn("更新播放次数参数无效:", { songId, playCount });
 				return false;
 			}
 
@@ -432,10 +358,8 @@ export const useMediaStore = defineStore("media", {
 					};
 				});
 
-				console.log(`媒体库中歌曲 ${songId} 的播放次数已更新为 ${playCount}`);
 				return true;
 			} else {
-				console.log(`当前视图中未找到ID为 ${songId} 的歌曲，但已记录更新`);
 				return false;
 			}
 		},
@@ -454,14 +378,46 @@ export const useMediaStore = defineStore("media", {
 							...this.songs[songIndex],
 							...result.song,
 						};
-						console.log(`歌曲 ${songId} 数据已刷新`);
 						return true;
 					}
 				}
 				return false;
 			} catch (error) {
-				console.error(`刷新歌曲 ${songId} 数据失败:`, error);
 				return false;
+			}
+		},
+
+		// 清除所有歌曲
+		async clearAllSongs() {
+			if (this.scanning) {
+				return { success: false, error: "扫描进行中，无法清除歌曲" };
+			}
+
+			try {
+				this.clearingSongs = true;
+
+				// 调用主进程清除所有歌曲
+				const result = await window.electronAPI.clearAllSongs();
+
+				if (result.success) {
+					// 清空本地状态
+					this.songs = [];
+					this.searchTerm = "";
+					this.lastUpdatedSong = null;
+					this.error = null;
+
+					// 通知播放器停止播放
+					const playerStore = usePlayerStore();
+					if (playerStore.currentSong) {
+						playerStore.stop();
+					}
+				}
+
+				return result;
+			} catch (error) {
+				return { success: false, error: error.message };
+			} finally {
+				this.clearingSongs = false;
 			}
 		},
 	},

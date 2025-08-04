@@ -1,0 +1,103 @@
+// 应用布局样式
+
+@use "../variables/_colors" as *;
+@use "../variables/_typography" as *;
+@use "../variables/_layout" as *;
+
+.main-layout {
+    display: grid;
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    transition: grid-template-columns $transition-base;
+    gap: 0;
+    height: calc(100vh - var(--player-bar-height) - var(--title-bar-height));
+
+    /* 默认网格布局：使用CSS变量控制侧边栏宽度 */
+    grid-template-columns: var(--sidebar-width) 1fr;
+}
+
+.sidebar-container {
+    position: relative;
+    height: 100%;
+    overflow: hidden;
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+    grid-column: 1;
+    transition: opacity $transition-base;
+}
+
+.content-wrapper {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    background-color: $bg-primary;
+    grid-column: 2;
+}
+
+/* 侧边栏隐藏状态的布局调整 */
+.main-layout.sidebar-hidden {
+    grid-template-columns: 0 1fr;
+
+    .sidebar-container {
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .content-wrapper {
+        grid-column: 1 / -1;
+    }
+}
+
+/* 动态侧边栏宽度支持 */
+.main-layout {
+    --current-sidebar-width: var(--sidebar-width, #{$sidebar-width-default});
+    grid-template-columns: var(--current-sidebar-width) 1fr;
+}
+
+/* 播放器控制栏样式，增加z-index确保始终在顶层 */
+.player-bar {
+    position: relative;
+    z-index: $z-player;
+}
+
+/* 响应式布局 - 小屏幕适配 */
+@include respond-to("sm") {
+    .main-layout {
+        grid-template-columns: 1fr;
+
+        .sidebar {
+            position: absolute;
+            z-index: $z-modal;
+            height: 100%;
+            transform: translateX(-100%);
+            transition: transform $transition-slow;
+        }
+
+        /* 当侧边栏在小屏幕上可见时，滑入显示 */
+        &:not(.sidebar-hidden) .sidebar {
+            transform: translateX(0);
+        }
+
+        /* 小屏幕上的折叠状态不改变任何内容，显示时始终全宽 */
+        &.sidebar-collapsed {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* 标题栏在移动设备上调整 */
+    .title-bar {
+        padding: 0 5px;
+
+        .app-title {
+            font-size: $font-size-sm;
+        }
+    }
+
+    .title-bar-button {
+        width: 40px;
+    }
+}

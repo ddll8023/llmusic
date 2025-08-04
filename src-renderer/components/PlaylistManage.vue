@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { usePlaylistStore } from '../store/playlist';
+import FAIcon from './FAIcon.vue';
 
 const playlistStore = usePlaylistStore();
 
@@ -54,33 +55,45 @@ async function handleSavePlaylist() {
         @click.self="playlistStore.closePlaylistDialog()">
         <div class="modal-content" @click.stop>
             <div class="modal-header">
-                <h3>{{ dialogTitle }}</h3>
-                <button class="close-btn" @click="playlistStore.closePlaylistDialog()">&times;</button>
+                <h3 class="modal-title">{{ dialogTitle }}</h3>
+                <button class="close-btn" @click="playlistStore.closePlaylistDialog()">
+                    <FAIcon name="times" size="medium" color="secondary" :clickable="true" />
+                </button>
             </div>
 
             <div class="modal-body">
                 <!-- 错误提示 -->
-                <div class="error-message" v-if="errorMessage">{{ errorMessage }}</div>
+                <div class="message error-message" v-if="errorMessage">
+                    <FAIcon name="exclamation-circle" size="medium" color="danger" />
+                    {{ errorMessage }}
+                </div>
+
                 <!-- 成功提示 -->
-                <div class="success-message" v-if="showSuccess">操作成功</div>
+                <div class="message success-message" v-if="showSuccess">
+                    <FAIcon name="check-circle" size="medium" color="accent" />
+                    操作成功
+                </div>
 
                 <form @submit.prevent="handleSavePlaylist">
                     <div class="form-group">
-                        <label for="playlist-name">歌单名称</label>
-                        <input type="text" id="playlist-name" v-model="playlistStore.editingPlaylist.name"
-                            placeholder="请输入歌单名称" autofocus>
+                        <label for="playlist-name" class="form-label">歌单名称</label>
+                        <input type="text" id="playlist-name" class="form-input"
+                            v-model="playlistStore.editingPlaylist.name" placeholder="请输入歌单名称" autofocus>
                     </div>
 
                     <div class="form-group">
-                        <label for="playlist-desc">描述 (可选)</label>
-                        <textarea id="playlist-desc" v-model="playlistStore.editingPlaylist.description"
-                            placeholder="请输入歌单描述" rows="3"></textarea>
+                        <label for="playlist-desc" class="form-label">描述 (可选)</label>
+                        <textarea id="playlist-desc" class="form-textarea"
+                            v-model="playlistStore.editingPlaylist.description" placeholder="请输入歌单描述"
+                            rows="3"></textarea>
                     </div>
 
                     <div class="button-group">
-                        <button type="button" class="cancel-btn"
-                            @click="playlistStore.closePlaylistDialog()">取消</button>
-                        <button type="submit" class="save-btn" :disabled="playlistStore.loading">
+                        <button type="button" class="btn btn--secondary cancel-btn"
+                            @click="playlistStore.closePlaylistDialog()">
+                            取消
+                        </button>
+                        <button type="submit" class="btn btn--primary save-btn" :disabled="playlistStore.loading">
                             <span v-if="playlistStore.loading">保存中...</span>
                             <span v-else>保存</span>
                         </button>
@@ -91,163 +104,354 @@ async function handleSavePlaylist() {
     </div>
 </template>
 
-<style scoped>
+<style lang="scss" scoped>
+@use "sass:color";
+@use "../styles/variables/_colors" as *;
+@use "../styles/variables/_layout" as *;
+
 .modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.7);
+    background-color: $overlay-dark;
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
+    z-index: $z-modal;
+    animation: fadeIn $transition-fast ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 .modal-content {
-    background-color: #282828;
-    border-radius: 8px;
+    background-color: $bg-tertiary;
+    border-radius: $border-radius;
     width: 400px;
     max-width: 90%;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-    animation: modal-in 0.3s ease;
+    box-shadow: $box-shadow-hover;
+    animation: modalIn $transition-slow ease-out;
+    border: 1px solid $bg-tertiary;
+    overflow: hidden;
+
+    @include respond-to("sm") {
+        width: 320px;
+        max-width: 95%;
+    }
+}
+
+@keyframes modalIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 .modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 20px;
-    border-bottom: 1px solid #333;
+    padding: $content-padding (
+        $content-padding * 1.25
+    );
+background-color: $bg-secondary;
+border-bottom: 1px solid $bg-tertiary;
+
+@include respond-to("sm") {
+    padding: ($content-padding * 0.75) $content-padding;
+}
 }
 
-.modal-header h3 {
+.modal-title {
     margin: 0;
-    color: #fff;
-    font-size: 18px;
+    color: $text-primary;
+    font-size: $font-size-lg;
+    font-weight: $font-weight-medium;
+
+    @include respond-to("sm") {
+        font-size: $font-size-base;
+    }
 }
 
 .close-btn {
     background: none;
     border: none;
-    color: #aaa;
-    font-size: 24px;
+    color: $text-secondary;
     cursor: pointer;
-    transition: color 0.2s;
+    padding: ($content-padding * 0.375);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: $border-radius;
+    transition: all $transition-base;
+    min-width: 32px;
+    min-height: 32px;
+
+    &:hover {
+        color: $text-primary;
+        background-color: $overlay-light;
+        transform: scale(1.05);
+    }
+
+    &:active {
+        transform: scale(0.95);
+    }
+
+    @include respond-to("sm") {
+        min-width: 28px;
+        min-height: 28px;
+        padding: ($content-padding * 0.25);
+    }
 }
 
-.close-btn:hover {
-    color: #fff;
-}
+
 
 .modal-body {
-    padding: 20px;
+    padding: ($content-padding * 1.25);
+
+    @include respond-to("sm") {
+        padding: $content-padding;
+    }
 }
 
-.form-group {
-    margin-bottom: 16px;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 6px;
-    color: #ddd;
-    font-size: 14px;
-}
-
-.form-group input,
-.form-group textarea {
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid #444;
-    border-radius: 4px;
-    background-color: #333;
-    color: #fff;
-    font-size: 14px;
-    box-sizing: border-box;
-}
-
-.form-group input:focus,
-.form-group textarea:focus {
-    border-color: #1db954;
-    outline: none;
-}
-
-.button-group {
+.message {
     display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    margin-top: 20px;
+    align-items: center;
+    gap: ($content-padding * 0.75);
+    padding: ($content-padding * 0.75) $content-padding;
+    border-radius: $border-radius;
+    margin-bottom: $content-padding;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-medium;
+    animation: slideIn $transition-base ease-out;
+
+    @include respond-to("sm") {
+        gap: ($content-padding * 0.5);
+        padding: ($content-padding * 0.5) ($content-padding * 0.75);
+        font-size: $font-size-xs;
+    }
 }
 
-.cancel-btn,
-.save-btn {
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 14px;
-    border: none;
-    font-weight: 500;
-    transition: all 0.2s;
-}
-
-.cancel-btn {
-    background-color: transparent;
-    color: #ddd;
-    border: 1px solid #555;
-}
-
-.cancel-btn:hover {
-    background-color: #333;
-    color: #fff;
-}
-
-.save-btn {
-    background-color: #1db954;
-    color: #fff;
-}
-
-.save-btn:hover:not(:disabled) {
-    background-color: #1ed760;
-    transform: translateY(-1px);
-}
-
-.save-btn:disabled {
-    background-color: #333;
-    color: #777;
-    cursor: not-allowed;
-}
-
-.error-message {
-    padding: 8px 12px;
-    background-color: rgba(220, 53, 69, 0.2);
-    border: 1px solid #dc3545;
-    border-radius: 4px;
-    color: #ff6b6b;
-    margin-bottom: 16px;
-    font-size: 14px;
-}
-
-.success-message {
-    padding: 8px 12px;
-    background-color: rgba(40, 167, 69, 0.2);
-    border: 1px solid #28a745;
-    border-radius: 4px;
-    color: #6dff9e;
-    margin-bottom: 16px;
-    font-size: 14px;
-}
-
-@keyframes modal-in {
+@keyframes slideIn {
     from {
         opacity: 0;
-        transform: translateY(-20px);
+        transform: translateY(-10px);
     }
 
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+
+
+.error-message {
+    background-color: rgba($danger, 0.1);
+    border: 1px solid rgba($danger, 0.3);
+    color: $danger;
+}
+
+.success-message {
+    background-color: rgba($accent-green, 0.1);
+    border: 1px solid rgba($accent-green, 0.3);
+    color: $accent-green;
+}
+
+.form-group {
+    margin-bottom: $content-padding;
+
+    &:last-of-type {
+        margin-bottom: ($content-padding * 1.5);
+    }
+
+    @include respond-to("sm") {
+        margin-bottom: ($content-padding * 0.75);
+
+        &:last-of-type {
+            margin-bottom: $content-padding;
+        }
+    }
+}
+
+.form-label {
+    display: block;
+    margin-bottom: ($content-padding * 0.375);
+    color: $text-secondary;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-medium;
+
+    @include respond-to("sm") {
+        font-size: $font-size-xs;
+        margin-bottom: ($content-padding * 0.25);
+    }
+}
+
+.form-input,
+.form-textarea {
+    width: 100%;
+    padding: ($content-padding * 0.75) $content-padding;
+    border: 1px solid $bg-tertiary;
+    border-radius: $border-radius;
+    background-color: $bg-secondary;
+    color: $text-primary;
+    font-size: $font-size-base;
+    box-sizing: border-box;
+    transition: all $transition-base;
+    font-family: inherit;
+
+    &::placeholder {
+        color: $text-disabled;
+    }
+
+    &:focus {
+        border-color: $accent-green;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba($accent-green, 0.2);
+    }
+
+    &:hover:not(:focus) {
+        border-color: color.adjust($bg-tertiary, $lightness: 10%);
+    }
+
+    @include respond-to("sm") {
+        padding: ($content-padding * 0.5) ($content-padding * 0.75);
+        font-size: $font-size-sm;
+    }
+}
+
+.form-textarea {
+    resize: vertical;
+    min-height: 80px;
+    line-height: 1.5;
+
+    @include respond-to("sm") {
+        min-height: 70px;
+    }
+}
+
+.button-group {
+    display: flex;
+    justify-content: flex-end;
+    gap: ($content-padding * 0.75);
+    margin-top: ($content-padding * 1.25);
+
+    @include respond-to("sm") {
+        gap: ($content-padding * 0.5);
+        margin-top: $content-padding;
+    }
+}
+
+.btn {
+    padding: ($content-padding * 0.5) ($content-padding * 1.25);
+    border-radius: $border-radius;
+    cursor: pointer;
+    font-size: $font-size-base;
+    border: none;
+    font-weight: $font-weight-medium;
+    transition: all $transition-base;
+    min-width: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:active {
+        transform: translateY(1px);
+    }
+
+    @include respond-to("sm") {
+        padding: ($content-padding * 0.375) $content-padding;
+        font-size: $font-size-sm;
+        min-width: 70px;
+    }
+}
+
+.btn--secondary {
+    background-color: transparent;
+    color: $text-secondary;
+    border: 1px solid $bg-tertiary;
+
+    &:hover:not(:disabled) {
+        background-color: $overlay-light;
+        color: $text-primary;
+        border-color: color.adjust($bg-tertiary, $lightness: 10%);
+    }
+}
+
+.btn--primary {
+    background-color: $accent-green;
+    color: $text-primary;
+
+    &:hover:not(:disabled) {
+        background-color: $accent-hover;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba($accent-green, 0.3);
+    }
+
+    &:disabled {
+        background-color: $bg-tertiary;
+        color: $text-disabled;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+
+        &:hover {
+            background-color: $bg-tertiary;
+            transform: none;
+            box-shadow: none;
+        }
+    }
+}
+
+// 高对比度模式支持
+@media (prefers-contrast: high) {
+    .modal-content {
+        border: 2px solid $text-primary;
+    }
+
+    .form-input,
+    .form-textarea {
+        border-width: 2px;
+    }
+
+    .btn {
+        border-width: 2px;
+    }
+}
+
+// 减少动画模式支持
+@media (prefers-reduced-motion: reduce) {
+
+    .modal-overlay,
+    .modal-content,
+    .message,
+    .btn,
+    .close-btn,
+    .form-input,
+    .form-textarea {
+        animation: none;
+        transition: none;
+    }
+
+    .btn:hover,
+    .btn:active,
+    .close-btn:hover,
+    .close-btn:active {
+        transform: none;
     }
 }
 </style>

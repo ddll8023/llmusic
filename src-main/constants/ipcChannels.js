@@ -7,6 +7,7 @@ const CHANNELS = {
 	WINDOW_MAXIMIZE: "window-maximize",
 	WINDOW_RESTORE: "window-restore",
 	WINDOW_CLOSE: "window-close",
+	WINDOW_SHOW: "window-show",
 	IS_WINDOW_MAXIMIZED: "is-window-maximized",
 	WINDOW_MAXIMIZED_CHANGE: "window-maximized-change", // 仅用于发送
 	NAVIGATE_TO_MAIN: "navigate-to-main", // 事件
@@ -22,9 +23,7 @@ const CHANNELS = {
 	GET_LYRICS: "get-lyrics",
 	GET_SONG_COVER: "get-song-cover",
 	FORCE_EXTRACT_COVER: "force-extract-cover",
-	CHECK_FILE_EXISTS: "check-file-exists",
-	CLEAR_COVER_CACHE: "clear-cover-cache",
-	VALIDATE_SONG_FILES: "validate-song-files",
+
 	PARSE_SONG_FROM_FILE: "parse-song-from-file",
 	CLEAR_ALL_SONGS: "clear-all-songs",
 	INCREMENT_PLAY_COUNT: "increment-play-count", // 新增：增加播放次数
@@ -32,15 +31,13 @@ const CHANNELS = {
 
 	// 播放控制
 	PLAYER_PLAY: "player-play",
-	PLAYER_PAUSE: "player-pause",
-	PLAYER_RESUME: "player-resume",
+
 	PLAYER_STOP: "player-stop",
 	PLAYER_SEEK: "player-seek",
-	PLAYER_SET_VOLUME: "player-set-volume",
-	PLAYER_SET_MUTED: "player-set-muted",
+
 	PLAYER_GET_STATUS: "player-get-status",
 	PLAYER_AUDIO_DATA: "player-audio-data", // 发送
-	PLAYER_PROGRESS: "player-progress", // 发送
+
 	PLAYER_ENDED: "player-ended", // 发送
 	PLAYER_ERROR: "player-error", // 发送
 
@@ -66,13 +63,26 @@ const CHANNELS = {
 	// Window and Dialog
 	SELECT_DIRECTORY: "select-directory",
 
-	// 封面处理
-	EXTRACT_COVER: "force-extract-cover",
-
 	// --- 标签编辑 ---
 	GET_SONG_TAGS: "get-song-tags",
 	UPDATE_SONG_TAGS: "update-song-tags",
 	VALIDATE_TAG_CHANGES: "validate-tag-changes",
+
+	// --- 文件对话框 ---
+	SHOW_OPEN_DIALOG: "show-open-dialog",
+
+	// --- 音乐导入 ---
+	IMPORT_MUSIC_FILES: "import-music-files",
+
+	// --- 在线搜索 ---
+	SEARCH_ONLINE_METADATA: "search-online-metadata",
+
+	// --- 文件路径获取 ---
+	GET_PATH_FOR_FILE: "get-path-for-file",
+
+	// --- 窗口行为设置 ---
+	SET_CLOSE_BEHAVIOR: "set-close-behavior",
+	GET_CLOSE_BEHAVIOR: "get-close-behavior",
 };
 
 module.exports = { CHANNELS };

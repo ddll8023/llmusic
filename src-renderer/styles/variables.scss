@@ -1,0 +1,6 @@
+// 统一的样式变量入口文件
+// 供Vue组件中的<style>块使用
+
+@forward "variables/_colors";
+@forward "variables/_typography";
+@forward "variables/_layout";

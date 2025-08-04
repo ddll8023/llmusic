@@ -1,1 +1,135 @@
-��
+// 侧边栏组件样式
+
+// 导入变量
+@use "../variables/_colors" as *;
+@use "../variables/_typography" as *;
+@use "../variables/_layout" as *;
+
+// 图标样式类
+.icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+    flex-shrink: 0;
+
+    // 尺寸修饰符
+    &--small {
+        width: $icon-size-xs;
+        height: $icon-size-xs;
+        font-size: $icon-size-xs;
+    }
+
+    &--medium {
+        width: $icon-size-base;
+        height: $icon-size-base;
+        font-size: $icon-size-base;
+    }
+
+    &--large {
+        width: $icon-size-lg;
+        height: $icon-size-lg;
+        font-size: $icon-size-lg;
+    }
+
+    &--xl {
+        width: $icon-size-xl;
+        height: $icon-size-xl;
+        font-size: $icon-size-xl;
+    }
+
+    // 颜色修饰符
+    &--primary {
+        color: $text-primary;
+    }
+
+    &--secondary {
+        color: $text-secondary;
+    }
+
+    &--accent {
+        color: $accent-green;
+    }
+
+    &--disabled {
+        color: $text-disabled;
+    }
+
+    // 交互修饰符
+    &--clickable {
+        cursor: pointer;
+        transition: color $transition-base;
+
+        &:hover {
+            color: $text-primary;
+        }
+
+        &:active {
+            transform: scale(0.95);
+        }
+    }
+
+    // 收缩状态适配
+    .sidebar--collapsed & {
+        &--medium {
+            width: $icon-size-xl;
+            height: $icon-size-xl;
+            font-size: $icon-size-xl;
+        }
+
+        &--clickable {
+            color: $text-primary;
+        }
+    }
+}
+
+// 侧边栏特定图标适配
+.sidebar__menu-item {
+    .icon {
+        margin-right: $content-padding;
+        flex-shrink: 0;
+
+        .sidebar--collapsed & {
+            margin-right: 0;
+        }
+    }
+}
+
+// 响应式适配增强
+@include respond-to("md") {
+    .sidebar {
+        &--collapsed {
+            .icon--medium {
+                width: $icon-size-lg;
+                height: $icon-size-lg;
+                font-size: $icon-size-lg;
+            }
+        }
+    }
+}
+
+@include respond-to("sm") {
+    .sidebar {
+        .icon {
+            &--medium {
+                width: $icon-size-sm;
+                height: $icon-size-sm;
+                font-size: $icon-size-sm;
+            }
+
+            &--small {
+                width: 10px;
+                height: 10px;
+                font-size: 10px;
+            }
+        }
+
+        &--collapsed {
+            .icon--medium {
+                width: $icon-size-base;
+                height: $icon-size-base;
+                font-size: $icon-size-base;
+            }
+        }
+    }
+}

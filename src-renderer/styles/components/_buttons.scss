@@ -1,0 +1,232 @@
+// 按钮组件样式
+
+@use "sass:color";
+@use "../variables/_colors" as *;
+@use "../variables/_typography" as *;
+@use "../variables/_layout" as *;
+
+// 基础按钮
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    border-radius: $border-radius;
+    border: 1px solid transparent;
+    font-size: $font-size-base;
+    font-weight: $font-weight-medium;
+    line-height: $line-height-tight;
+    cursor: pointer;
+    transition: all $transition-base;
+    text-decoration: none;
+    user-select: none;
+    white-space: nowrap;
+
+    &:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+
+    // 图标间距
+    .fa+span,
+    span+.fa {
+        margin-left: 8px;
+    }
+}
+
+// 按钮尺寸
+.btn--small {
+    padding: 4px 12px;
+    font-size: $font-size-sm;
+
+    .fa {
+        font-size: $icon-size-sm;
+    }
+}
+
+.btn--medium {
+    padding: 8px 16px;
+    font-size: $font-size-base;
+
+    .fa {
+        font-size: $icon-size-base;
+    }
+}
+
+.btn--large {
+    padding: 12px 24px;
+    font-size: $font-size-md;
+
+    .fa {
+        font-size: $icon-size-lg;
+    }
+}
+
+// 按钮类型
+.btn--primary {
+    background-color: $accent-green;
+    color: $text-primary;
+    border-color: $accent-green;
+
+    &:hover:not(:disabled) {
+        background-color: $accent-hover;
+        border-color: $accent-hover;
+        box-shadow: $box-shadow-hover;
+    }
+
+    &:active:not(:disabled) {
+        background-color: color.adjust($accent-green, $lightness: -10%);
+        transform: translateY(1px);
+    }
+}
+
+.btn--secondary {
+    background-color: $bg-tertiary;
+    color: $text-primary;
+    border-color: $bg-tertiary;
+
+    &:hover:not(:disabled) {
+        background-color: color.adjust($bg-tertiary, $lightness: 10%);
+        border-color: color.adjust($bg-tertiary, $lightness: 10%);
+    }
+
+    &:active:not(:disabled) {
+        background-color: color.adjust($bg-tertiary, $lightness: 5%);
+        transform: translateY(1px);
+    }
+}
+
+.btn--ghost {
+    background-color: transparent;
+    color: $text-secondary;
+    border-color: $bg-tertiary;
+
+    &:hover:not(:disabled) {
+        background-color: $overlay-light;
+        color: $text-primary;
+        border-color: $accent-green;
+    }
+
+    &:active:not(:disabled) {
+        background-color: $overlay-medium;
+        transform: translateY(1px);
+    }
+}
+
+.btn--danger {
+    background-color: $danger;
+    color: $text-primary;
+    border-color: $danger;
+
+    &:hover:not(:disabled) {
+        background-color: color.adjust($danger, $lightness: 10%);
+        border-color: color.adjust($danger, $lightness: 10%);
+    }
+
+    &:active:not(:disabled) {
+        background-color: color.adjust($danger, $lightness: -10%);
+        transform: translateY(1px);
+    }
+}
+
+// 图标按钮
+.btn--icon {
+    padding: 8px;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+
+    &.btn--small {
+        padding: 4px;
+        width: 32px;
+        height: 32px;
+    }
+
+    &.btn--large {
+        padding: 12px;
+        width: 48px;
+        height: 48px;
+    }
+}
+
+// 文字按钮
+.btn--text {
+    background-color: transparent;
+    border-color: transparent;
+    color: $text-secondary;
+    padding: 4px 8px;
+
+    &:hover:not(:disabled) {
+        background-color: $overlay-light;
+        color: $text-primary;
+    }
+
+    &:active:not(:disabled) {
+        background-color: $overlay-medium;
+    }
+}
+
+// 按钮组
+.btn-group {
+    display: inline-flex;
+
+    .btn {
+        border-radius: 0;
+        border-right-width: 0;
+
+        &:first-child {
+            border-top-left-radius: $border-radius;
+            border-bottom-left-radius: $border-radius;
+        }
+
+        &:last-child {
+            border-top-right-radius: $border-radius;
+            border-bottom-right-radius: $border-radius;
+            border-right-width: 1px;
+        }
+
+        &:only-child {
+            border-radius: $border-radius;
+            border-right-width: 1px;
+        }
+    }
+}
+
+// 播放器专用按钮
+.player-btn {
+    @extend .btn;
+    @extend .btn--icon;
+    background-color: transparent;
+    color: $text-secondary;
+    border: none;
+    transition: all $transition-fast;
+
+    &:hover:not(:disabled) {
+        color: $accent-green;
+        background-color: $overlay-light;
+        transform: scale(1.1);
+    }
+
+    &:active:not(:disabled) {
+        transform: scale(0.95);
+    }
+
+    &.is-active {
+        color: $accent-green;
+    }
+}
+
+// 控制按钮（播放/暂停）
+.control-btn {
+    @extend .player-btn;
+    width: 48px;
+    height: 48px;
+    background-color: $accent-green;
+    color: $text-primary;
+
+    &:hover:not(:disabled) {
+        background-color: $accent-hover;
+        color: $text-primary;
+        transform: scale(1.05);
+    }
+}

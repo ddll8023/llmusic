@@ -28,19 +28,20 @@ const API = {
 		start: (options) => ipcRenderer.invoke("scan-music-start", options),
 		cancel: () => ipcRenderer.invoke("scan-music-cancel"),
 		onProgress: (callback) => createListener("scan-progress", callback),
-		onCompleted: (callback) => createListener("scan-completed", callback),
 	},
 
 	// 歌曲数据相关
 	songs: {
 		getAll: (options) => ipcRenderer.invoke("get-songs", options),
 		getById: (songId) => ipcRenderer.invoke("get-song-by-id", songId),
-		validateFiles: () => ipcRenderer.invoke("validate-song-files"),
+
 		parseFromFile: (filePath) =>
 			ipcRenderer.invoke("parse-song-from-file", filePath),
 		incrementPlayCount: (songId) =>
 			ipcRenderer.invoke("increment-play-count", songId),
 		deleteSong: (songId) => ipcRenderer.invoke("delete-song", songId),
+		import: (filePaths) => ipcRenderer.invoke("import-music-files", filePaths),
+		clearAll: () => ipcRenderer.invoke("clear-all-songs"),
 	},
 
 	// 音乐库相关
@@ -56,7 +57,6 @@ const API = {
 	cover: {
 		get: (songId) => ipcRenderer.invoke("get-song-cover", songId),
 		forceExtract: (songId) => ipcRenderer.invoke("force-extract-cover", songId),
-		clearCache: () => ipcRenderer.invoke("clear-cover-cache"),
 	},
 
 	// 歌词处理
@@ -66,11 +66,12 @@ const API = {
 
 	// 文件系统交互
 	file: {
-		checkExists: (filePath) =>
-			ipcRenderer.invoke("check-file-exists", filePath),
 		showInFolder: (filePath) =>
 			ipcRenderer.invoke("show-item-in-folder", filePath),
 		copyToClipboard: (text) => ipcRenderer.invoke("copy-to-clipboard", text),
+		showOpenDialog: (options) =>
+			ipcRenderer.invoke("show-open-dialog", options),
+		getPathForFile: (file) => ipcRenderer.invoke("get-path-for-file", file),
 	},
 
 	// 播放器控制
@@ -78,31 +79,13 @@ const API = {
 		// 核心播放控制
 		play: (options) => ipcRenderer.invoke("player-play", options),
 		stop: () => ipcRenderer.invoke("player-stop"),
-		pause: () => ipcRenderer.invoke("player-pause"),
-		resume: () => ipcRenderer.invoke("player-resume"),
 		seek: (position) => ipcRenderer.invoke("player-seek", { position }),
-		setVolume: (volume) => ipcRenderer.invoke("player-set-volume", { volume }),
-		setMuted: (muted) => ipcRenderer.invoke("player-set-muted", { muted }),
 		getStatus: () => ipcRenderer.invoke("player-get-status"),
 
 		// 事件监听
-		onProgress: (callback) => createListener("player-progress", callback),
 		onEnded: (callback) => createListener("player-ended", callback),
 		onError: (callback) => createListener("player-error", callback),
 		onAudioData: (callback) => createListener("player-audio-data", callback),
-
-		// 导航控制
-		onRequestNext: (callback) =>
-			createListener("player-request-next", callback),
-		onRequestPrev: (callback) =>
-			createListener("player-request-prev", callback),
-		onRequestPlay: (callback) =>
-			createListener("player-request-play", callback),
-		onRequestPause: (callback) =>
-			createListener("player-request-pause", callback),
-		onRequestSeek: (callback) =>
-			createListener("player-request-seek", callback),
-		updateStatus: (status) => ipcRenderer.send("player-status-update", status),
 	},
 
 	// 播放列表相关
@@ -139,27 +122,13 @@ const API = {
 		maximize: () => ipcRenderer.invoke("window-maximize"),
 		restore: () => ipcRenderer.invoke("window-restore"),
 		close: () => ipcRenderer.invoke("window-close"),
+		show: () => ipcRenderer.invoke("window-show"),
 		isMaximized: () => ipcRenderer.invoke("is-window-maximized"),
 		onMaximizedChange: (callback) =>
 			createListener("window-maximized-change", callback),
 		setCloseBehavior: (behavior) =>
 			ipcRenderer.invoke("set-close-behavior", behavior),
 		getCloseBehavior: () => ipcRenderer.invoke("get-close-behavior"),
-		show: () => ipcRenderer.invoke("show-window"),
-	},
-
-	// 音频处理（兼容旧API）
-	audio: {
-		process: (options) => ipcRenderer.invoke("player-play", options),
-		cancelProcessing: () => ipcRenderer.invoke("player-stop"),
-		getProcessorStatus: () => ipcRenderer.invoke("player-get-status"),
-		onProcessingProgress: (callback) =>
-			createListener("player-progress", callback),
-		onProcessingComplete: (callback) =>
-			createListener("player-ended", callback),
-		onProcessingError: (callback) => createListener("player-error", callback),
-		onProcessedAudioData: (callback) =>
-			createListener("player-audio-data", callback),
 	},
 
 	// 标签编辑相关
@@ -170,6 +139,12 @@ const API = {
 		validateTagChanges: (tags) =>
 			ipcRenderer.invoke("validate-tag-changes", tags),
 	},
+
+	// 在线搜索相关
+	online: {
+		searchMetadata: (searchParams) =>
+			ipcRenderer.invoke("search-online-metadata", searchParams),
+	},
 };
 
 // 创建扁平化API结构以保持向后兼容性
@@ -178,12 +153,11 @@ const compatAPI = {
 	scanMusic: API.scan.start,
 	cancelScan: API.scan.cancel,
 	onScanProgress: API.scan.onProgress,
-	onScanCompleted: API.scan.onCompleted,
 
 	// 歌曲数据相关
 	getSongs: API.songs.getAll,
 	getSongById: API.songs.getById,
-	validateSongFiles: API.songs.validateFiles,
+
 	parseSongFromFile: API.songs.parseFromFile,
 	incrementPlayCount: API.songs.incrementPlayCount,
 	deleteSong: API.songs.deleteSong,
@@ -200,35 +174,24 @@ const compatAPI = {
 	// 封面处理
 	getSongCover: API.cover.get,
 	forceExtractCover: API.cover.forceExtract,
-	clearCoverCache: API.cover.clearCache,
 
 	// 歌词处理
 	getLyrics: API.lyrics.get,
 
 	// 文件系统交互
-	checkFileExists: API.file.checkExists,
 	showItemInFolder: API.file.showInFolder,
 	copyToClipboard: API.file.copyToClipboard,
+	showOpenDialog: API.file.showOpenDialog,
+	getPathForFile: API.file.getPathForFile,
 
 	// 播放器控制
 	playerPlay: API.player.play,
 	playerStop: API.player.stop,
-	playerPause: API.player.pause,
-	playerResume: API.player.resume,
 	playerSeek: API.player.seek,
-	playerSetVolume: API.player.setVolume,
-	playerSetMuted: API.player.setMuted,
 	playerGetStatus: API.player.getStatus,
-	onPlayerProgress: API.player.onProgress,
 	onPlayerEnded: API.player.onEnded,
 	onPlayerError: API.player.onError,
 	onPlayerAudioData: API.player.onAudioData,
-	onPlayerRequestNext: API.player.onRequestNext,
-	onPlayerRequestPrev: API.player.onRequestPrev,
-	onPlayerRequestPlay: API.player.onRequestPlay,
-	onPlayerRequestPause: API.player.onRequestPause,
-	onPlayerRequestSeek: API.player.onRequestSeek,
-	updatePlayerStatus: API.player.updateStatus,
 
 	// 播放列表相关
 	getPlaylists: API.playlist.getAll,
@@ -240,7 +203,6 @@ const compatAPI = {
 	removeSongsFromPlaylist: API.playlist.removeSongs,
 
 	// 导航相关
-	navigateToMain: API.navigation.toMain,
 	onNavigateToMain: API.navigation.onNavigateToMain,
 
 	// 文件打开相关
@@ -251,29 +213,26 @@ const compatAPI = {
 	windowMaximize: API.window.maximize,
 	windowRestore: API.window.restore,
 	windowClose: API.window.close,
+	showWindow: API.window.show,
 	isWindowMaximized: API.window.isMaximized,
 	onWindowMaximizedChange: API.window.onMaximizedChange,
 	setCloseBehavior: API.window.setCloseBehavior,
 	getCloseBehavior: API.window.getCloseBehavior,
-	showWindow: API.window.show,
-
-	// 音频处理
-	processAudio: API.audio.process,
-	cancelProcessing: API.audio.cancelProcessing,
-	getProcessorStatus: API.audio.getProcessorStatus,
-	onProcessingProgress: API.audio.onProcessingProgress,
-	onProcessingComplete: API.audio.onProcessingComplete,
-	onProcessingError: API.audio.onProcessingError,
-	onProcessedAudioData: API.audio.onProcessedAudioData,
 
 	// 标签编辑
 	getSongTags: API.tags.getSongTags,
 	updateSongTags: API.tags.updateSongTags,
 	validateTagChanges: API.tags.validateTagChanges,
+
+	// 音乐导入
+	importMusicFiles: API.songs.import,
+
+	// 歌曲管理
+	clearAllSongs: API.songs.clearAll,
+
+	// 在线搜索
+	searchOnlineMetadata: API.online.searchMetadata,
 };
 
 // 安全地暴露主进程的API给渲染进程
 contextBridge.exposeInMainWorld("electronAPI", compatAPI);
-
-// 同时暴露结构化API，未来可以迁移到这个更清晰的API
-contextBridge.exposeInMainWorld("musicApp", API);

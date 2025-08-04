@@ -1,8 +1,9 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref, nextTick } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import SideBar from './components/SideBar.vue';
 import MainContent from './components/MainContent.vue';
 import Settings from './components/Settings.vue';
+import MetadataManager from './components/MetadataManager.vue';
 import PlayerBar from './components/PlayerBar.vue';
 import LocalMusicHeader from './components/LocalMusicHeader.vue';
 import Playlist from './components/Playlist.vue';
@@ -25,7 +26,14 @@ uiStore.initCloseBehavior();
 // 播放器控制栏的高度，单位为px
 const playerBarHeight = 90; // 这个值应该与PlayerBar.vue中的height值一致
 
+// 存储IPC事件监听器的引用
+let removeNavigateListener = null;
+let removeFileOpenListener = null;
+
 onMounted(() => {
+    // 初始化CSS变量
+    updateLayoutVariables();
+
     // 清除可能存在的任何焦点，防止元素在启动时自动高亮
     setTimeout(() => {
         if (document.activeElement) {
@@ -34,7 +42,7 @@ onMounted(() => {
     }, 200);
 
     // 监听主进程发送的导航事件
-    const removeNavigateListener = window.electronAPI.onNavigateToMain(() => {
+    removeNavigateListener = window.electronAPI.onNavigateToMain(() => {
         // 切换到主界面
         uiStore.setView('main');
         // 清除当前歌单
@@ -44,7 +52,7 @@ onMounted(() => {
     });
 
     // 监听文件打开事件
-    const removeFileOpenListener = window.electronAPI.onOpenAudioFile(async (filePath) => {
+    removeFileOpenListener = window.electronAPI.onOpenAudioFile(async (filePath) => {
         try {
             // 解析文件信息
             const parseResult = await window.electronAPI.parseSongFromFile(filePath);
@@ -71,16 +79,6 @@ onMounted(() => {
             console.error('处理文件打开失败:', error);
         }
     });
-
-    onUnmounted(() => {
-        // 移除事件监听器
-        if (removeNavigateListener) {
-            removeNavigateListener();
-        }
-        if (removeFileOpenListener) {
-            removeFileOpenListener();
-        }
-    });
 });
 
 // 修正PlaylistContent组件内的导航问题
@@ -101,16 +99,36 @@ playlistStore.$subscribe((mutation, state) => {
     }
 });
 
-const layoutStyle = computed(() => {
-    let columns = '1fr';
-    if (uiStore.isSidebarVisible) {
-        columns = `${uiStore.sidebarWidth}px 1fr`;
-    }
-
+// 计算主布局CSS类
+const layoutClasses = computed(() => {
     return {
-        gridTemplateColumns: columns,
+        'sidebar-hidden': !uiStore.isSidebarVisible
     };
 });
+
+// 规范化CSS变量设置
+const updateLayoutVariables = () => {
+    if (typeof document !== 'undefined') {
+        const root = document.documentElement;
+
+        // 使用统一的CSS变量设置方法
+        const setCSSVariable = (name, value) => {
+            root.style.setProperty(name, value);
+        };
+
+        // 设置侧边栏宽度变量
+        // 始终使用实际宽度，不根据可见性判断
+        setCSSVariable('--sidebar-width', `${uiStore.sidebarWidth}px`);
+
+        // 设置播放器高度变量（仅在必要时更新）
+        if (!root.style.getPropertyValue('--player-bar-height')) {
+            setCSSVariable('--player-bar-height', `${playerBarHeight}px`);
+        }
+    }
+};
+
+// 监听侧边栏状态变化
+watch([() => uiStore.sidebarWidth, () => uiStore.isSidebarVisible], updateLayoutVariables, { immediate: true });
 
 const isResizing = ref(false);
 
@@ -126,8 +144,8 @@ const mouseMoveListener = (event) => {
 const mouseUpListener = () => {
     isResizing.value = false;
 
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
+    // 移除拖拽状态类
+    document.body.classList.remove('is-resizing');
 
     window.removeEventListener('mousemove', mouseMoveListener);
     window.removeEventListener('mouseup', mouseUpListener);
@@ -137,38 +155,58 @@ const startResize = (event) => {
     event.preventDefault();
     isResizing.value = true;
 
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
+    // 添加拖拽状态类
+    document.body.classList.add('is-resizing');
 
     window.addEventListener('mousemove', mouseMoveListener);
     window.addEventListener('mouseup', mouseUpListener);
 };
 
-// 在组件卸载时清理所有可能的事件监听器
+// 处理拖拽手柄双击事件
+const handleResizeHandleDoubleClick = () => {
+    uiStore.toggleSidebarCollapse();
+};
+
+// 在组件卸载时清理所有事件监听器
 onUnmounted(() => {
+    // 清理DOM事件监听器
     if (window) {
         window.removeEventListener('mousemove', mouseMoveListener);
         window.removeEventListener('mouseup', mouseUpListener);
+    }
+
+    // 确保清理拖拽状态类（防止内存泄漏）
+    if (document.body) {
+        document.body.classList.remove('is-resizing');
+    }
+
+    // 清理IPC事件监听器
+    if (removeNavigateListener) {
+        removeNavigateListener();
+    }
+    if (removeFileOpenListener) {
+        removeFileOpenListener();
     }
 });
 </script>
 
 <template>
-    <div id="app-container" :style="{ '--player-bar-height': playerBarHeight + 'px' }">
+    <div id="app-container">
         <!-- 自定义标题栏 -->
         <TitleBar class="title-bar" />
-        
+
         <!-- 全局扫描进度 -->
         <GlobalScanProgress />
 
-        <div class="main-layout" :style="layoutStyle" :class="{ 'sidebar-hidden': !uiStore.isSidebarVisible }">
-            <div class="sidebar-container" style="grid-column: 1; position: relative;" v-if="uiStore.isSidebarVisible">
+        <div class="main-layout" :class="layoutClasses">
+            <div class="sidebar-container">
                 <SideBar />
-                <div class="resize-handle" @mousedown="startResize"></div>
+                <div class="resize-handle" @mousedown="startResize" @dblclick="handleResizeHandleDoubleClick"></div>
             </div>
-            <div class="content-wrapper" style="grid-column: 2;">
+            <div class="content-wrapper">
                 <LocalMusicHeader v-if="uiStore.currentView === 'main'" />
                 <MainContent v-if="uiStore.currentView === 'main'" />
+                <MetadataManager v-else-if="uiStore.currentView === 'metadata'" />
                 <Settings v-else-if="uiStore.currentView === 'settings'" />
                 <PlaylistContent v-else-if="uiStore.currentView === 'playlist'" :navigate-to-main="navigateToMain" />
             </div>
@@ -186,190 +224,16 @@ onUnmounted(() => {
     </div>
 </template>
 
-<style>
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+<style lang="scss" scoped>
+// 标题栏样式
+.title-bar {
+    flex-shrink: 0;
+    z-index: $z-modal;
 }
 
-body,
-html {
-    height: 100%;
-    overflow: hidden;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-    cursor: default;
-}
-
-#app {
-    height: 100vh;
-    width: 100vw;
-}
-
-#app-container {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    width: 100vw;
-    overflow: hidden;
-    background-color: #121212;
-    --player-bar-height: 90px;
-    /* 默认值，会被动态覆盖 */
-    --title-bar-height: 32px;
-    /* 标题栏高度 */
-}
-
-.main-layout {
-    display: grid;
-    flex: 1;
-    overflow: hidden;
-    position: relative;
-    transition: grid-template-columns 0s;
-    gap: 0;
-    height: calc(100vh - var(--player-bar-height) - var(--title-bar-height));
-}
-
-.sidebar-container {
-    position: relative;
-    height: 100%;
-    overflow: hidden;
-    padding: 0;
-    margin: 0;
-    box-sizing: border-box;
-}
-
-.resize-handle {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    right: 0;
-    width: 1px;
-    cursor: col-resize;
-    background-color: #282828;
-    z-index: 50;
-    transition: background-color 0.2s, width 0.2s;
-}
-
-.resize-handle:hover {
-    width: 3px;
-    background-color: #4CAF50;
-}
-
-.content-wrapper {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    overflow: hidden;
-    position: relative;
-    background-color: #121212;
-}
-
-.playlist-container {
-    position: fixed;
-    bottom: var(--player-bar-height);
-    right: 0;
-    width: 300px;
-    /* or your desired width */
-    height: calc(100vh - var(--player-bar-height) - var(--title-bar-height));
-    background-color: #181818;
-    border-left: 1px solid #282828;
-    transform: translateX(100%);
-    transition: transform 0.3s ease-in-out;
-    z-index: 150;
-    display: flex;
-    flex-direction: column;
-}
-
-.playlist-container.is-visible {
-    transform: translateX(0);
-}
-
-/* 播放器控制栏样式，增加z-index确保始终在顶层 */
+// 播放器控制栏样式
 .player-bar {
-    position: relative;
-    z-index: 200;
-}
-
-/* 修改歌词页面的容器样式，不影响其内部样式 */
-.lyric-page {
-    height: calc(100% - var(--player-bar-height) - var(--title-bar-height)) !important;
-    bottom: var(--player-bar-height) !important;
-    top: var(--title-bar-height) !important;
-}
-
-/* 确保歌词页面的动画样式不会覆盖底部控制栏 */
-.lyric-page--slide.lyric-page--show {
-    transform: translateY(0) !important;
-    max-height: calc(100% - var(--player-bar-height) - var(--title-bar-height)) !important;
-}
-
-/* Responsive logic for small screens */
-@media (max-width: 768px) {
-    .main-layout {
-        grid-template-columns: 1fr;
-    }
-
-    .main-layout .sidebar {
-        position: absolute;
-        z-index: 100;
-        height: 100%;
-        transform: translateX(-100%);
-        transition: transform 0.3s ease;
-    }
-
-    /* When sidebar is visible on small screen, it slides in */
-    .main-layout:not(.sidebar-hidden) .sidebar {
-        transform: translateX(0);
-    }
-
-    /* Collapsed state on small screen doesn't change anything, it's always full width when shown */
-    .main-layout.sidebar-collapsed {
-        grid-template-columns: 1fr;
-    }
-
-    /* 标题栏在移动设备上调整 */
-    .title-bar {
-        padding: 0 5px;
-    }
-
-    .title-bar .app-title {
-        font-size: 12px;
-    }
-
-    .title-bar-button {
-        width: 40px;
-    }
-}
-
-/* Add a global transition for interactive elements */
-button,
-.menu-item,
-.song-table tbody tr {
-    transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
-}
-
-/* Custom scrollbar styles remain the same */
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 4px;
-    transition: background-color 0.3s;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.3);
-}
-
-::-webkit-scrollbar-corner {
-    background: transparent;
+    flex-shrink: 0;
+    z-index: $z-player;
 }
 </style>

@@ -1,0 +1,179 @@
+// 全局样式和通用类
+
+@use "sass:color";
+@use "../variables/_colors" as *;
+@use "../variables/_typography" as *;
+@use "../variables/_layout" as *;
+
+// 全局重置
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body,
+html {
+    height: 100%;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    cursor: default;
+}
+
+// 应用容器
+#app {
+    height: 100vh;
+    width: 100vw;
+}
+
+#app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    background-color: $bg-primary;
+    --player-bar-height: #{$player-bar-height};
+    --title-bar-height: #{$title-bar-height};
+}
+
+
+
+// 自定义滚动条
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: $border-radius-small;
+}
+
+::-webkit-scrollbar-thumb {
+    background: $overlay-medium;
+    border-radius: $border-radius-small;
+    transition: background-color $transition-base;
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.3);
+    }
+}
+
+::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+// 通用过渡效果
+button,
+.menu-item,
+.song-item,
+.interactive {
+    transition: all $transition-base;
+}
+
+// 全局状态类
+.is-resizing {
+    user-select: none !important;
+    cursor: col-resize !important;
+
+    // 防止拖拽时的文本选择和指针事件
+    * {
+        pointer-events: none !important;
+        user-select: none !important;
+    }
+}
+
+// 通用容器类
+.container {
+    padding: $content-padding;
+    background-color: $bg-primary;
+}
+
+.card {
+    background-color: $bg-secondary;
+    border-radius: $border-radius;
+    border: 1px solid $bg-tertiary;
+    box-shadow: $box-shadow;
+    padding: $card-padding;
+}
+
+// 交互状态类
+.interactive {
+    cursor: pointer;
+    transition: all $transition-base;
+
+    &:hover {
+        background-color: color.adjust($bg-secondary, $lightness: 5%);
+    }
+
+    &:active {
+        transform: scale(0.98);
+    }
+
+    &.is-selected {
+        background-color: $accent-green;
+        color: $text-primary;
+    }
+
+    &.is-disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+
+        &:hover {
+            background-color: inherit;
+            transform: none;
+        }
+    }
+}
+
+// 文本辅助类
+.text-primary {
+    color: $text-primary;
+}
+
+.text-secondary {
+    color: $text-secondary;
+}
+
+.text-disabled {
+    color: $text-disabled;
+}
+
+.text-accent {
+    color: $accent-green;
+}
+
+// 尺寸辅助类
+.w-full {
+    width: 100%;
+}
+
+.h-full {
+    height: 100%;
+}
+
+// Flex 辅助类
+.flex {
+    display: flex;
+}
+
+.flex-col {
+    flex-direction: column;
+}
+
+.flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.flex-between {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.flex-1 {
+    flex: 1;
+}

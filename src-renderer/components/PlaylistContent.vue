@@ -2,10 +2,11 @@
 import { ref, computed, watch, onMounted, reactive, nextTick } from 'vue';
 import { usePlaylistStore } from '../store/playlist';
 import { usePlayerStore } from '../store/player';
-import Icon from './Icon.vue';
+import FAIcon from './FAIcon.vue';
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
 import { RecycleScroller } from 'vue-virtual-scroller';
 import ContextMenu from './ContextMenu.vue';
+import ContentHeader from './ContentHeader.vue';
 
 // 接收父组件传递的导航函数
 const props = defineProps({
@@ -374,6 +375,44 @@ watch(
     }
 );
 
+// 头部操作按钮配置
+const headerActions = computed(() => [
+    {
+        key: 'play-all',
+        label: '播放全部',
+        icon: 'play',
+        type: 'primary',
+        disabled: playlistStore.currentPlaylistSongs.length === 0
+    },
+    {
+        key: 'edit',
+        label: '编辑',
+        icon: 'edit',
+        type: 'secondary'
+    },
+    {
+        key: 'delete',
+        label: '删除',
+        icon: 'trash',
+        type: 'danger'
+    }
+]);
+
+// 处理头部操作按钮点击
+const handleHeaderAction = (actionKey) => {
+    switch (actionKey) {
+        case 'play-all':
+            playEntirePlaylist();
+            break;
+        case 'edit':
+            editPlaylist();
+            break;
+        case 'delete':
+            showDeleteConfirm.value = true;
+            break;
+    }
+};
+
 // 组件挂载时加载歌单
 onMounted(() => {
     if (playlistStore.currentPlaylistId) {
@@ -391,32 +430,9 @@ onMounted(() => {
 <template>
     <div class="playlist-content">
         <!-- 歌单头部 -->
-        <div class="playlist-header" v-if="currentPlaylist">
-            <div class="playlist-info">
-                <div class="playlist-title">{{ currentPlaylist.name }}</div>
-                <div class="playlist-description" v-if="currentPlaylist.description">
-                    {{ currentPlaylist.description }}
-                </div>
-                <div class="playlist-meta">
-                    {{ playlistStore.currentPlaylistSongs.length }} 首歌曲
-                </div>
-            </div>
-            <div class="playlist-actions">
-                <button @click="playEntirePlaylist" class="action-button play-button"
-                    :disabled="playlistStore.currentPlaylistSongs.length === 0">
-                    <Icon name="play" :size="20" />
-                    <span>播放全部</span>
-                </button>
-                <button @click="editPlaylist" class="action-button edit-button">
-                    <Icon name="edit" :size="16" />
-                    <span>编辑</span>
-                </button>
-                <button @click="showDeleteConfirm = true" class="action-button delete-button">
-                    <Icon name="delete" :size="16" />
-                    <span>删除</span>
-                </button>
-            </div>
-        </div>
+        <ContentHeader v-if="currentPlaylist" :title="currentPlaylist.name" :subtitle="currentPlaylist.description"
+            :meta-text="`${playlistStore.currentPlaylistSongs.length} 首歌曲`" :actions="headerActions"
+            @action-click="handleHeaderAction" />
 
         <!-- 加载状态 -->
         <div v-if="isLoading" class="loading-state">
@@ -426,7 +442,7 @@ onMounted(() => {
 
         <!-- 歌单为空 -->
         <div v-else-if="playlistStore.currentPlaylistSongs.length === 0" class="empty-playlist">
-            <Icon name="playlist" :size="64" />
+            <FAIcon name="list" size="xl" color="secondary" />
             <p>歌单为空</p>
             <button @click="editPlaylist" class="action-button">编辑歌单</button>
         </div>
@@ -451,7 +467,8 @@ onMounted(() => {
                 <div class="song-row" @dblclick="playSong(song, index)"
                     :class="{ 'playing': currentSongId === song.id }" @mouseenter="hoveredSongId = song.id"
                     @mouseleave="hoveredSongId = null" @contextmenu="handleContextMenu($event, song)">
-                    <div class="song-col song-index" style="width: 40px; flex-shrink: 0;">{{ getRealIndex(song) + 1 }}</div>
+                    <div class="song-col song-index" style="width: 40px; flex-shrink: 0;">{{ getRealIndex(song) + 1 }}
+                    </div>
                     <div class="song-col" style="width: 60px; flex-shrink: 0;">
                         <div class="song-cover-container">
                             <img :src="songCovers[song.id] || placeholderCover" alt="封面" class="song-cover" />
@@ -472,7 +489,7 @@ onMounted(() => {
                     <div class="song-col action-column">
                         <button v-show="hoveredSongId === song.id" class="remove-button"
                             @click="removeSongFromPlaylist(song.id, index, $event)" title="从歌单移除">
-                            <Icon name="delete" :size="14" />
+                            <FAIcon name="trash" size="small" color="danger" />
                         </button>
                     </div>
                 </div>
@@ -573,113 +590,53 @@ onMounted(() => {
     </div>
 </template>
 
-<style scoped>
+<style lang="scss" scoped>
+@use "sass:color";
+@use "../styles/variables/_colors" as *;
+@use "../styles/variables/_layout" as *;
+
 .playlist-content {
     flex: 1;
     display: flex;
     flex-direction: column;
     overflow: hidden;
     position: relative;
-    background-color: #121212;
-    color: #fff;
+    background-color: $bg-primary;
+    color: $text-primary;
 }
 
-.playlist-header {
-    padding: 24px;
-    background: linear-gradient(to bottom, #333333, #121212);
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-}
 
-.playlist-title {
-    font-size: 28px;
-    font-weight: 700;
-    color: #fff;
-    margin-bottom: 8px;
-}
 
-.playlist-description {
-    font-size: 14px;
-    color: #b3b3b3;
-    margin-bottom: 12px;
-}
-
-.playlist-meta {
-    font-size: 13px;
-    color: #b3b3b3;
-}
-
-.playlist-actions {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-}
-
-.action-button {
-    display: flex;
-    align-items: center;
-    padding: 8px 16px;
-    border-radius: 20px;
-    border: none;
-    font-weight: 600;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.action-button .icon-wrapper {
-    margin-right: 8px;
-}
-
-.play-button {
-    background-color: #1db954;
-    color: #fff;
-}
-
-.play-button:hover {
-    background-color: #1ed760;
-    transform: scale(1.05);
-}
-
-.edit-button {
-    background-color: transparent;
-    color: #fff;
-    border: 1px solid #666;
-}
-
-.edit-button:hover {
-    border-color: #fff;
-    background-color: rgba(255, 255, 255, 0.1);
-}
-
-.delete-button {
-    background-color: transparent;
-    color: #ff6b6b;
-    border: 1px solid #ff6b6b;
-}
-
-.delete-button:hover {
-    background-color: rgba(255, 107, 107, 0.1);
-}
-
+// 加载状态
 .loading-state {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     flex: 1;
-    color: #b3b3b3;
+    color: $text-secondary;
+    padding: ($content-padding * 2);
+
+    @include respond-to("sm") {
+        padding: $content-padding;
+    }
 }
 
 .loader {
     width: 40px;
     height: 40px;
-    border: 3px solid rgba(255, 255, 255, 0.3);
+    border: 3px solid $bg-tertiary;
     border-radius: 50%;
-    border-top-color: #1db954;
+    border-top-color: $accent-green;
     animation: spin 1s linear infinite;
-    margin-bottom: 16px;
+    margin-bottom: $content-padding;
+
+    @include respond-to("sm") {
+        width: 32px;
+        height: 32px;
+        border-width: 2px;
+        margin-bottom: ($content-padding * 0.75);
+    }
 }
 
 @keyframes spin {
@@ -692,150 +649,244 @@ onMounted(() => {
     }
 }
 
+// 空状态
 .empty-playlist {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     flex: 1;
-    color: #b3b3b3;
+    color: $text-secondary;
+    padding: ($content-padding * 2);
+
+    .icon-wrapper {
+        color: $text-disabled;
+        margin-bottom: $content-padding;
+        opacity: 0.6;
+    }
+
+    p {
+        font-size: $font-size-lg;
+        margin-bottom: ($content-padding * 1.5);
+        font-weight: $font-weight-medium;
+
+        @include respond-to("sm") {
+            font-size: $font-size-base;
+            margin-bottom: $content-padding;
+        }
+    }
+
+    @include respond-to("sm") {
+        padding: $content-padding;
+    }
 }
 
-.empty-playlist .icon-wrapper {
-    color: #444;
-    margin-bottom: 16px;
-}
-
-.empty-playlist p {
-    font-size: 16px;
-    margin-bottom: 24px;
-}
-
+// 歌曲列表容器
 .songs-container {
     flex: 1;
     display: flex;
     flex-direction: column;
     height: 100%;
     position: relative;
+    overflow: hidden;
 }
 
 .song-list-header {
     display: flex;
     align-items: center;
-    background-color: #1a1a1a;
-    color: #b3b3b3;
-    padding: 0 10px;
+    background-color: $bg-secondary;
+    color: $text-secondary;
+    padding: 0 ($content-padding * 0.625);
     height: 40px;
-    border-bottom: 1px solid #282828;
+    border-bottom: 1px solid $bg-tertiary;
     flex-shrink: 0;
     position: sticky;
     top: 0;
-    z-index: 1;
+    z-index: $z-base;
+
+    @include respond-to("sm") {
+        height: 36px;
+        padding: 0 ($content-padding * 0.5);
+    }
 }
 
 .header-col {
-    padding: 8px;
-    font-weight: 600;
-    font-size: 14px;
+    padding: ($content-padding * 0.5);
+    font-weight: $font-weight-semibold;
+    font-size: $font-size-base;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     display: flex;
     align-items: center;
+
+    @include respond-to("sm") {
+        font-size: $font-size-sm;
+        padding: ($content-padding * 0.375);
+    }
 }
 
 .header-col-fixed {
     flex-shrink: 0;
-    padding: 0 8px;
+    padding: 0 ($content-padding * 0.5);
     display: flex;
     align-items: center;
+
+    @include respond-to("sm") {
+        padding: 0 ($content-padding * 0.375);
+    }
 }
 
+// 虚拟滚动器
 .song-scroller {
     height: 100%;
     width: 100%;
     overflow-y: auto;
+
+    // 自定义滚动条
+    &::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    &::-webkit-scrollbar-track {
+        background: $bg-primary;
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background: $overlay-medium;
+        border-radius: ($border-radius);
+        transition: background-color $transition-base;
+
+        &:hover {
+            background: $overlay-light;
+        }
+    }
+
+    @include respond-to("sm") {
+        &::-webkit-scrollbar {
+            width: 6px;
+        }
+    }
 }
 
+// 歌曲行
 .song-row {
     display: flex;
     align-items: center;
     height: 60px;
-    padding: 0 10px;
-    border-bottom: 1px solid #222;
-    transition: background-color 0.2s;
-}
+    padding: 0 ($content-padding * 0.625);
+    border-bottom: 1px solid $bg-primary;
+    transition: all $transition-base;
+    cursor: pointer;
 
-.song-row:hover {
-    background-color: #282828;
-}
+    &:hover {
+        background-color: $overlay-light;
 
-.song-row.playing {
-    color: #1ed760;
-    background-color: #1a2a21;
-}
+        .song-cover {
+            transform: scale(1.1);
+        }
+    }
 
-.song-row.playing.highlighted {
-    animation: pulse 1.5s ease;
+    &:active {
+        background-color: $overlay-medium;
+        transform: scale(0.98);
+    }
+
+    &.playing {
+        color: $accent-green;
+        background-color: rgba($accent-green, 0.1);
+        border-left: 3px solid $accent-green;
+        padding-left: calc(#{$content-padding * 0.625} - 3px);
+
+        .song-index {
+            color: $accent-green;
+            font-weight: $font-weight-semibold;
+        }
+
+        &.highlighted {
+            animation: pulse 1.5s ease;
+        }
+    }
+
+    @include respond-to("sm") {
+        height: 52px;
+        padding: 0 ($content-padding * 0.5);
+
+        &.playing {
+            padding-left: calc(#{$content-padding * 0.5} - 3px);
+        }
+    }
 }
 
 @keyframes pulse {
     0% {
-        background-color: #1a2a21;
-        box-shadow: 0 0 0 rgba(29, 185, 84, 0);
+        background-color: rgba($accent-green, 0.1);
+        box-shadow: 0 0 0 rgba($accent-green, 0);
     }
 
     25% {
-        background-color: #1e382a;
-        box-shadow: 0 0 10px rgba(29, 185, 84, 0.5);
+        background-color: rgba($accent-green, 0.2);
+        box-shadow: 0 0 10px rgba($accent-green, 0.5);
     }
 
     50% {
-        background-color: #1a2a21;
-        box-shadow: 0 0 10px rgba(29, 185, 84, 0.3);
+        background-color: rgba($accent-green, 0.1);
+        box-shadow: 0 0 10px rgba($accent-green, 0.3);
     }
 
     100% {
-        background-color: #1a2a21;
-        box-shadow: 0 0 0 rgba(29, 185, 84, 0);
+        background-color: rgba($accent-green, 0.1);
+        box-shadow: 0 0 0 rgba($accent-green, 0);
     }
 }
 
 .song-col {
-    padding: 8px;
+    padding: ($content-padding * 0.5);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     display: flex;
     align-items: center;
+
+    @include respond-to("sm") {
+        padding: ($content-padding * 0.375);
+    }
 }
 
 .song-index {
     justify-content: center;
-    font-weight: 500;
-    color: #b3b3b3;
+    font-weight: $font-weight-medium;
+    color: $text-secondary;
+    font-size: $font-size-sm;
+
+    @include respond-to("sm") {
+        font-size: $font-size-xs;
+    }
 }
 
+// 歌曲封面
 .song-cover-container {
     position: relative;
     width: 48px;
     height: 48px;
-    border-radius: 4px;
+    border-radius: $border-radius;
     overflow: hidden;
+    flex-shrink: 0;
+
+    @include respond-to("sm") {
+        width: 40px;
+        height: 40px;
+    }
 }
 
 .song-cover {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    border-radius: 4px;
-    background-color: #333;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    transition: transform 0.2s ease-in-out;
-}
-
-.song-row:hover .song-cover {
-    transform: scale(1.1);
+    border-radius: $border-radius;
+    background-color: $bg-tertiary;
+    box-shadow: $box-shadow;
+    transition: transform $transition-base;
 }
 
 .play-icon-overlay {
@@ -844,22 +895,30 @@ onMounted(() => {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.6);
+    background-color: $overlay-dark;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    border-radius: $border-radius;
 }
 
 .play-icon {
-    fill: white;
+    fill: $text-primary;
     width: 20px;
     height: 20px;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+
+    @include respond-to("sm") {
+        width: 16px;
+        height: 16px;
+    }
 }
 
+// 淡入淡出动画
 .fade-enter-active,
 .fade-leave-active {
-    transition: opacity 0.2s ease;
+    transition: opacity $transition-base;
 }
 
 .fade-enter-from,
@@ -867,115 +926,63 @@ onMounted(() => {
     opacity: 0;
 }
 
+// 操作按钮
+.action-column {
+    flex-shrink: 0;
+    justify-content: center;
+}
+
 .remove-button {
     background: none;
     border: none;
-    color: #b3b3b3;
+    color: $text-secondary;
     cursor: pointer;
-    padding: 4px;
+    padding: ($content-padding * 0.25);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s;
+    transition: all $transition-base;
+    min-width: 32px;
+    min-height: 32px;
+
+    &:hover {
+        color: $danger;
+        background-color: rgba($danger, 0.1);
+        transform: scale(1.1);
+    }
+
+    &:active {
+        transform: scale(0.9);
+    }
+
+    @include respond-to("sm") {
+        min-width: 28px;
+        min-height: 28px;
+        padding: ($content-padding * 0.125);
+    }
 }
 
-.remove-button:hover {
-    color: #ff6b6b;
-    background-color: rgba(255, 107, 107, 0.1);
-}
-
-/* 删除确认对话框 */
-.delete-confirm-dialog {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-}
-
-.dialog-content {
-    background-color: #282828;
-    border-radius: 8px;
-    padding: 24px;
-    width: 400px;
-    max-width: 90%;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-}
-
-.dialog-content h3 {
-    margin-top: 0;
-    margin-bottom: 16px;
-    color: #fff;
-    font-size: 18px;
-}
-
-.dialog-content p {
-    margin-bottom: 24px;
-    color: #b3b3b3;
-    font-size: 14px;
-}
-
-.dialog-buttons {
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-}
-
-.cancel-btn,
-.delete-btn {
-    padding: 8px 16px;
-    border-radius: 4px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    border: none;
-}
-
-.cancel-btn {
-    background-color: transparent;
-    color: #b3b3b3;
-    border: 1px solid #444;
-}
-
-.cancel-btn:hover {
-    background-color: #333;
-}
-
-.delete-btn {
-    background-color: #ff6b6b;
-    color: #fff;
-}
-
-.delete-btn:hover {
-    background-color: #ff5252;
-}
-
-/* 固定在右下角的按钮 */
+// 固定按钮
 #fixed-buttons {
     position: fixed;
-    right: 20px;
+    right: ($content-padding * 1.25);
     bottom: 110px;
-    /* 留出底部播放器的空间 */
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    z-index: 1000;
-    /* 确保按钮在最上层 */
+    gap: ($content-padding * 0.625);
+    z-index: $z-modal;
+
+    @include respond-to("sm") {
+        right: $content-padding;
+        bottom: 100px;
+        gap: ($content-padding * 0.5);
+    }
 }
 
-/* 按钮过渡动画 */
-.slide-fade-enter-active {
-    transition: all 0.3s ease;
-}
-
+.slide-fade-enter-active,
 .slide-fade-leave-active {
-    transition: all 0.3s ease;
+    transition: all $transition-slow;
 }
 
 .slide-fade-enter-from,
@@ -987,132 +994,361 @@ onMounted(() => {
 .fixed-button {
     width: 44px;
     height: 44px;
-    border-radius: 8px;
-    /* 从50%改为8px，实现方形卡片带圆角 */
-    background-color: #333333;
-    /* 改为深色背景色，符合卡片式设计 */
+    border-radius: $border-radius;
+    background-color: $bg-tertiary;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    /* 调整阴影效果 */
-    transition: transform 0.2s, background-color 0.2s;
+    box-shadow: $box-shadow-hover;
+    transition: all $transition-base;
     user-select: none;
+    border: 1px solid $bg-tertiary;
+
+    &:hover {
+        transform: scale(1.05);
+        background-color: color.adjust($bg-tertiary, $lightness: 10%);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    &:active {
+        transform: scale(0.95);
+    }
+
+    svg {
+        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+    }
+
+    @include respond-to("sm") {
+        width: 40px;
+        height: 40px;
+
+        svg {
+            width: 20px;
+            height: 20px;
+        }
+    }
 }
 
-.fixed-button:hover {
-    transform: scale(1.05);
-    /* 略微调小放大效果 */
-    background-color: #505050;
-    /* 悬停时变为较亮的灰色 */
+// 删除确认对话框
+.delete-confirm-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: $overlay-dark;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: $z-modal;
+    animation: fadeIn $transition-fast ease-out;
 }
 
-.fixed-button:active {
-    transform: scale(0.95);
+.dialog-content {
+    background-color: $bg-secondary;
+    border-radius: ($border-radius * 2);
+    padding: ($content-padding * 1.5);
+    width: 400px;
+    max-width: 90%;
+    box-shadow: $box-shadow-hover;
+    border: 1px solid $bg-tertiary;
+    animation: slideUp $transition-base ease-out;
+
+    h3 {
+        margin-top: 0;
+        margin-bottom: $content-padding;
+        color: $text-primary;
+        font-size: $font-size-lg;
+        font-weight: $font-weight-semibold;
+    }
+
+    p {
+        margin-bottom: ($content-padding * 1.5);
+        color: $text-secondary;
+        font-size: $font-size-base;
+        line-height: 1.5;
+    }
+
+    @include respond-to("sm") {
+        padding: $content-padding;
+
+        h3 {
+            font-size: $font-size-base;
+        }
+
+        p {
+            font-size: $font-size-sm;
+        }
+    }
 }
 
-/* 歌曲信息对话框样式 */
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.dialog-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: ($content-padding * 0.75);
+
+    @include respond-to("sm") {
+        gap: ($content-padding * 0.5);
+    }
+}
+
+.cancel-btn,
+.delete-btn {
+    padding: ($content-padding * 0.5) $content-padding;
+    border-radius: $border-radius;
+    font-size: $font-size-base;
+    font-weight: $font-weight-medium;
+    cursor: pointer;
+    border: none;
+    transition: all $transition-base;
+    min-width: 80px;
+
+    @include respond-to("sm") {
+        padding: ($content-padding * 0.375) ($content-padding * 0.75);
+        font-size: $font-size-sm;
+        min-width: 70px;
+    }
+}
+
+.cancel-btn {
+    background-color: transparent;
+    color: $text-secondary;
+    border: 1px solid $bg-tertiary;
+
+    &:hover {
+        background-color: $overlay-light;
+        color: $text-primary;
+        border-color: $text-secondary;
+    }
+}
+
+.delete-btn {
+    background-color: $danger;
+    color: $text-primary;
+
+    &:hover {
+        background-color: color.adjust($danger, $lightness: -10%);
+        transform: translateY(-1px);
+        box-shadow: $box-shadow;
+    }
+
+    &:active {
+        transform: translateY(0);
+    }
+}
+
+// 歌曲信息对话框
 .song-info-dialog {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.7);
+    background-color: $overlay-dark;
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1100;
-    animation: fadeIn 0.2s ease-out;
-}
+    z-index: $z-tooltip;
+    animation: fadeIn $transition-base ease-out;
 
-.song-info-dialog .dialog-content {
-    background-color: #1a1a1a;
-    padding: 24px;
-    border-radius: 8px;
-    width: 90%;
-    max-width: 500px;
-    border: 1px solid #333;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-}
+    .dialog-content {
+        background-color: $bg-secondary;
+        padding: ($content-padding * 1.5);
+        border-radius: ($border-radius * 2);
+        width: 90%;
+        max-width: 500px;
+        border: 1px solid $bg-tertiary;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        max-height: 80vh;
+        overflow-y: auto;
 
-.song-info-dialog h2 {
-    margin-top: 0;
-    margin-bottom: 20px;
-    color: #1DB954;
-    border-bottom: 1px solid #333;
-    padding-bottom: 10px;
-}
+        // 自定义滚动条
+        &::-webkit-scrollbar {
+            width: 6px;
+        }
 
-.song-info-dialog h3 {
-    font-size: 16px;
-    margin: 10px 0;
-    color: #b3b3b3;
+        &::-webkit-scrollbar-track {
+            background: $bg-primary;
+        }
+
+        &::-webkit-scrollbar-thumb {
+            background: $overlay-medium;
+            border-radius: ($border-radius * 0.5);
+        }
+
+        @include respond-to("sm") {
+            padding: $content-padding;
+            max-height: 90vh;
+        }
+    }
+
+    h2 {
+        margin-top: 0;
+        margin-bottom: ($content-padding * 1.25);
+        color: $accent-green;
+        border-bottom: 1px solid $bg-tertiary;
+        padding-bottom: ($content-padding * 0.625);
+        font-size: $font-size-lg;
+        font-weight: $font-weight-semibold;
+
+        @include respond-to("sm") {
+            font-size: $font-size-base;
+            margin-bottom: $content-padding;
+        }
+    }
+
+    h3 {
+        font-size: $font-size-base;
+        margin: ($content-padding * 0.625) 0;
+        color: $text-secondary;
+        font-weight: $font-weight-medium;
+
+        @include respond-to("sm") {
+            font-size: $font-size-sm;
+            margin: ($content-padding * 0.5) 0;
+        }
+    }
+
+    button {
+        background-color: $accent-green;
+        color: $text-primary;
+        border: none;
+        padding: ($content-padding * 0.625) ($content-padding * 1.25);
+        border-radius: $border-radius;
+        cursor: pointer;
+        margin-top: ($content-padding * 1.25);
+        font-weight: $font-weight-semibold;
+        width: 100%;
+        transition: all $transition-base;
+        font-size: $font-size-base;
+
+        &:hover {
+            background-color: $accent-hover;
+            transform: translateY(-1px);
+            box-shadow: $box-shadow;
+        }
+
+        &:active {
+            transform: translateY(0);
+        }
+
+        @include respond-to("sm") {
+            padding: ($content-padding * 0.5) $content-padding;
+            font-size: $font-size-sm;
+            margin-top: $content-padding;
+        }
+    }
 }
 
 .info-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: ($content-padding * 0.625);
+    margin-bottom: $content-padding;
+
+    @include respond-to("sm") {
+        grid-template-columns: 1fr;
+        gap: ($content-padding * 0.5);
+    }
 }
 
 .info-section {
-    padding: 10px;
-    background-color: #222;
-    border-radius: 4px;
+    padding: ($content-padding * 0.625);
+    background-color: $bg-primary;
+    border-radius: $border-radius;
+    border: 1px solid $bg-tertiary;
+
+    @include respond-to("sm") {
+        padding: ($content-padding * 0.5);
+    }
 }
 
 .info-item {
-    margin: 8px 0;
+    margin: ($content-padding * 0.5) 0;
     display: flex;
     align-items: flex-start;
+    gap: ($content-padding * 0.5);
+
+    @include respond-to("sm") {
+        margin: ($content-padding * 0.375) 0;
+        gap: ($content-padding * 0.375);
+    }
 }
 
 .info-label {
-    color: #b3b3b3;
+    color: $text-secondary;
     width: 70px;
     flex-shrink: 0;
+    font-weight: $font-weight-medium;
+    font-size: $font-size-sm;
+
+    @include respond-to("sm") {
+        width: 60px;
+        font-size: $font-size-xs;
+    }
 }
 
 .info-value {
-    color: #fff;
+    color: $text-primary;
     word-break: break-word;
+    font-size: $font-size-sm;
+    line-height: 1.4;
+
+    &.path {
+        font-family: 'Courier New', monospace;
+        font-size: ($font-size-sm * 0.9);
+        background-color: $bg-tertiary;
+        padding: ($content-padding * 0.25) ($content-padding * 0.5);
+        border-radius: ($border-radius * 0.5);
+        overflow-wrap: break-word;
+        word-break: break-all;
+    }
+
+    @include respond-to("sm") {
+        font-size: $font-size-xs;
+
+        &.path {
+            font-size: ($font-size-xs * 0.9);
+            padding: ($content-padding * 0.125) ($content-padding * 0.25);
+        }
+    }
 }
 
 .info-path {
-    margin-top: 16px;
-    padding: 10px;
-    background-color: #222;
-    border-radius: 4px;
+    margin-top: $content-padding;
+    padding: ($content-padding * 0.625);
+    background-color: $bg-primary;
+    border-radius: $border-radius;
     display: flex;
-}
+    gap: ($content-padding * 0.5);
+    border: 1px solid $bg-tertiary;
 
-.info-path .info-label {
-    width: 70px;
-    flex-shrink: 0;
-}
+    .info-label {
+        width: 70px;
+        flex-shrink: 0;
+    }
 
-.info-path .path {
-    overflow-wrap: break-word;
-    word-break: break-all;
-}
+    @include respond-to("sm") {
+        padding: ($content-padding * 0.5);
+        gap: ($content-padding * 0.375);
 
-.song-info-dialog button {
-    background-color: #1DB954;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-top: 20px;
-    font-weight: bold;
-    width: 100%;
-    transition: background-color 0.2s;
-}
-
-.song-info-dialog button:hover {
-    background-color: #1ED760;
+        .info-label {
+            width: 60px;
+        }
+    }
 }
 
 @keyframes fadeIn {
@@ -1122,6 +1358,59 @@ onMounted(() => {
 
     to {
         opacity: 1;
+    }
+}
+
+// 高对比度模式支持
+@media (prefers-contrast: high) {
+    .playlist-content {
+        border: 2px solid $text-primary;
+    }
+
+    .song-row {
+        border-bottom: 1px solid $text-secondary;
+
+        &.playing {
+            border-left-width: 4px;
+        }
+    }
+
+    .action-button,
+    .fixed-button,
+    .cancel-btn,
+    .delete-btn {
+        border: 2px solid currentColor;
+    }
+}
+
+// 减少动画模式支持
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    .song-row,
+    .action-button,
+    .fixed-button,
+    .remove-button,
+    .cancel-btn,
+    .delete-btn {
+
+        &:hover,
+        &:active {
+            transform: none;
+        }
+    }
+
+    .song-cover {
+        &:hover {
+            transform: none;
+        }
     }
 }
 </style>

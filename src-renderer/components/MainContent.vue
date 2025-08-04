@@ -7,6 +7,7 @@ import { usePlayerStore } from '../store/player';
 import ContextMenu from './ContextMenu.vue'; // 引入ContextMenu组件
 import TagEditor from './TagEditor.vue'; // 引入TagEditor组件
 import DeleteConfirmDialog from './DeleteConfirmDialog.vue'; // 引入删除确认对话框
+import FAIcon from './FAIcon.vue'; // 引入FAIcon组件
 
 const mediaStore = useMediaStore();
 const playerStore = usePlayerStore();
@@ -14,6 +15,8 @@ const playerStore = usePlayerStore();
 const hoveredSongId = ref(null);
 const scroller = ref(null);
 const placeholderCover = 'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==';
+// 添加isSyncing变量定义
+const isSyncing = ref(false);
 
 // 控制固定按钮的显示/隐藏
 const showFixedButtons = ref(false);
@@ -26,17 +29,6 @@ const { sortBy, sortDirection } = toRefs(reactive({
 // 当前列表的唯一ID
 const currentListId = computed(() => {
   return `${sortBy.value}-${sortDirection.value}`;
-});
-
-// 同步状态
-const isSyncing = ref(false);
-
-// 表格容器引用
-const tableContainerRef = ref(null);
-
-// 当前播放模式的文本描述
-const playModeText = computed(() => {
-  return "本地";
 });
 
 // 歌曲封面缓存
@@ -77,7 +69,6 @@ const songIndexMap = computed(() => {
 const getRealIndex = (song) => {
   const index = songIndexMap.value.get(song.id);
   if (index === undefined) {
-    console.warn(`无法找到歌曲 ${song.title} (ID: ${song.id}) 的索引`);
     return -1;
   }
   return index;
@@ -217,17 +208,13 @@ const handleDeleteConfirm = async (result) => {
     if (playerStore.currentSong && playerStore.currentSong.id === result.deletedSong.id) {
       // 清除当前歌曲和播放状态
       playerStore.clearCurrentSong();
-      console.log('已清除当前播放的歌曲');
     }
 
     // 刷新歌曲列表
     await mediaStore.loadSongs();
 
-    // 显示成功提示
-    console.log(`歌曲 "${result.deletedSong.title}" 已删除`);
   } else {
-    // 显示错误信息
-    console.error('删除失败:', result.error);
+    // 显示错误信息  
   }
 };
 
@@ -280,11 +267,8 @@ const loadSongCover = async (songId) => {
     if (result.success && result.cover) {
       const imageFormat = result.format || 'image/jpeg';
       songCovers[songId] = `data:${imageFormat};base64,${result.cover}`;
-    } else {
-      console.warn(`歌曲 ${songId} 封面加载失败:`, result.error || "未知错误");
     }
   } catch (error) {
-    console.error('加载封面失败:', error);
   }
 };
 
@@ -296,79 +280,6 @@ const playFromSongList = (song) => {
     songIds: songIds,
     songToPlayId: song.id,
   });
-};
-
-// 同步当前文件夹
-const syncCurrentFolder = async () => {
-  if (isSyncing.value) return;
-
-  try {
-    isSyncing.value = true;
-    const pathResult = await window.electronAPI.getLastScanPath();
-    if (!pathResult.success || !pathResult.path) {
-      alert('没有找到上次扫描路径，请先进行初始扫描');
-      isSyncing.value = false;
-      return;
-    }
-
-    // 保存当前播放状态
-    const playerStore = usePlayerStore();
-    const wasPlaying = playerStore.playing;
-    const currentSongId = playerStore.currentSong?.id;
-    
-    // 如果正在播放，先暂停
-    if (wasPlaying) {
-      playerStore.setPlaying(false);
-    }
-
-    // 开始扫描
-    console.log("开始扫描音乐库...");
-    const scanResult = await window.electronAPI.scanMusic({
-      dirPath: pathResult.path,
-      clearExisting: false
-    });
-
-    if (scanResult.success) {
-      console.log("扫描成功，正在刷新数据...");
-      
-      // 清除封面缓存
-      Object.keys(songCovers).forEach(key => delete songCovers[key]);
-      
-      // 重新加载歌曲列表
-      await mediaStore.loadSongs();
-      
-      // 验证并清理播放列表中无效的歌曲ID
-      console.log("验证播放列表中的歌曲...");
-      await playerStore.validatePlaylist();
-      
-      // 如果之前有播放的歌曲，尝试恢复播放
-      if (currentSongId) {
-        // 验证当前歌曲是否仍然存在
-        console.log("验证当前播放歌曲是否仍然存在...");
-        const songExists = await playerStore.validateCurrentSong();
-        
-        if (songExists) {
-          console.log("恢复播放之前的歌曲...");
-          if (wasPlaying) {
-            // 短暂延迟后恢复播放，确保音频数据已加载
-            setTimeout(() => {
-              playerStore.setPlaying(true);
-            }, 500);
-          }
-        }
-      }
-      
-      console.log("音乐库同步完成");
-    } else {
-      console.error(`同步失败: ${scanResult.error || '未知错误'}`);
-      alert(`同步失败: ${scanResult.error || '未知错误'}`);
-    }
-  } catch (error) {
-    console.error(`同步过程中出错: ${error.message || '未知错误'}`);
-    alert(`同步过程中出错: ${error.message || '未知错误'}`);
-  } finally {
-    isSyncing.value = false;
-  }
 };
 
 // 切换排序方式
@@ -406,7 +317,6 @@ onMounted(async () => {
     (newValue, oldValue) => {
       if (newValue && (!oldValue || newValue.timestamp !== oldValue?.timestamp)) {
         const { id: songId, playCount } = newValue;
-        console.log(`监听到媒体库中歌曲 ${songId} 播放次数更新为 ${playCount}`);
 
         // 找到对应的行并高亮显示
         nextTick(() => {
@@ -495,24 +405,14 @@ const scrollToTop = async () => {
 // 组件卸载前清理
 onUnmounted(() => {
   // 清理工作（如果需要）
+  window.removeEventListener('scroll', handleScroll);
 });
-
-// 添加一个方法来强制刷新歌曲列表
-const refreshSongList = () => {
-  // 通过轻微修改搜索词然后恢复的方式触发列表刷新
-  const currentSearch = mediaStore.searchTerm;
-  mediaStore.setSearchTerm(currentSearch + ' ');
-  setTimeout(() => {
-    mediaStore.setSearchTerm(currentSearch);
-  }, 10);
-};
 
 // 监听当前播放歌曲的变化，如果播放次数发生变化，则刷新列表
 watch(
   () => playerStore.currentSong?.playCount,
   (newCount, oldCount) => {
     if (newCount !== oldCount && typeof newCount === 'number') {
-      console.log(`检测到播放次数变化: ${oldCount || 0} -> ${newCount}`);
       // 强制刷新表格
       forceRefreshTable();
     }
@@ -521,33 +421,27 @@ watch(
 
 // 强制刷新表格的方法
 const forceRefreshTable = () => {
-  console.log('优化刷新表格');
-  
   // 使用更平滑的方式更新表格
   if (!playerStore.currentSong || !playerStore.currentSong.id) {
-    console.log('没有当前播放歌曲，无需刷新表格');
     return;
   }
-  
+
   const songId = playerStore.currentSong.id;
   const playCount = playerStore.currentSong.playCount;
-  
+
   if (typeof playCount !== 'number') {
-    console.log('播放次数无效，无需刷新表格');
     return;
   }
-  
+
   // 1. 首先尝试通过media store更新
   if (mediaStore && typeof mediaStore.updateSongPlayCount === 'function') {
     const updateResult = mediaStore.updateSongPlayCount(songId, playCount);
     if (updateResult) {
-      console.log('通过media store成功更新了播放次数');
       return; // 更新成功，不需要进一步处理
     }
   }
-  
+
   // 2. 如果media store更新失败，尝试手动更新DOM
-  console.log('尝试手动更新DOM');
   nextTick(() => {
     const songRow = document.querySelector(`[data-song-id="${songId}"]`);
     if (songRow) {
@@ -555,16 +449,13 @@ const forceRefreshTable = () => {
       const playCountCol = songRow.querySelector('.song-col:nth-child(6)');
       if (playCountCol) {
         playCountCol.textContent = playCount.toString();
-        console.log('手动更新了DOM中的播放次数');
       }
-      
+
       // 添加高亮效果
       songRow.classList.add('updated');
       setTimeout(() => {
         songRow.classList.remove('updated');
       }, 1500);
-    } else {
-      console.log('未找到歌曲行，可能不在当前视图中');
     }
   });
 };
@@ -620,17 +511,14 @@ const fetchSongCovers = () => {
       :emit-update="true" v-slot="{ item: song, index }" @update="onUpdate" @scroll="handleScroll">
       <div class="song-row" @dblclick="playFromSongList(song)" @contextmenu="handleContextMenu($event, song)"
         :class="{ 'playing': playerStore.currentSong && playerStore.currentSong.id === song.id }"
-        @mouseenter="hoveredSongId = song.id" @mouseleave="hoveredSongId = null"
-        :data-song-id="song.id">
+        @mouseenter="hoveredSongId = song.id" @mouseleave="hoveredSongId = null" :data-song-id="song.id">
         <div class="song-col song-index" style="width: 40px; flex-shrink: 0;">{{ getRealIndex(song) + 1 }}</div>
         <div class="song-col" style="width: 60px; flex-shrink: 0;">
           <div class="song-cover-container">
             <img :src="songCovers[song.id] || placeholderCover" alt="封面" class="song-cover" />
             <transition name="fade">
               <div v-if="hoveredSongId === song.id" class="play-icon-overlay" @click="playFromSongList(song)">
-                <svg viewBox="0 0 24 24" class="play-icon">
-                  <path d="M8 5v14l11-7z"></path>
-                </svg>
+                <FAIcon name="play" size="medium" color="primary" />
               </div>
             </transition>
           </div>
@@ -648,18 +536,12 @@ const fetchSongCovers = () => {
       <div id="fixed-buttons" v-if="showFixedButtons">
         <!-- 定位当前播放歌曲按钮 - 卡片式设计 -->
         <div class="fixed-button locate-button" @click="scrollToCurrentSong" title="定位当前播放歌曲">
-          <svg width="24" height="24" viewBox="0 0 24 24">
-            <path fill="#FFFFFF"
-              d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z">
-            </path>
-          </svg>
+          <FAIcon name="crosshairs" size="medium" color="primary" />
         </div>
 
         <!-- 回到顶部按钮 - 卡片式设计 -->
         <div class="fixed-button top-button" @click="scrollToTop" title="回到顶部">
-          <svg width="24" height="24" viewBox="0 0 24 24">
-            <path fill="#FFFFFF" d="M8 11h3v10h2V11h3l-4-4-4 4zM4 3v2h16V3H4z"></path>
-          </svg>
+          <FAIcon name="arrow-up" size="medium" color="primary" />
         </div>
       </div>
     </transition>
@@ -731,20 +613,20 @@ const fetchSongCovers = () => {
     <TagEditor ref="tagEditorRef" />
 
     <!-- 删除确认对话框 -->
-    <DeleteConfirmDialog
-      :show="deleteConfirmVisible"
-      :song="songToDelete"
-      @close="closeDeleteConfirm"
-      @confirm="handleDeleteConfirm"
-    />
+    <DeleteConfirmDialog :show="deleteConfirmVisible" :song="songToDelete" @close="closeDeleteConfirm"
+      @confirm="handleDeleteConfirm" />
   </div>
 </template>
 
-<style scoped>
+<style lang="scss" scoped>
+@use "../styles/variables/_colors" as *;
+@use "../styles/variables/_layout" as *;
+@use "sass:color";
+
 .main-content {
   flex-grow: 1;
-  background-color: #121212;
-  color: #fff;
+  background-color: $bg-primary;
+  color: $text-primary;
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -755,42 +637,53 @@ const fetchSongCovers = () => {
 .song-list-header {
   display: flex;
   align-items: center;
-  background-color: #1a1a1a;
-  color: #b3b3b3;
-  padding: 0 10px;
+  background-color: $bg-secondary;
+  color: $text-secondary;
+  padding: 0 $content-padding * 0.625;
   height: 40px;
-  border-bottom: 1px solid #282828;
+  border-bottom: 1px solid $bg-tertiary;
   flex-shrink: 0;
+
+  @include respond-to("sm") {
+    padding: 0 $content-padding * 0.5;
+    height: 36px;
+  }
 }
 
 .header-col {
-  padding: 8px;
-  font-weight: 600;
-  font-size: 14px;
+  padding: $content-padding * 0.5;
+  font-weight: $font-weight-medium;
+  font-size: $font-size-base;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   display: flex;
   align-items: center;
+
+  @include respond-to("sm") {
+    font-size: $font-size-sm;
+    padding: $content-padding * 0.375;
+  }
 }
 
 .header-col.sortable {
   cursor: pointer;
-}
+  transition: color $transition-base;
 
-.header-col.sortable:hover {
-  color: #fff;
+  &:hover {
+    color: $text-primary;
+  }
 }
 
 .header-col-fixed {
   flex-shrink: 0;
-  padding: 0 8px;
+  padding: 0 $content-padding * 0.5;
   display: flex;
   align-items: center;
 }
 
 .sort-icon {
-  margin-left: 5px;
+  margin-left: $content-padding * 0.3125;
 }
 
 .song-scroller {
@@ -803,77 +696,94 @@ const fetchSongCovers = () => {
   display: flex;
   align-items: center;
   height: 60px;
-  padding: 0 10px;
-  border-bottom: 1px solid #222;
-  transition: background-color 0.2s;
-}
+  padding: 0 $content-padding * 0.625;
+  border-bottom: 1px solid $bg-tertiary;
+  transition: background-color $transition-base;
+  border-radius: $border-radius;
+  margin: 2px 0;
 
-.song-row:hover {
-  background-color: #282828;
-}
+  &:hover {
+    background-color: $bg-tertiary;
+  }
 
-.song-row.playing {
-  color: #1ed760;
-  background-color: #1a2a21;
-}
+  &.playing {
+    color: $accent-green;
+    background-color: rgba(76, 175, 80, 0.1);
 
-.song-row.playing.highlighted {
-  animation: pulse 1.5s ease;
+    &.highlighted {
+      animation: pulse 1.5s ease;
+    }
+  }
+
+  @include respond-to("sm") {
+    height: 50px;
+    padding: 0 $content-padding * 0.5;
+  }
 }
 
 @keyframes pulse {
   0% {
-    background-color: #1a2a21;
-    box-shadow: 0 0 0 rgba(29, 185, 84, 0);
+    background-color: rgba(76, 175, 80, 0.1);
+    box-shadow: 0 0 0 rgba(76, 175, 80, 0);
   }
 
   25% {
-    background-color: #1e382a;
-    box-shadow: 0 0 10px rgba(29, 185, 84, 0.5);
+    background-color: rgba(76, 175, 80, 0.2);
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
   }
 
   50% {
-    background-color: #1a2a21;
-    box-shadow: 0 0 10px rgba(29, 185, 84, 0.3);
+    background-color: rgba(76, 175, 80, 0.1);
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
   }
 
   100% {
-    background-color: #1a2a21;
-    box-shadow: 0 0 0 rgba(29, 185, 84, 0);
+    background-color: rgba(76, 175, 80, 0.1);
+    box-shadow: 0 0 0 rgba(76, 175, 80, 0);
   }
 }
 
 .song-col {
-  padding: 8px;
+  padding: $content-padding * 0.5;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   display: flex;
   align-items: center;
+
+  @include respond-to("sm") {
+    padding: $content-padding * 0.375;
+    font-size: $font-size-sm;
+  }
 }
 
 .song-index {
   justify-content: center;
-  font-weight: 500;
-  color: #b3b3b3;
+  font-weight: $font-weight-medium;
+  color: $text-secondary;
 }
 
 .song-cover-container {
   position: relative;
   width: 48px;
   height: 48px;
-  border-radius: 4px;
+  border-radius: $border-radius;
   overflow: hidden;
+
+  @include respond-to("sm") {
+    width: 40px;
+    height: 40px;
+  }
 }
 
 .song-cover {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 4px;
-  background-color: #333;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  transition: transform 0.2s ease-in-out;
+  border-radius: $border-radius;
+  background-color: $bg-tertiary;
+  box-shadow: $box-shadow;
+  transition: transform $transition-base;
 }
 
 .song-row:hover .song-cover {
@@ -886,22 +796,18 @@ const fetchSongCovers = () => {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.6);
+  background-color: $overlay-dark;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
 }
 
-.play-icon {
-  fill: white;
-  width: 20px;
-  height: 20px;
-}
+
 
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.2s ease;
+  transition: opacity $transition-base;
 }
 
 .fade-enter-from,
@@ -909,83 +815,58 @@ const fetchSongCovers = () => {
   opacity: 0;
 }
 
-/* 新的控制按钮样式 */
 .control-buttons {
   display: flex;
-  padding: 8px;
-  background-color: #282828;
-  border-bottom: 1px solid #444;
+  padding: $content-padding * 0.5;
+  background-color: $bg-tertiary;
+  border-bottom: 1px solid $bg-tertiary;
   align-items: center;
   justify-content: center;
 }
 
 .control-btn {
-  padding: 8px 16px;
-  margin: 0 8px;
-  background-color: #1DB954;
-  color: white;
+  padding: $content-padding * 0.5 $content-padding;
+  margin: 0 $content-padding * 0.5;
+  background-color: $accent-green;
+  color: $text-primary;
   border: none;
-  border-radius: 4px;
+  border-radius: $border-radius;
   cursor: pointer;
-  font-weight: bold;
-  transition: all 0.2s ease;
-}
+  font-weight: $font-weight-bold;
+  transition: all $transition-base;
 
-.control-btn:hover {
-  background-color: #1ED760;
-  transform: scale(1.05);
-}
-
-.control-btn:active {
-  transform: scale(0.95);
-}
-
-.song-row.playing.highlighted {
-  animation: pulse 1.5s ease;
-}
-
-@keyframes pulse {
-  0% {
-    background-color: #1a2a21;
-    box-shadow: 0 0 0 rgba(29, 185, 84, 0);
+  &:hover {
+    background-color: $accent-hover;
+    transform: scale(1.05);
   }
 
-  25% {
-    background-color: #1e382a;
-    box-shadow: 0 0 10px rgba(29, 185, 84, 0.5);
-  }
-
-  50% {
-    background-color: #1a2a21;
-    box-shadow: 0 0 10px rgba(29, 185, 84, 0.3);
-  }
-
-  100% {
-    background-color: #1a2a21;
-    box-shadow: 0 0 0 rgba(29, 185, 84, 0);
+  &:active {
+    transform: scale(0.95);
   }
 }
 
-/* 固定在右下角的按钮 */
 #fixed-buttons {
   position: fixed;
-  right: 20px;
+  right: $content-padding * 1.25;
   bottom: 110px;
-  /* 留出底部播放器的空间 */
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  z-index: 1000;
-  /* 确保按钮在最上层 */
+  gap: $content-padding * 0.625;
+  z-index: $z-player;
+
+  @include respond-to("sm") {
+    right: $content-padding;
+    bottom: 100px;
+    gap: $content-padding * 0.5;
+  }
 }
 
-/* 按钮过渡动画 */
 .slide-fade-enter-active {
-  transition: all 0.3s ease;
+  transition: all $transition-slow;
 }
 
 .slide-fade-leave-active {
-  transition: all 0.3s ease;
+  transition: all $transition-slow;
 }
 
 .slide-fade-enter-from,
@@ -997,178 +878,186 @@ const fetchSongCovers = () => {
 .fixed-button {
   width: 44px;
   height: 44px;
-  border-radius: 8px;
-  /* 从50%改为8px，实现方形卡片带圆角 */
-  background-color: #333333;
-  /* 改为深色背景色，符合卡片式设计 */
+  border-radius: $border-radius * 2;
+  background-color: $bg-tertiary;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  /* 调整阴影效果 */
-  transition: transform 0.2s, background-color 0.2s;
+  box-shadow: $box-shadow-hover;
+  transition: transform $transition-base, background-color $transition-base;
   user-select: none;
-}
 
-.fixed-button:hover {
-  transform: scale(1.05);
-  /* 略微调小放大效果 */
-  background-color: #505050;
-  /* 悬停时变为较亮的灰色 */
-}
-
-.fixed-button:active {
-  transform: scale(0.95);
-}
-
-.song-row.playing.highlighted {
-  animation: pulse 1.5s ease;
-}
-
-@keyframes pulse {
-  0% {
-    background-color: #1a2a21;
-    box-shadow: 0 0 0 rgba(29, 185, 84, 0);
+  &:hover {
+    transform: scale(1.05);
+    background-color: color.adjust($bg-tertiary, $lightness: 10%);
   }
 
-  25% {
-    background-color: #1e382a;
-    box-shadow: 0 0 10px rgba(29, 185, 84, 0.5);
+  &:active {
+    transform: scale(0.95);
   }
 
-  50% {
-    background-color: #1a2a21;
-    box-shadow: 0 0 10px rgba(29, 185, 84, 0.3);
-  }
-
-  100% {
-    background-color: #1a2a21;
-    box-shadow: 0 0 0 rgba(29, 185, 84, 0);
+  @include respond-to("sm") {
+    width: 40px;
+    height: 40px;
   }
 }
 
-/* 歌曲信息对话框样式 */
 .song-info-dialog {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.7);
+  background-color: $overlay-dark;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1100;
-  animation: fadeIn 0.2s ease-out;
+  z-index: $z-modal;
+  animation: fadeIn $transition-fast ease-out;
 }
 
 .dialog-content {
-  background-color: #1a1a1a;
-  padding: 24px;
-  border-radius: 8px;
+  background-color: $bg-secondary;
+  padding: $content-padding * 1.5;
+  border-radius: $border-radius * 2;
   width: 90%;
   max-width: 500px;
-  border: 1px solid #333;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-}
+  border: 1px solid $bg-tertiary;
+  box-shadow: $box-shadow-hover;
 
-.dialog-content h2 {
-  margin-top: 0;
-  margin-bottom: 20px;
-  color: #1DB954;
-  border-bottom: 1px solid #333;
-  padding-bottom: 10px;
-}
+  h2 {
+    margin-top: 0;
+    margin-bottom: $content-padding * 1.25;
+    color: $accent-green;
+    border-bottom: 1px solid $bg-tertiary;
+    padding-bottom: $content-padding * 0.625;
+    font-size: $font-size-lg;
+  }
 
-.dialog-content h3 {
-  font-size: 16px;
-  margin: 10px 0;
-  color: #b3b3b3;
+  h3 {
+    font-size: $font-size-base;
+    margin: $content-padding * 0.625 0;
+    color: $text-secondary;
+  }
+
+  button {
+    background-color: $accent-green;
+    color: $text-primary;
+    border: none;
+    padding: $content-padding * 0.625 $content-padding * 1.25;
+    border-radius: $border-radius;
+    cursor: pointer;
+    margin-top: $content-padding * 1.25;
+    font-weight: $font-weight-bold;
+    width: 100%;
+    transition: background-color $transition-base;
+
+    &:hover {
+      background-color: $accent-hover;
+    }
+  }
+
+  @include respond-to("sm") {
+    padding: $content-padding;
+    width: 95%;
+    max-width: 400px;
+
+    h2 {
+      font-size: $font-size-base;
+      margin-bottom: $content-padding;
+    }
+
+    h3 {
+      font-size: $font-size-sm;
+    }
+  }
 }
 
 .info-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: $content-padding * 0.625;
+
+  @include respond-to("sm") {
+    grid-template-columns: 1fr;
+    gap: $content-padding * 0.5;
+  }
 }
 
 .info-section {
-  padding: 10px;
-  background-color: #222;
-  border-radius: 4px;
+  padding: $content-padding * 0.625;
+  background-color: $bg-primary;
+  border-radius: $border-radius;
 }
 
 .info-item {
-  margin: 8px 0;
+  margin: $content-padding * 0.5 0;
   display: flex;
   align-items: flex-start;
 }
 
 .info-label {
-  color: #b3b3b3;
+  color: $text-secondary;
   width: 70px;
   flex-shrink: 0;
+  font-size: $font-size-sm;
+
+  @include respond-to("sm") {
+    width: 60px;
+    font-size: $font-size-xs;
+  }
 }
 
 .info-value {
-  color: #fff;
+  color: $text-primary;
   word-break: break-word;
+  font-size: $font-size-sm;
+
+  @include respond-to("sm") {
+    font-size: $font-size-xs;
+  }
 }
 
 .info-path {
-  margin-top: 16px;
-  padding: 10px;
-  background-color: #222;
-  border-radius: 4px;
+  margin-top: $content-padding;
+  padding: $content-padding * 0.625;
+  background-color: $bg-primary;
+  border-radius: $border-radius;
   display: flex;
-}
 
-.info-path .info-label {
-  width: 70px;
-  flex-shrink: 0;
-}
+  .info-label {
+    width: 70px;
+    flex-shrink: 0;
+  }
 
-.info-path .path {
-  overflow-wrap: break-word;
-  word-break: break-all;
-}
-
-.dialog-content button {
-  background-color: #1DB954;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-top: 20px;
-  font-weight: bold;
-  width: 100%;
-  transition: background-color 0.2s;
-}
-
-.dialog-content button:hover {
-  background-color: #1ED760;
+  .path {
+    overflow-wrap: break-word;
+    word-break: break-all;
+  }
 }
 
 @keyframes fadeIn {
   from {
     opacity: 0;
+    transform: translateY(-8px);
   }
 
   to {
     opacity: 1;
+    transform: translateY(0);
   }
 }
 
-/* 播放次数更新高亮效果 */
 @keyframes highlight-update {
   0% {
     background-color: rgba(76, 175, 80, 0.4);
   }
+
   50% {
     background-color: rgba(76, 175, 80, 0.2);
   }
+
   100% {
     background-color: transparent;
   }
@@ -1176,14 +1065,5 @@ const fetchSongCovers = () => {
 
 .song-row.updated {
   animation: highlight-update 1.5s ease-out;
-}
-
-.song-row {
-  display: flex;
-  align-items: center;
-  padding: 10px;
-  border-radius: 4px;
-  margin: 2px 0;
-  transition: background-color 0.2s;
 }
 </style>

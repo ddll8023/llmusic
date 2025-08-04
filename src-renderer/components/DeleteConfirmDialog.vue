@@ -4,19 +4,15 @@
       <div class="dialog-header">
         <h3>确认删除</h3>
         <button class="close-btn" @click="handleCancel" :disabled="loading">
-          <svg viewBox="0 0 24 24">
-            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-          </svg>
+          <FAIcon name="times" size="medium" color="secondary" :clickable="true" />
         </button>
       </div>
 
       <div class="dialog-content">
         <div class="warning-icon">
-          <svg viewBox="0 0 24 24">
-            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-          </svg>
+          <FAIcon name="exclamation-triangle" size="large" color="danger" />
         </div>
-        
+
         <div class="song-info">
           <p class="confirm-text">您确定要删除这首歌曲吗？</p>
           <div class="song-details">
@@ -32,18 +28,10 @@
       </div>
 
       <div class="dialog-actions">
-        <button 
-          class="cancel-btn" 
-          @click="handleCancel" 
-          :disabled="loading"
-        >
+        <button class="cancel-btn" @click="handleCancel" :disabled="loading">
           取消
         </button>
-        <button 
-          class="delete-btn" 
-          @click="handleConfirm" 
-          :disabled="loading"
-        >
+        <button class="delete-btn" @click="handleConfirm" :disabled="loading">
           <span v-if="loading" class="loading-spinner"></span>
           <span v-else>删除</span>
         </button>
@@ -51,9 +39,7 @@
 
       <!-- 错误信息显示 -->
       <div v-if="error" class="error-message">
-        <svg class="error-icon" viewBox="0 0 24 24">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-        </svg>
+        <FAIcon name="exclamation-circle" size="small" color="danger" />
         <span>{{ error }}</span>
       </div>
     </div>
@@ -62,6 +48,7 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import FAIcon from './FAIcon.vue'
 
 const props = defineProps({
   show: {
@@ -110,7 +97,7 @@ const handleConfirm = async () => {
 
   try {
     const result = await window.electronAPI.deleteSong(props.song.id)
-    
+
     if (result.success) {
       emit('confirm', {
         success: true,
@@ -130,7 +117,7 @@ const handleConfirm = async () => {
 // 键盘事件处理
 const handleKeydown = (event) => {
   if (!props.show) return
-  
+
   if (event.key === 'Escape' && !loading.value) {
     handleCancel()
   } else if (event.key === 'Enter' && !loading.value) {
@@ -148,28 +135,32 @@ watch(() => props.show, (newShow) => {
 })
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+// 导入样式变量
+@use "../styles/variables/_colors" as *;
+@use "../styles/variables/_layout" as *;
+
 .delete-confirm-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background-color: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: $z-modal;
   backdrop-filter: blur(4px);
 }
 
 .delete-confirm-dialog {
-  background: #2a2a2a;
-  border-radius: 12px;
+  background-color: $bg-secondary;
+  border-radius: $border-radius-large;
   width: 90%;
   max-width: 480px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-  border: 1px solid #404040;
+  box-shadow: 0 20px 40px $overlay-dark;
+  border: 1px solid $bg-tertiary;
   overflow: hidden;
 }
 
@@ -177,30 +168,30 @@ watch(() => props.show, (newShow) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 24px 16px;
-  border-bottom: 1px solid #404040;
+  padding: $section-padding $section-padding $content-padding;
+  border-bottom: 1px solid $bg-tertiary;
 }
 
 .dialog-header h3 {
   margin: 0;
-  color: #ffffff;
-  font-size: 18px;
-  font-weight: 600;
+  color: $text-primary;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
 }
 
 .close-btn {
   background: none;
   border: none;
-  color: #888;
+  color: $text-secondary;
   cursor: pointer;
   padding: 4px;
-  border-radius: 4px;
-  transition: all 0.2s ease;
+  border-radius: $border-radius;
+  transition: all $transition-base;
 }
 
 .close-btn:hover:not(:disabled) {
-  color: #ffffff;
-  background: #404040;
+  color: $text-primary;
+  background-color: $bg-tertiary;
 }
 
 .close-btn:disabled {
@@ -208,33 +199,21 @@ watch(() => props.show, (newShow) => {
   cursor: not-allowed;
 }
 
-.close-btn svg {
-  width: 20px;
-  height: 20px;
-  fill: currentColor;
-}
-
 .dialog-content {
-  padding: 24px;
+  padding: $section-padding;
   display: flex;
-  gap: 16px;
+  gap: $content-padding;
 }
 
 .warning-icon {
   flex-shrink: 0;
   width: 48px;
   height: 48px;
-  background: #ff6b6b;
+  background-color: $danger;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.warning-icon svg {
-  width: 24px;
-  height: 24px;
-  fill: white;
 }
 
 .song-info {
@@ -242,61 +221,62 @@ watch(() => props.show, (newShow) => {
 }
 
 .confirm-text {
-  margin: 0 0 16px 0;
-  color: #ffffff;
-  font-size: 16px;
-  font-weight: 500;
+  margin: 0 0 $content-padding 0;
+  color: $text-primary;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
 }
 
 .song-details {
-  background: #1a1a1a;
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 16px;
-  border: 1px solid #333;
+  background-color: $bg-primary;
+  border-radius: $border-radius-large;
+  padding: $item-padding;
+  margin-bottom: $content-padding;
+  border: 1px solid $bg-tertiary;
 }
 
 .song-title {
-  color: #ffffff;
-  font-size: 14px;
-  font-weight: 500;
+  color: $text-primary;
+  font-size: $font-size-base;
+  font-weight: $font-weight-medium;
   margin-bottom: 4px;
 }
 
 .song-meta {
-  color: #888;
-  font-size: 12px;
+  color: $text-secondary;
+  font-size: $font-size-sm;
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
 .separator {
-  color: #555;
+  color: $text-disabled;
 }
 
 .warning-text {
   margin: 0;
-  color: #ff6b6b;
-  font-size: 13px;
-  line-height: 1.4;
+  color: $danger;
+  font-size: $font-size-sm;
+  line-height: $line-height-base;
 }
 
 .dialog-actions {
   display: flex;
-  gap: 12px;
-  padding: 0 24px 24px;
+  gap: $item-padding;
+  padding: 0 $section-padding $section-padding;
   justify-content: flex-end;
 }
 
-.cancel-btn, .delete-btn {
+.cancel-btn,
+.delete-btn {
   padding: 10px 20px;
-  border-radius: 6px;
+  border-radius: $border-radius;
   border: none;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: $font-size-base;
+  font-weight: $font-weight-medium;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all $transition-base;
   min-width: 80px;
   display: flex;
   align-items: center;
@@ -305,24 +285,25 @@ watch(() => props.show, (newShow) => {
 }
 
 .cancel-btn {
-  background: #404040;
-  color: #ffffff;
+  background-color: $bg-tertiary;
+  color: $text-primary;
 }
 
 .cancel-btn:hover:not(:disabled) {
-  background: #4a4a4a;
+  background-color: $bg-tertiary-hover;
 }
 
 .delete-btn {
-  background: #ff6b6b;
+  background-color: $danger;
   color: white;
 }
 
 .delete-btn:hover:not(:disabled) {
-  background: #ff5252;
+  background-color: $danger-hover;
 }
 
-.cancel-btn:disabled, .delete-btn:disabled {
+.cancel-btn:disabled,
+.delete-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -337,27 +318,61 @@ watch(() => props.show, (newShow) => {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .error-message {
-  margin: 0 24px 24px;
-  padding: 12px;
-  background: rgba(255, 107, 107, 0.1);
-  border: 1px solid #ff6b6b;
-  border-radius: 6px;
-  color: #ff6b6b;
-  font-size: 13px;
+  margin: 0 $section-padding $section-padding;
+  padding: $item-padding;
+  background: rgba($danger, 0.1);
+  border: 1px solid $danger;
+  border-radius: $border-radius;
+  color: $danger;
+  font-size: $font-size-sm;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.error-icon {
-  width: 16px;
-  height: 16px;
-  fill: currentColor;
-  flex-shrink: 0;
+// 响应式设计
+@include respond-to("sm") {
+  .delete-confirm-dialog {
+    width: 95%;
+    max-width: none;
+    margin: $content-padding;
+  }
+
+  .dialog-header {
+    padding: $content-padding;
+  }
+
+  .dialog-content {
+    padding: $content-padding;
+    flex-direction: column;
+    gap: $item-padding;
+  }
+
+  .warning-icon {
+    width: 40px;
+    height: 40px;
+    align-self: center;
+  }
+
+  .dialog-actions {
+    padding: 0 $content-padding $content-padding;
+    flex-direction: column;
+    gap: calc($item-padding / 2);
+  }
+
+  .cancel-btn,
+  .delete-btn {
+    width: 100%;
+  }
 }
 </style>

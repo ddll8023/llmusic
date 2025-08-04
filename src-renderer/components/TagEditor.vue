@@ -1,14 +1,14 @@
 <template>
-  <div v-if="showTagEditor" class="tag-editor-overlay" @click.self="closeEditor">
-    <div class="tag-editor-modal">
-      <div class="tag-editor-header">
+  <div v-if="showTagEditor" class="tag-editor__overlay" @click.self="closeEditor">
+    <div class="tag-editor__modal">
+      <div class="tag-editor__header">
         <h3>编辑歌曲标签</h3>
-        <button class="close-btn" @click="closeEditor">
-          <Icon name="close" size="16px" />
+        <button class="tag-editor__button tag-editor__button--close" @click="closeEditor">
+          <FAIcon name="times" size="small" color="secondary" :clickable="true" />
         </button>
       </div>
 
-      <div class="tag-editor-content">
+      <div class="tag-editor__content">
         <!-- 歌曲信息显示 -->
         <div class="song-info">
           <div class="song-title">{{ currentSong?.title || '未知歌曲' }}</div>
@@ -20,16 +20,8 @@
           <div class="form-row">
             <div class="form-group">
               <label for="title">标题 *</label>
-              <input
-                id="title"
-                v-model="editingTags.title"
-                type="text"
-                class="form-input"
-                :class="{ 'error': validationErrors.title }"
-                placeholder="请输入歌曲标题"
-                maxlength="255"
-                required
-              />
+              <input id="title" v-model="editingTags.title" type="text" class="form-input"
+                :class="{ 'is-error': validationErrors.title }" placeholder="请输入歌曲标题" maxlength="255" required />
               <div v-if="validationErrors.title" class="error-message">
                 {{ validationErrors.title }}
               </div>
@@ -39,15 +31,8 @@
           <div class="form-row">
             <div class="form-group">
               <label for="artist">艺术家</label>
-              <input
-                id="artist"
-                v-model="editingTags.artist"
-                type="text"
-                class="form-input"
-                :class="{ 'error': validationErrors.artist }"
-                placeholder="请输入艺术家"
-                maxlength="255"
-              />
+              <input id="artist" v-model="editingTags.artist" type="text" class="form-input"
+                :class="{ 'is-error': validationErrors.artist }" placeholder="请输入艺术家" maxlength="255" />
               <div v-if="validationErrors.artist" class="error-message">
                 {{ validationErrors.artist }}
               </div>
@@ -57,15 +42,8 @@
           <div class="form-row">
             <div class="form-group">
               <label for="album">专辑</label>
-              <input
-                id="album"
-                v-model="editingTags.album"
-                type="text"
-                class="form-input"
-                :class="{ 'error': validationErrors.album }"
-                placeholder="请输入专辑名称"
-                maxlength="255"
-              />
+              <input id="album" v-model="editingTags.album" type="text" class="form-input"
+                :class="{ 'is-error': validationErrors.album }" placeholder="请输入专辑名称" maxlength="255" />
               <div v-if="validationErrors.album" class="error-message">
                 {{ validationErrors.album }}
               </div>
@@ -75,16 +53,9 @@
           <div class="form-row">
             <div class="form-group">
               <label for="year">年份</label>
-              <input
-                id="year"
-                v-model="editingTags.year"
-                type="number"
-                class="form-input"
-                :class="{ 'error': validationErrors.year }"
-                placeholder="年份"
-                min="1900"
-                :max="new Date().getFullYear() + 1"
-              />
+              <input id="year" v-model="editingTags.year" type="number" class="form-input"
+                :class="{ 'is-error': validationErrors.year }" placeholder="年份" min="1900"
+                :max="new Date().getFullYear() + 1" />
               <div v-if="validationErrors.year" class="error-message">
                 {{ validationErrors.year }}
               </div>
@@ -116,19 +87,15 @@
         </form>
       </div>
 
-      <div class="tag-editor-footer">
-        <button type="button" class="btn btn-secondary" @click="resetTags">
+      <div class="tag-editor__footer">
+        <button type="button" class="tag-editor__button tag-editor__button--secondary" @click="resetTags">
           重置
         </button>
-        <button type="button" class="btn btn-secondary" @click="closeEditor">
+        <button type="button" class="tag-editor__button tag-editor__button--secondary" @click="closeEditor">
           取消
         </button>
-        <button 
-          type="button" 
-          class="btn btn-primary" 
-          @click="saveTags"
-          :disabled="loading || !isFormValid"
-        >
+        <button type="button" class="tag-editor__button tag-editor__button--primary" @click="saveTags"
+          :disabled="loading || !isFormValid" :class="{ 'is-loading': loading }">
           <span v-if="loading">保存中...</span>
           <span v-else>保存</span>
         </button>
@@ -140,7 +107,7 @@
 <script setup>
 import { ref, reactive, computed, watch } from 'vue';
 import { useMediaStore } from '../store/media';
-import Icon from './Icon.vue';
+import FAIcon from './FAIcon.vue';
 
 const mediaStore = useMediaStore();
 
@@ -161,14 +128,19 @@ const validationErrors = reactive({});
 
 // 计算属性
 const isFormValid = computed(() => {
-  return editingTags.title && editingTags.title.trim() !== '' && 
-         Object.keys(validationErrors).length === 0;
+  return editingTags.title && editingTags.title.trim() !== '' &&
+    Object.keys(validationErrors).length === 0;
 });
 
 // 监听标签变化，实时验证
 watch(editingTags, async (newTags) => {
-  if (showTagEditor.value) {
-    await validateTags(newTags);
+  // 只在编辑器显示且标题不为空时进行验证
+  if (showTagEditor.value && newTags.title && newTags.title.trim() !== '') {
+    try {
+      await validateTags(newTags);
+    } catch (error) {
+      console.error('标签验证过程中发生错误:', error);
+    }
   }
 }, { deep: true });
 
@@ -256,13 +228,21 @@ const resetTags = () => {
 
 const validateTags = async (tags) => {
   try {
-    const result = await window.electronAPI.validateTagChanges(tags);
+    // 将响应式对象转换为普通对象以避免序列化错误
+    const plainTags = {
+      title: tags.title,
+      artist: tags.artist,
+      album: tags.album,
+      year: tags.year
+    };
+
+    const result = await window.electronAPI.validateTagChanges(plainTags);
     if (result.success && result.validation) {
       // 清除之前的错误
       Object.keys(validationErrors).forEach(key => {
         delete validationErrors[key];
       });
-      
+
       // 设置新的错误
       if (result.validation.errors && result.validation.errors.length > 0) {
         result.validation.errors.forEach(error => {
@@ -287,7 +267,15 @@ const saveTags = async () => {
   loading.value = true;
 
   try {
-    const result = await window.electronAPI.updateSongTags(currentSong.value.id, editingTags);
+    // 将响应式对象转换为普通对象以避免序列化错误
+    const plainTags = {
+      title: editingTags.title,
+      artist: editingTags.artist,
+      album: editingTags.album,
+      year: editingTags.year
+    };
+
+    const result = await window.electronAPI.updateSongTags(currentSong.value.id, plainTags);
     if (result.success) {
       // 更新成功，刷新歌曲列表
       await mediaStore.loadSongs();
@@ -318,234 +306,410 @@ defineExpose({
 });
 </script>
 
-<style scoped>
-.tag-editor-overlay {
+<style lang="scss" scoped>
+// 导入样式变量
+@use "../styles/variables/_colors" as *;
+@use "../styles/variables/_typography" as *;
+@use "../styles/variables/_layout" as *;
+
+// 弹窗进入/退出动画
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+    filter: blur(2px);
+  }
+
+  50% {
+    opacity: 0.8;
+    transform: scale(0.95) translateY(-10px);
+    filter: blur(1px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes fadeOut {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(0.9) translateY(-10px);
+    filter: blur(2px);
+  }
+}
+
+.tag-editor__overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: $overlay-dark;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: $z-modal;
 }
 
-.tag-editor-modal {
-  background: #181818;
-  border-radius: 8px;
+.tag-editor__modal {
+  background: $bg-secondary;
+  border-radius: ($border-radius * 2);
+  border: 1px solid $bg-tertiary;
   width: 90%;
   max-width: 600px;
   max-height: 90vh;
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: $box-shadow;
   display: flex;
   flex-direction: column;
+  animation: fadeIn $transition-slow ease-out;
+  font-family: $font-family-base;
 }
 
-.tag-editor-header {
+.tag-editor__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px;
-  border-bottom: 1px solid #535353;
+  padding: ($content-padding * 1.25);
+  border-bottom: 1px solid $bg-tertiary;
+  background-color: $bg-primary;
+
+  h3 {
+    margin: 0;
+    color: $text-primary;
+    font-size: $font-size-lg;
+    font-weight: $font-weight-bold;
+    font-family: $font-family-base;
+  }
 }
 
-.tag-editor-header h3 {
-  margin: 0;
-  color: #ffffff;
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  color: #b3b3b3;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-}
-
-.close-btn:hover {
-  background: #282828;
-  color: #ffffff;
-}
-
-.tag-editor-content {
+.tag-editor__content {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: ($content-padding * 1.25);
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: $bg-tertiary;
+    border-radius: $border-radius;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: $overlay-light;
+    border-radius: $border-radius;
+
+    &:hover {
+      background: $overlay-medium;
+    }
+  }
 }
 
 .song-info {
-  margin-bottom: 20px;
-  padding: 12px;
-  background: #282828;
-  border-radius: 6px;
+  margin-bottom: ($content-padding * 1.25);
+  padding: ($content-padding * 0.75);
+  background: $bg-tertiary;
+  border-radius: ($border-radius * 1.5);
+  border: 1px solid $bg-tertiary;
+  transition: all $transition-base;
+
+  &:hover {
+    background: $bg-tertiary-hover;
+  }
 }
 
 .song-title {
-  font-weight: 600;
-  color: #ffffff;
+  font-weight: $font-weight-medium;
+  color: $text-primary;
+  font-size: $font-size-base;
+  font-family: $font-family-base;
   margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: $line-height-base;
 }
 
 .song-path {
-  font-size: 12px;
-  color: #b3b3b3;
+  font-size: $font-size-xs;
+  color: $text-secondary;
+  font-family: $font-family-mono;
   word-break: break-all;
+  line-height: $line-height-relaxed;
 }
 
 .tag-form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: $content-padding;
 }
 
 .form-row {
   display: flex;
-  gap: 16px;
+  gap: $content-padding;
 }
 
 .form-row.two-columns {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: $content-padding;
 }
 
 .form-group {
   flex: 1;
   display: flex;
   flex-direction: column;
-}
 
-.form-group label {
-  font-size: 14px;
-  font-weight: 500;
-  color: #ffffff;
-  margin-bottom: 6px;
+  label {
+    font-size: $font-size-sm;
+    font-weight: $font-weight-medium;
+    font-family: $font-family-base;
+    color: $text-primary;
+    margin-bottom: ($content-padding * 0.375);
+    line-height: $line-height-base;
+    transition: color $transition-base;
+
+    &:hover {
+      color: $accent-green;
+    }
+  }
 }
 
 .form-input,
 .form-textarea {
-  background: #121212;
-  border: 1px solid #535353;
-  border-radius: 4px;
-  padding: 8px 12px;
-  color: #ffffff;
-  font-size: 14px;
-  transition: border-color 0.2s ease;
-}
+  background: $bg-primary;
+  border: 2px solid $bg-tertiary;
+  border-radius: $border-radius;
+  padding: ($content-padding * 0.5) ($content-padding * 0.75);
+  color: $text-primary;
+  font-size: $font-size-base;
+  font-family: $font-family-base;
+  transition: all $transition-base;
+  box-sizing: border-box;
 
-.form-input:focus,
-.form-textarea:focus {
-  outline: none;
-  border-color: #1db954;
-}
+  &:focus {
+    outline: none;
+    border-color: $accent-green;
+    box-shadow: 0 0 0 2px rgba($accent-green, 0.2);
+  }
 
-.form-input.error,
-.form-textarea.error {
-  border-color: #ff4757;
+  &:hover:not(:focus) {
+    border-color: $bg-tertiary-hover;
+  }
+
+  &::placeholder {
+    color: $text-disabled;
+  }
+
+  &.is-error {
+    border-color: $danger;
+    box-shadow: 0 0 0 2px rgba($danger, 0.2);
+  }
+
+  &:disabled {
+    background: $bg-tertiary;
+    color: $text-disabled;
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
 }
 
 .form-textarea {
   resize: vertical;
   min-height: 60px;
+  line-height: 1.5;
 }
 
 .error-message {
-  font-size: 12px;
-  color: #ff4757;
+  font-size: $font-size-xs;
+  color: $danger;
   margin-top: 4px;
+  font-weight: $font-weight-medium;
+  font-family: $font-family-base;
+  line-height: $line-height-base;
+  transition: color $transition-base;
+
+  &:hover {
+    color: $danger-hover;
+  }
 }
 
 .technical-info {
-  margin-top: 20px;
-  padding: 16px;
-  background: #282828;
-  border-radius: 6px;
-}
+  margin-top: ($content-padding * 1.25);
+  padding: $content-padding;
+  background: $bg-tertiary;
+  border-radius: ($border-radius * 1.5);
+  border: 1px solid $bg-tertiary;
+  transition: all $transition-base;
 
-.technical-info h4 {
-  margin: 0 0 12px 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: #ffffff;
+  &:hover {
+    background: $bg-tertiary-hover;
+  }
+
+  h4 {
+    margin: 0 0 ($content-padding * 0.75) 0;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-bold;
+    font-family: $font-family-base;
+    color: $text-primary;
+    line-height: $line-height-base;
+  }
 }
 
 .info-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: ($content-padding * 0.5);
 }
 
 .info-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: ($content-padding * 0.25) 0;
 }
 
 .info-label {
-  font-size: 12px;
-  color: #b3b3b3;
+  font-size: $font-size-xs;
+  color: $text-secondary;
+  font-weight: $font-weight-medium;
+  font-family: $font-family-base;
+  line-height: $line-height-base;
 }
 
 .info-value {
-  font-size: 12px;
-  color: #ffffff;
-  font-weight: 500;
+  font-size: $font-size-xs;
+  color: $text-primary;
+  font-weight: $font-weight-medium;
+  font-family: $font-family-mono;
+  text-align: right;
+  line-height: $line-height-base;
 }
 
-.tag-editor-footer {
+.tag-editor__footer {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 12px;
-  padding: 20px;
-  border-top: 1px solid #535353;
+  gap: ($content-padding * 0.75);
+  padding: ($content-padding * 1.25);
+  border-top: 1px solid $bg-tertiary;
+  background-color: $bg-primary;
 }
 
-.btn {
-  padding: 8px 16px;
-  border-radius: 4px;
+.tag-editor__button {
+  padding: ($content-padding * 0.5) ($content-padding * 1.25);
+  border-radius: $border-radius;
   border: none;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: $font-size-base;
+  font-weight: $font-weight-medium;
+  font-family: $font-family-base;
   cursor: pointer;
-  transition: all 0.2s ease;
-}
+  transition: all $transition-base;
+  white-space: nowrap;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
 
-.btn-secondary {
-  background: #282828;
-  color: #ffffff;
-}
+    &:hover {
+      transform: none;
+    }
+  }
 
-.btn-secondary:hover:not(:disabled) {
-  background: #535353;
-}
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
 
-.btn-primary {
-  background: #1db954;
-  color: white;
-}
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
 
-.btn-primary:hover:not(:disabled) {
-  background: #1ed760;
+  &.is-loading {
+    opacity: 0.7;
+    cursor: wait;
+  }
+
+  &--close {
+    background: none;
+    border: none;
+    color: $text-secondary;
+    cursor: pointer;
+    padding: ($content-padding * 0.5);
+    border-radius: 50%;
+    transition: all $transition-base;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    min-height: 32px;
+
+    &:hover {
+      background-color: $overlay-light;
+      color: $text-primary;
+      transform: scale(1.05);
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+
+  &--secondary {
+    background: $bg-tertiary;
+    color: $text-primary;
+    border: 1px solid $bg-tertiary;
+
+    &:hover:not(:disabled) {
+      background: $overlay-light;
+      border-color: $overlay-light;
+    }
+  }
+
+  &--primary {
+    background: $accent-green;
+    color: $text-primary;
+    font-weight: $font-weight-bold;
+
+    &:hover:not(:disabled) {
+      background: $accent-hover;
+    }
+  }
 }
 
 /* 响应式设计 */
-@media (max-width: 768px) {
-  .tag-editor-modal {
+@include respond-to("sm") {
+  .tag-editor__modal {
     width: 95%;
     max-height: 95vh;
+    border-radius: $border-radius;
+  }
+
+  .tag-editor__header {
+    padding: $content-padding;
+
+    h3 {
+      font-size: $font-size-base;
+    }
+  }
+
+  .tag-editor__content {
+    padding: $content-padding;
   }
 
   .form-row.two-columns {
@@ -554,6 +718,65 @@ defineExpose({
 
   .info-grid {
     grid-template-columns: 1fr;
+  }
+
+  .tag-editor__footer {
+    padding: $content-padding;
+    gap: ($content-padding * 0.5);
+    flex-direction: column-reverse;
+
+    .tag-editor__button {
+      width: 100%;
+      font-size: $font-size-sm;
+    }
+  }
+
+  .tag-editor__button--close {
+    min-width: 28px;
+    min-height: 28px;
+  }
+}
+
+// 高对比度模式支持
+@media (prefers-contrast: high) {
+  .tag-editor__modal {
+    border: 2px solid $text-primary;
+  }
+
+  .form-input,
+  .form-textarea {
+    border-width: 2px;
+  }
+
+  .tag-editor__button {
+    border-width: 2px;
+  }
+}
+
+// 减少动画模式支持
+@media (prefers-reduced-motion: reduce) {
+  .tag-editor__modal {
+    animation: none;
+  }
+
+  .tag-editor__button,
+  .form-input,
+  .form-textarea,
+  .song-info,
+  .technical-info,
+  .form-group label,
+  .error-message {
+    transition: none !important;
+  }
+
+  .tag-editor__button:hover,
+  .tag-editor__button--close:hover,
+  .tag-editor__button--close:active,
+  .song-info:hover,
+  .technical-info:hover,
+  .form-group label:hover,
+  .error-message:hover {
+    transform: none !important;
   }
 }
 </style>

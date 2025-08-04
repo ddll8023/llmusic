@@ -1,0 +1,206 @@
+// 过渡动画和动效
+
+@use "../variables/_colors" as *;
+@use "../variables/_typography" as *;
+@use "../variables/_layout" as *;
+
+// Vue 过渡动画
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity $transition-base;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+    opacity: 0;
+}
+
+// 滑动动画
+.slide-enter-active,
+.slide-leave-active {
+    transition: transform $transition-slow;
+}
+
+.slide-enter-from {
+    transform: translateX(100%);
+}
+
+.slide-leave-to {
+    transform: translateX(100%);
+}
+
+// 垂直滑动
+.slide-up-enter-active,
+.slide-up-leave-active {
+    transition: transform $transition-slow;
+}
+
+.slide-up-enter-from {
+    transform: translateY(100%);
+}
+
+.slide-up-leave-to {
+    transform: translateY(100%);
+}
+
+// 缩放动画
+.scale-enter-active,
+.scale-leave-active {
+    transition: all $transition-base;
+}
+
+.scale-enter-from,
+.scale-leave-to {
+    opacity: 0;
+    transform: scale(0.8);
+}
+
+// 弹性动画
+@keyframes bounce-in {
+    0% {
+        transform: scale(0.3);
+        opacity: 0;
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
+
+    70% {
+        transform: scale(0.9);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.bounce-enter-active {
+    animation: bounce-in $transition-slow;
+}
+
+.bounce-leave-active {
+    transition: all $transition-base;
+}
+
+.bounce-leave-to {
+    opacity: 0;
+    transform: scale(0.8);
+}
+
+// 旋转动画
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+// 脉冲动画
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+// 摇摆动画
+@keyframes shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    10%,
+    30%,
+    50%,
+    70%,
+    90% {
+        transform: translateX(-2px);
+    }
+
+    20%,
+    40%,
+    60%,
+    80% {
+        transform: translateX(2px);
+    }
+}
+
+.shake {
+    animation: shake 0.5s ease-in-out;
+}
+
+// 悬停效果
+.hover-lift {
+    transition: transform $transition-base, box-shadow $transition-base;
+
+    &:hover {
+        transform: translateY(-2px);
+        box-shadow: $box-shadow-hover;
+    }
+}
+
+.hover-glow {
+    transition: box-shadow $transition-base;
+
+    &:hover {
+        box-shadow: 0 0 20px rgba(76, 175, 80, 0.3);
+    }
+}
+
+// 加载动画
+@keyframes loading-dots {
+
+    0%,
+    80%,
+    100% {
+        transform: scale(0);
+    }
+
+    40% {
+        transform: scale(1);
+    }
+}
+
+.loading-dots {
+    display: inline-flex;
+    gap: 4px;
+
+    &::before,
+    &::after,
+    & {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background-color: $accent-green;
+        animation: loading-dots 1.4s infinite ease-in-out both;
+    }
+
+    &::before {
+        animation-delay: -0.32s;
+    }
+
+    &::after {
+        animation-delay: -0.16s;
+    }
+}

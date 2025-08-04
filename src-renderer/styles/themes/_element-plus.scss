@@ -1,0 +1,426 @@
+// Element Plus 深色主题覆盖
+
+@use "sass:color";
+@use "../variables/_colors" as *;
+@use "../variables/_typography" as *;
+@use "../variables/_layout" as *;
+
+// 主题变量覆盖
+:root {
+    // 主色调
+    --el-color-primary: #{$accent-green};
+    // 主色调变体
+    --el-color-primary-light-3: #{color.adjust($accent-green, $lightness: 15%)};
+    --el-color-primary-light-5: #{color.adjust($accent-green, $lightness: 25%)};
+    --el-color-primary-light-7: #{color.adjust($accent-green, $lightness: 35%)};
+    --el-color-primary-light-8: #{color.adjust($accent-green, $lightness: 40%)};
+    --el-color-primary-light-9: #{color.adjust($accent-green, $lightness: 45%)};
+    --el-color-primary-dark-2: #{color.adjust($accent-green, $lightness: -10%)};
+
+    // 功能色
+    --el-color-success: #{$success};
+    --el-color-warning: #{$warning};
+    --el-color-danger: #{$danger};
+    --el-color-error: #{$danger};
+    --el-color-info: #{$info};
+
+    // 背景色
+    --el-bg-color: #{$bg-primary};
+    --el-bg-color-page: #{$bg-primary};
+    --el-bg-color-overlay: #{$bg-secondary};
+
+    // 文本色
+    --el-text-color-primary: #{$text-primary};
+    --el-text-color-regular: #{$text-secondary};
+    --el-text-color-secondary: #{$text-disabled};
+    --el-text-color-placeholder: #{$text-disabled};
+    --el-text-color-disabled: #{$text-disabled};
+
+    // 边框色
+    --el-border-color: #{$bg-tertiary};
+    --el-border-color-light: #{color.adjust($bg-tertiary, $lightness: 10%)};
+    --el-border-color-lighter: #{color.adjust($bg-tertiary, $lightness: 20%)};
+    --el-border-color-extra-light: #{color.adjust($bg-tertiary, $lightness: 30%)};
+    --el-border-color-dark: #{color.adjust($bg-tertiary, $lightness: -10%)};
+    --el-border-color-darker: #{color.adjust($bg-tertiary, $lightness: -20%)};
+
+    // 填充色
+    --el-fill-color: #{$bg-secondary};
+    --el-fill-color-light: #{color.adjust($bg-secondary, $lightness: 5%)};
+    --el-fill-color-lighter: #{color.adjust($bg-secondary, $lightness: 10%)};
+    --el-fill-color-extra-light: #{color.adjust($bg-secondary, $lightness: 15%)};
+    --el-fill-color-dark: #{color.adjust($bg-secondary, $lightness: -5%)};
+    --el-fill-color-darker: #{color.adjust($bg-secondary, $lightness: -10%)};
+    --el-fill-color-blank: transparent;
+
+    // 遮罩层
+    --el-overlay-color: rgba(0, 0, 0, 0.8);
+    --el-overlay-color-light: rgba(0, 0, 0, 0.7);
+    --el-overlay-color-lighter: rgba(0, 0, 0, 0.5);
+
+    // 阴影
+    --el-box-shadow: #{$box-shadow};
+    --el-box-shadow-light: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+    --el-box-shadow-base: 0 2px 4px rgba(0, 0, 0, 0.12), 0 0 6px rgba(0, 0, 0, 0.04);
+    --el-box-shadow-dark: 0 2px 4px rgba(0, 0, 0, 0.12), 0 0 6px rgba(0, 0, 0, 0.12);
+
+    // 圆角
+    --el-border-radius-base: #{$border-radius};
+    --el-border-radius-small: #{$border-radius-small};
+    --el-border-radius-round: 20px;
+    --el-border-radius-circle: 100%;
+}
+
+// 按钮组件样式覆盖
+.el-button {
+    border-radius: $border-radius;
+    font-weight: $font-weight-medium;
+    transition: all $transition-base;
+
+    &.el-button--primary {
+        background-color: $accent-green;
+        border-color: $accent-green;
+
+        &:hover,
+        &:focus {
+            background-color: $accent-hover;
+            border-color: $accent-hover;
+        }
+
+        &:active {
+            background-color: color.adjust($accent-green, $lightness: -10%);
+            border-color: color.adjust($accent-green, $lightness: -10%);
+        }
+    }
+
+    &.el-button--default {
+        background-color: $bg-tertiary;
+        border-color: $bg-tertiary;
+        color: $text-primary;
+
+        &:hover,
+        &:focus {
+            background-color: color.adjust($bg-tertiary, $lightness: 10%);
+            border-color: color.adjust($bg-tertiary, $lightness: 10%);
+        }
+    }
+
+    &.el-button--text {
+        color: $text-secondary;
+
+        &:hover,
+        &:focus {
+            color: $accent-green;
+            background-color: rgba(76, 175, 80, 0.1);
+        }
+    }
+
+    &.is-disabled {
+
+        &,
+        &:hover,
+        &:focus {
+            background-color: color.adjust($bg-tertiary, $lightness: 5%);
+            border-color: color.adjust($bg-tertiary, $lightness: 5%);
+            color: $text-disabled;
+        }
+    }
+}
+
+// 输入框组件样式覆盖
+.el-input {
+    .el-input__wrapper {
+        background-color: $bg-secondary;
+        border: 1px solid $bg-tertiary;
+        border-radius: $border-radius;
+        box-shadow: none;
+
+        &:hover {
+            border-color: color.adjust($bg-tertiary, $lightness: 10%);
+        }
+
+        &.is-focus {
+            border-color: $accent-green;
+            box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+        }
+    }
+
+    .el-input__inner {
+        color: $text-primary;
+
+        &::placeholder {
+            color: $text-disabled;
+        }
+    }
+
+    &.is-disabled {
+        .el-input__wrapper {
+            background-color: color.adjust($bg-tertiary, $lightness: 5%);
+            border-color: color.adjust($bg-tertiary, $lightness: 5%);
+        }
+
+        .el-input__inner {
+            color: $text-disabled;
+        }
+    }
+}
+
+// 对话框组件样式覆盖
+.el-dialog {
+    background-color: $bg-secondary;
+    border: 1px solid $bg-tertiary;
+    border-radius: $border-radius-large;
+    box-shadow: 0 16px 64px rgba(0, 0, 0, 0.5);
+
+    .el-dialog__header {
+        background-color: rgba(255, 255, 255, 0.02);
+        border-bottom: 1px solid $bg-tertiary;
+        border-radius: $border-radius-large $border-radius-large 0 0;
+        padding: $section-padding;
+
+        .el-dialog__title {
+            color: $text-primary;
+            font-weight: $font-weight-medium;
+        }
+    }
+
+    .el-dialog__body {
+        padding: $section-padding;
+        color: $text-primary;
+    }
+
+    .el-dialog__footer {
+        padding: $section-padding;
+        border-top: 1px solid $bg-tertiary;
+        background-color: rgba(255, 255, 255, 0.02);
+    }
+
+    .el-dialog__close {
+        color: $text-secondary;
+
+        &:hover {
+            color: $text-primary;
+        }
+    }
+}
+
+// 表格组件样式覆盖
+.el-table {
+    background-color: $bg-secondary;
+    color: $text-primary;
+
+    &::before {
+        background-color: $bg-tertiary;
+    }
+
+    .el-table__header-wrapper {
+        .el-table__header {
+            th {
+                background-color: rgba(255, 255, 255, 0.02);
+                border-bottom: 1px solid $bg-tertiary;
+                color: $text-secondary;
+                font-weight: $font-weight-medium;
+            }
+        }
+    }
+
+    .el-table__body-wrapper {
+        .el-table__body {
+            tr {
+                background-color: transparent;
+
+                &:hover>td {
+                    background-color: rgba(255, 255, 255, 0.05);
+                }
+
+                td {
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                }
+            }
+        }
+    }
+
+    &.el-table--striped {
+        .el-table__body {
+            tr.el-table__row--striped {
+                td {
+                    background-color: rgba(255, 255, 255, 0.02);
+                }
+            }
+        }
+    }
+}
+
+// 下拉选择器样式覆盖
+.el-select-dropdown {
+    background-color: $bg-secondary;
+    border: 1px solid $bg-tertiary;
+    box-shadow: $box-shadow-hover;
+
+    .el-select-dropdown__item {
+        color: $text-primary;
+
+        &:hover {
+            background-color: rgba(76, 175, 80, 0.1);
+        }
+
+        &.selected {
+            background-color: rgba(76, 175, 80, 0.2);
+            color: $accent-green;
+        }
+    }
+}
+
+// 菜单组件样式覆盖
+.el-menu {
+    background-color: $bg-secondary;
+    border-right: 1px solid $bg-tertiary;
+
+    .el-menu-item,
+    .el-submenu__title {
+        color: $text-secondary;
+
+        &:hover {
+            background-color: rgba(76, 175, 80, 0.1);
+            color: $text-primary;
+        }
+
+        &.is-active {
+            background-color: rgba(76, 175, 80, 0.15);
+            color: $accent-green;
+        }
+    }
+
+    .el-submenu {
+        .el-menu {
+            background-color: color.adjust($bg-secondary, $lightness: -2%);
+        }
+    }
+}
+
+// 消息提示样式覆盖
+.el-message {
+    background-color: rgba(24, 24, 24, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: $border-radius;
+    color: $text-primary;
+
+    &.el-message--success {
+        border-left: 4px solid $success;
+    }
+
+    &.el-message--error {
+        border-left: 4px solid $danger;
+    }
+
+    &.el-message--warning {
+        border-left: 4px solid $warning;
+    }
+
+    &.el-message--info {
+        border-left: 4px solid $info;
+    }
+}
+
+// 通知样式覆盖
+.el-notification {
+    background-color: rgba(24, 24, 24, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: $border-radius;
+
+    .el-notification__title {
+        color: $text-primary;
+    }
+
+    .el-notification__content {
+        color: $text-secondary;
+    }
+
+    &.el-notification--success {
+        border-left: 4px solid $success;
+    }
+
+    &.el-notification--error {
+        border-left: 4px solid $danger;
+    }
+
+    &.el-notification--warning {
+        border-left: 4px solid $warning;
+    }
+
+    &.el-notification--info {
+        border-left: 4px solid $info;
+    }
+}
+
+// 滑块组件样式覆盖
+.el-slider {
+    .el-slider__runway {
+        background-color: $bg-tertiary;
+    }
+
+    .el-slider__bar {
+        background-color: $accent-green;
+    }
+
+    .el-slider__button {
+        background-color: $accent-green;
+        border: 2px solid $accent-green;
+
+        &:hover {
+            box-shadow: 0 0 8px rgba(76, 175, 80, 0.5);
+        }
+    }
+}
+
+// 开关组件样式覆盖
+.el-switch {
+    .el-switch__core {
+        background-color: $bg-tertiary;
+        border-color: $bg-tertiary;
+
+        &::after {
+            background-color: $text-primary;
+        }
+    }
+
+    &.is-checked {
+        .el-switch__core {
+            background-color: $accent-green;
+            border-color: $accent-green;
+        }
+    }
+}
+
+// 标签页组件样式覆盖
+.el-tabs {
+    .el-tabs__header {
+        .el-tabs__nav-wrap {
+            &::after {
+                background-color: $bg-tertiary;
+            }
+        }
+
+        .el-tabs__item {
+            color: $text-secondary;
+
+            &:hover {
+                color: $text-primary;
+            }
+
+            &.is-active {
+                color: $accent-green;
+            }
+        }
+
+        .el-tabs__active-bar {
+            background-color: $accent-green;
+        }
+    }
+
+    .el-tabs__content {
+        color: $text-primary;
+    }
+}

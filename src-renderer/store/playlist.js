@@ -327,6 +327,12 @@ export const usePlaylistStore = defineStore("playlist", {
 			}
 		},
 
+		// 清除当前选中的歌单状态
+		clearCurrentPlaylist() {
+			this.currentPlaylistId = null;
+			this.currentPlaylistSongs = [];
+		},
+
 		// 打开创建歌单对话框
 		openCreatePlaylistDialog() {
 			this.isEditMode = false;

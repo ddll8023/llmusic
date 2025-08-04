@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
-import Icon from './Icon.vue';
+import FAIcon from './FAIcon.vue';
+import { useUiStore } from '../store/ui';
 
 // 最大化状态
 const isMaximized = ref(false);
@@ -41,105 +42,209 @@ const maximizeRestoreWindow = () => {
 const closeWindow = () => {
   window.electronAPI.windowClose();
 };
+
+const uiStore = useUiStore();
 </script>
 
 <template>
   <div class="title-bar">
-    <div class="title-bar-drag-region">
-      <div class="title-bar-left">
-        <div class="app-icon">
-          <Icon name="music" :size="18" />
+    <div class="title-bar__drag-region">
+      <div class="title-bar__left">
+        <div class="title-bar__app-icon">
+          <FAIcon name="music" size="medium" color="accent" />
         </div>
-        <div class="app-title">LLMusic</div>
+        <div class="title-bar__app-title">LLMusic</div>
       </div>
-      <div class="title-bar-right">
-        <button class="title-bar-button" @click="minimizeWindow">
-          <Icon name="minimize" :size="12" />
+      <div class="title-bar__right">
+        <!-- 显示侧边栏按钮 -->
+        <button v-if="!uiStore.isSidebarVisible" class="title-bar__button title-bar__button--show-sidebar"
+          @click="uiStore.showSidebar()" title="显示侧边栏">
+          <FAIcon name="bars" size="small" :clickable="true" />
         </button>
-        <button class="title-bar-button" @click="maximizeRestoreWindow">
-          <Icon v-if="isMaximized" name="restore" :size="12" />
-          <Icon v-else name="maximize" :size="12" />
+
+        <button class="title-bar__button" @click="minimizeWindow">
+          <FAIcon name="minus" size="small" :clickable="true" />
         </button>
-        <button class="title-bar-button close-button" @click="closeWindow">
-          <Icon name="close" :size="12" />
+        <button class="title-bar__button" @click="maximizeRestoreWindow">
+          <FAIcon v-if="isMaximized" name="window-restore" size="small" :clickable="true" />
+          <FAIcon v-else name="square-o" size="small" :clickable="true" />
+        </button>
+        <button class="title-bar__button title-bar__button--close" @click="closeWindow">
+          <FAIcon name="times" size="small" color="danger" :clickable="true" />
         </button>
       </div>
     </div>
   </div>
 </template>
 
-<style scoped>
+<style lang="scss" scoped>
+// 标题栏主容器
 .title-bar {
   width: 100%;
-  height: 32px;
-  background-color: #1a1a1a;
-  color: #ffffff;
+  height: $title-bar-height;
+  background-color: $bg-primary;
+  color: $text-primary;
   display: flex;
   flex-direction: row;
   align-items: center;
   position: relative;
-  z-index: 1000;
-  border-bottom: 1px solid #303030;
+  z-index: $z-player;
+  border-bottom: 1px solid $bg-tertiary;
+  user-select: none;
 }
 
-.title-bar-drag-region {
+// 可拖拽区域
+.title-bar__drag-region {
   width: 100%;
   height: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
   -webkit-app-region: drag;
-  /* 使区域可拖动窗口 */
 }
 
-.title-bar-left {
+// 左侧区域
+.title-bar__left {
   display: flex;
   align-items: center;
-  padding-left: 12px;
-  gap: 8px;
+  padding-left: ($content-padding * 0.75);
+  gap: ($content-padding * 0.5);
+  flex: 1;
+  min-width: 0;
+
+  @include respond-to("sm") {
+    padding-left: ($content-padding * 0.5);
+    gap: ($content-padding * 0.375);
+  }
 }
 
-.app-icon {
+// 应用图标
+.title-bar__app-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #4CAF50;
+  color: $accent-green;
+  flex-shrink: 0;
+  transition: color $transition-base;
+
+  &:hover {
+    color: $accent-hover;
+  }
 }
 
-.app-title {
-  font-size: 14px;
-  font-weight: 500;
-  user-select: none;
+// 应用标题
+.title-bar__app-title {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  font-family: $font-family-base;
+  line-height: $line-height-base;
+  color: $text-primary;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color $transition-base;
+
+  @include respond-to("sm") {
+    font-size: $font-size-xs;
+  }
 }
 
-.title-bar-right {
+// 右侧按钮区域
+.title-bar__right {
   display: flex;
   -webkit-app-region: no-drag;
-  /* 按钮区域不可拖动 */
+  flex-shrink: 0;
 }
 
-.title-bar-button {
-  width: 46px;
-  height: 32px;
+// 标题栏按钮
+.title-bar__button {
+  width: ($title-bar-height + 14px);
+  height: $title-bar-height;
   background-color: transparent;
   border: none;
   outline: none;
-  color: #999;
+  color: $text-secondary;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   -webkit-app-region: no-drag;
-  /* 确保按钮不可拖动 */
-  transition: background-color 0.2s;
+  transition: all $transition-base;
+  position: relative;
+
+  &:hover {
+    background-color: $overlay-light;
+    color: $text-primary;
+  }
+
+  &:active {
+    background-color: $overlay-medium;
+    transform: scale(0.95);
+  }
+
+  // 关闭按钮特殊样式
+  &--close {
+    &:hover {
+      background-color: $danger;
+      color: $text-primary;
+    }
+
+    &:active {
+      background-color: $danger-hover;
+    }
+  }
+
+  // 图标样式
+  svg {
+    transition: transform $transition-base;
+  }
+
+  &:hover svg {
+    transform: scale(1.1);
+  }
+
+  &:active svg {
+    transform: scale(0.9);
+  }
+
+  @include respond-to("sm") {
+    width: ($title-bar-height + 8px);
+  }
 }
 
-.title-bar-button:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+// 高对比度模式支持
+@media (prefers-contrast: high) {
+  .title-bar {
+    border-bottom-width: 2px;
+  }
+
+  .title-bar__button {
+    border: 1px solid transparent;
+
+    &:hover {
+      border-color: $text-primary;
+    }
+
+    &--close:hover {
+      border-color: $danger;
+    }
+  }
 }
 
-.title-bar-button.close-button:hover {
-  background-color: #e81123;
-  color: white;
+// 减少动画模式支持
+@media (prefers-reduced-motion: reduce) {
+
+  .title-bar__app-icon,
+  .title-bar__app-title,
+  .title-bar__button,
+  .title-bar__button svg {
+    transition: none !important;
+  }
+
+  .title-bar__button:hover svg,
+  .title-bar__button:active svg,
+  .title-bar__button:active {
+    transform: none !important;
+  }
 }
 </style>

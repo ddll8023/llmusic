@@ -1,0 +1,47 @@
+// 布局系统变量
+
+@use "sass:map";
+
+// 组件尺寸
+$player-bar-height: 90px;
+$title-bar-height: 32px;
+$sidebar-width-default: 240px;
+$sidebar-width-min: 180px;
+$sidebar-width-max: 400px;
+
+// 间距系统
+$content-padding: 16px;
+$section-padding: 24px;
+$card-padding: 16px;
+$item-padding: 12px;
+
+// 边框和圆角
+$border-radius: 4px;
+$border-radius-small: 2px;
+$border-radius-large: 8px;
+
+// 阴影
+$box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+$box-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.2);
+$box-shadow-active: 0 1px 4px rgba(0, 0, 0, 0.1);
+
+// 响应式断点
+$breakpoints: (
+    "xs": 480px,
+    "sm": 768px,
+    "md": 1024px,
+    "lg": 1200px,
+    "xl": 1440px,
+);
+
+// 动画时长
+$transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+$transition-base: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+$transition-slow: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+// 响应式混合宏
+@mixin respond-to($breakpoint) {
+    @media (max-width: map.get($breakpoints, $breakpoint)) {
+        @content;
+    }
+}

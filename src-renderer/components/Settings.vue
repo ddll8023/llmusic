@@ -3,7 +3,7 @@ import { useMediaStore } from '../store/media';
 import { usePlayerStore } from '../store/player';
 import { useUiStore } from '../store/ui';
 import { ref, onMounted } from 'vue';
-import Icon from './Icon.vue'; // 引入Icon组件
+import FAIcon from './FAIcon.vue'; // 修改为FAIcon组件
 
 const mediaStore = useMediaStore();
 const playerStore = usePlayerStore();
@@ -127,7 +127,7 @@ const setCloseBehavior = async (behavior) => {
         <div v-for="lib in mediaStore.libraries" :key="lib.id" class="library-card">
           <div class="card-content">
             <div class="card-icon">
-              <Icon name="local" :size="48" />
+              <FAIcon name="folder" size="xl" color="secondary" />
             </div>
             <div class="card-info">
               <span class="library-name">{{ lib.name }}</span>
@@ -136,18 +136,18 @@ const setCloseBehavior = async (behavior) => {
           </div>
           <div class="card-footer">
             <div class="card-stats">
-              <Icon name="music" :size="14" />
+              <FAIcon name="music" size="small" color="secondary" />
               <span>{{ lib.songCount }} 首歌曲</span>
             </div>
             <div class="library-actions">
               <button @click="openEditLibraryModal(lib)" class="btn-icon" title="重命名">
-                <Icon name="edit" />
+                <FAIcon name="edit" size="medium" color="primary" :clickable="true" />
               </button>
               <button @click="handleRescanLibrary(lib)" class="btn-icon" title="重新扫描">
-                <Icon name="scan" />
+                <FAIcon name="refresh" size="medium" color="primary" :clickable="true" />
               </button>
               <button @click="handleRemoveLibrary(lib)" class="btn-icon btn-danger" title="移除">
-                <Icon name="delete" />
+                <FAIcon name="trash" size="medium" color="danger" :clickable="true" />
               </button>
             </div>
           </div>
@@ -155,7 +155,7 @@ const setCloseBehavior = async (behavior) => {
 
         <!-- 添加新库的卡片 -->
         <div class="library-card add-library-card" @click="handleAddLibrary">
-          <Icon name="add" :size="48" />
+          <FAIcon name="plus" size="xl" color="secondary" />
           <span>添加新库</span>
         </div>
       </div>
@@ -191,212 +191,286 @@ const setCloseBehavior = async (behavior) => {
     </div>
 
     <!-- 编辑音乐库 Modal -->
-    <div class="modal" v-if="showEditLibraryModal">
-      <div class="modal-content">
-        <h3>重命名音乐库</h3>
-        <p>为您的音乐库"{{ editingLibrary.name }}"输入一个新名称。</p>
-        <input type="text" v-model="newLibraryName" placeholder="新音乐库名称" class="modal-input" />
-        <div class="modal-buttons">
-          <button class="cancel-button" @click="showEditLibraryModal = false">取消</button>
-          <button class="confirm-button" @click="handleUpdateLibrary">保存</button>
+    <div class="modal-overlay" v-if="showEditLibraryModal">
+      <div class="modal">
+        <div class="modal-content">
+          <h3>重命名音乐库</h3>
+          <p>为您的音乐库"{{ editingLibrary.name }}"输入一个新名称。</p>
+          <input type="text" v-model="newLibraryName" placeholder="新音乐库名称" class="modal-input" />
+          <div class="modal-buttons">
+            <button class="btn btn--secondary" @click="showEditLibraryModal = false">取消</button>
+            <button class="btn btn--primary" @click="handleUpdateLibrary">保存</button>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- 通用确认对话框 -->
-    <div class="modal" v-if="showConfirmModal">
-      <div class="modal-content">
-        <h3>{{ confirmModalTitle }}</h3>
-        <p>{{ confirmModalMessage }}</p>
-        <div class="modal-buttons">
-          <button class="cancel-button" @click="closeConfirmModal">取消</button>
-          <button class="confirm-button" @click="executeConfirmAction">确认</button>
+    <div class="modal-overlay" v-if="showConfirmModal">
+      <div class="modal">
+        <div class="modal-content">
+          <h3>{{ confirmModalTitle }}</h3>
+          <p>{{ confirmModalMessage }}</p>
+          <div class="modal-buttons">
+            <button class="btn btn--secondary" @click="closeConfirmModal">取消</button>
+            <button class="btn btn--danger" @click="executeConfirmAction">确认</button>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- 通用信息提示弹窗 -->
-    <div class="modal" v-if="showInfoModal">
-      <div class="modal-content">
-        <h3>{{ infoModalTitle }}</h3>
-        <p class="final-message">{{ infoModalMessage }}</p>
-        <div class="modal-buttons">
-          <button class="confirm-button" @click="closeInfoModal">
-            确定
-          </button>
+    <div class="modal-overlay" v-if="showInfoModal">
+      <div class="modal">
+        <div class="modal-content">
+          <h3>{{ infoModalTitle }}</h3>
+          <p class="final-message">{{ infoModalMessage }}</p>
+          <div class="modal-buttons">
+            <button class="btn btn--primary" @click="closeInfoModal">
+              确定
+            </button>
+          </div>
         </div>
       </div>
     </div>
-
-    <!-- 覆盖层，用于在弹窗显示时禁用背景交互 -->
-    <div class="modal-overlay" v-if="showEditLibraryModal || showConfirmModal || showInfoModal"></div>
   </div>
 </template>
 
-<style scoped>
+<style lang="scss" scoped>
+// 导入样式变量
+@use "../styles/variables/_colors" as *;
+@use "../styles/variables/_layout" as *;
+@use "sass:color";
+
 .settings-page {
-  padding: 24px;
-  color: #fff;
+  padding: ($content-padding * 1.5);
+  color: $text-primary;
   height: 100%;
   overflow-y: auto;
-}
 
-.settings-page h2 {
-  font-size: 24px;
-  margin-bottom: 24px;
+  @include respond-to("sm") {
+    padding: $content-padding;
+  }
+
+  h2 {
+    font-size: $font-size-xl;
+    margin-bottom: ($content-padding * 1.5);
+    font-weight: $font-weight-bold;
+
+    @include respond-to("sm") {
+      font-size: $font-size-lg;
+      margin-bottom: $content-padding;
+    }
+  }
 }
 
 .settings-section {
-  margin-bottom: 24px;
-}
+  margin-bottom: ($content-padding * 1.5);
 
-.settings-section h3 {
-  font-size: 16px;
-  color: #b3b3b3;
-  margin-bottom: 16px;
-  border-bottom: 1px solid #282828;
-  padding-bottom: 8px;
+  @include respond-to("sm") {
+    margin-bottom: $content-padding;
+  }
+
+  h3 {
+    font-size: $font-size-base;
+    color: $text-secondary;
+    margin-bottom: $content-padding;
+    border-bottom: 1px solid $bg-tertiary;
+    padding-bottom: ($content-padding * 0.5);
+    font-weight: $font-weight-medium;
+
+    @include respond-to("sm") {
+      font-size: $font-size-sm;
+    }
+  }
 }
 
 .settings-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 0;
-}
+  padding: ($content-padding * 0.75) 0;
 
-.settings-item span {
-  font-size: 14px;
-}
+  @include respond-to("sm") {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: ($content-padding * 0.5);
+  }
 
-.settings-item .btn {
-  background-color: #282828;
-  color: #fff;
-  border: 1px solid #444;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
+  span {
+    font-size: $font-size-sm;
+    color: $text-primary;
 
-.settings-item .btn:hover {
-  background-color: #333;
+    @include respond-to("sm") {
+      font-size: $font-size-xs;
+    }
+  }
 }
 
 .select-container {
   position: relative;
-}
 
-select {
-  background-color: #282828;
-  color: #fff;
-  border: 1px solid #444;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  appearance: none;
-  padding-right: 30px;
-}
+  &::after {
+    content: '▼';
+    position: absolute;
+    right: ($content-padding * 0.625);
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    font-size: $font-size-xs;
+    color: $text-secondary;
+  }
 
-.select-container::after {
-  content: '▼';
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
-  font-size: 12px;
-  color: #b3b3b3;
-}
+  select {
+    background-color: $bg-tertiary;
+    color: $text-primary;
+    border: 1px solid $bg-tertiary;
+    padding: ($content-padding * 0.5) $content-padding;
+    border-radius: $border-radius;
+    cursor: pointer;
+    transition: all $transition-base;
+    appearance: none;
+    padding-right: ($content-padding * 1.875);
+    font-size: $font-size-sm;
 
-select:hover {
-  background-color: #333;
+    &:hover {
+      background-color: color.adjust($bg-tertiary, $lightness: 5%);
+      border-color: $overlay-light;
+    }
+
+    &:focus {
+      outline: none;
+      border-color: $accent-green;
+    }
+
+    @include respond-to("sm") {
+      width: 100%;
+      font-size: $font-size-xs;
+    }
+  }
 }
 
 .settings-item-description {
-  font-size: 12px;
-  color: #b3b3b3;
-  margin-top: -8px;
-  padding-bottom: 16px;
+  font-size: $font-size-xs;
+  color: $text-secondary;
+  margin-top: (-$content-padding * 0.5);
+  padding-bottom: $content-padding;
+  line-height: 1.4;
+
+  @include respond-to("sm") {
+    margin-top: 0;
+    padding-bottom: ($content-padding * 0.75);
+  }
 }
 
 .library-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
-  margin-top: 16px;
+  gap: ($content-padding * 1.25);
+  margin-top: $content-padding;
+
+  @include respond-to("sm") {
+    grid-template-columns: 1fr;
+    gap: $content-padding;
+  }
 }
 
 .library-card {
-  background-color: #282828;
-  border-radius: 8px;
-  padding: 16px;
+  background-color: $bg-tertiary;
+  border-radius: ($border-radius * 2);
+  padding: $content-padding;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   border: 1px solid transparent;
-  transition: all 0.3s ease;
+  transition: all $transition-base;
   min-height: 160px;
-}
+  animation: fadeIn $transition-base ease-out;
 
-.library-card:hover {
-  border-color: #535353;
-  transform: translateY(-4px);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  &:hover {
+    border-color: $overlay-light;
+    transform: translateY(-2px);
+    box-shadow: $box-shadow-hover;
+  }
+
+  @include respond-to("sm") {
+    min-height: 140px;
+    padding: ($content-padding * 0.75);
+  }
 }
 
 .card-content {
   display: flex;
   flex-direction: column;
+  flex: 1;
 }
 
-.library-card .card-icon {
-  color: #b3b3b3;
-  margin-bottom: 12px;
+.card-icon {
+  color: $text-secondary;
+  margin-bottom: ($content-padding * 0.75);
+
+  @include respond-to("sm") {
+    margin-bottom: ($content-padding * 0.5);
+  }
 }
 
-.card-info .library-name {
-  font-size: 16px;
-  font-weight: bold;
-  color: #fff;
-  display: block;
-  margin-bottom: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+.card-info {
+  flex: 1;
 
-.card-info .library-path {
-  font-size: 12px;
-  color: #b3b3b3;
-  word-break: break-all;
-  margin-bottom: 8px;
-  white-space: normal;
-  line-height: 1.4;
-  flex-grow: 1;
+  .library-name {
+    font-size: $font-size-base;
+    font-weight: $font-weight-bold;
+    color: $text-primary;
+    display: block;
+    margin-bottom: ($content-padding * 0.25);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    @include respond-to("sm") {
+      font-size: $font-size-sm;
+    }
+  }
+
+  .library-path {
+    font-size: $font-size-xs;
+    color: $text-secondary;
+    word-break: break-all;
+    margin-bottom: ($content-padding * 0.5);
+    white-space: normal;
+    line-height: 1.4;
+    flex-grow: 1;
+  }
 }
 
 .card-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 12px;
+  margin-top: ($content-padding * 0.75);
+
+  @include respond-to("sm") {
+    margin-top: ($content-padding * 0.5);
+  }
 }
 
 .card-stats {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: #888;
+  gap: ($content-padding * 0.375);
+  font-size: $font-size-xs;
+  color: $text-secondary;
 }
 
 .library-actions {
   display: flex;
-  gap: 8px;
+  gap: ($content-padding * 0.5);
   opacity: 0;
-  transition: opacity 0.3s ease;
+  transition: opacity $transition-base;
+
+  @include respond-to("sm") {
+    opacity: 1;
+  }
 }
 
 .library-card:hover .library-actions {
@@ -404,9 +478,9 @@ select:hover {
 }
 
 .btn-icon {
-  background: rgba(40, 40, 40, 0.8);
-  border: 1px solid #535353;
-  color: #fff;
+  background: $bg-secondary;
+  border: 1px solid $overlay-light;
+  color: $text-primary;
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -414,129 +488,209 @@ select:hover {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s ease;
-}
+  transition: all $transition-base;
 
-.btn-icon:hover {
-  background: #535353;
-  transform: scale(1.1);
-}
+  &:hover {
+    background: $overlay-light;
+    transform: scale(1.05);
+  }
 
-.btn-icon.btn-danger:hover {
-  background: #e53935;
-  border-color: #e53935;
+  &:active {
+    transform: scale(0.95);
+  }
+
+  &.btn-danger:hover {
+    background: $danger;
+    border-color: $danger;
+  }
+
+  @include respond-to("sm") {
+    width: 28px;
+    height: 28px;
+  }
 }
 
 .add-library-card {
-  border: 2px dashed #535353;
+  border: 2px dashed $overlay-light;
   background-color: transparent;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #b3b3b3;
-  gap: 12px;
+  color: $text-secondary;
+  gap: ($content-padding * 0.75);
+
+  &:hover {
+    background-color: $bg-tertiary;
+    border-color: $accent-green;
+    color: $text-primary;
+    transform: translateY(-2px);
+  }
 }
 
-.add-library-card:hover {
-  background-color: #282828;
-  border-color: #fff;
-  color: #fff;
-}
-
-.settings-item-description {
-  color: #b3b3b3;
-  font-size: 12px;
-  margin-top: -8px;
-  margin-bottom: 16px;
-}
-
-/* 弹窗样式 */
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1001;
-}
-
-.modal-content {
-  background-color: #282828;
-  color: #fff;
-  padding: 30px;
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  width: 90%;
-  max-width: 450px;
-  text-align: center;
-  border: 1px solid #444;
-}
-
-.modal-content h3 {
-  margin-top: 0;
-  font-size: 20px;
-  margin-bottom: 20px;
-}
-
-.modal-content p {
-  color: #b3b3b3;
-  margin-bottom: 20px;
-}
-
-.modal-buttons {
-  display: flex;
-  justify-content: center;
-  gap: 20px;
-  margin-top: 25px;
-}
-
-.modal-buttons button {
-  padding: 10px 20px;
-  border-radius: 20px;
-  border: none;
-  cursor: pointer;
-  font-weight: bold;
-}
-
-.cancel-button {
-  background-color: transparent;
-  border: 1px solid #fff !important;
-  color: #fff;
-}
-
-.confirm-button {
-  background-color: #e53e3e;
-  color: #fff;
-  min-width: 120px;
-}
-
-.final-message {
-  font-size: 16px;
-  margin: 20px 0;
-  min-height: 22px;
-}
-
+// Modal styles
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.7);
-  z-index: 1000;
+  background-color: $overlay-dark;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: $z-modal;
+  animation: fadeIn $transition-fast ease-out;
+}
+
+.modal {
+  animation: modalSlideIn $transition-base ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal-content {
+  background-color: $bg-secondary;
+  color: $text-primary;
+  padding: ($content-padding * 1.875);
+  border-radius: ($border-radius * 3);
+  box-shadow: $box-shadow-hover;
+  width: 90%;
+  max-width: 450px;
+  text-align: center;
+  border: 1px solid $bg-tertiary;
+
+  @include respond-to("sm") {
+    padding: ($content-padding * 1.25);
+    max-width: 320px;
+  }
+
+  h3 {
+    margin-top: 0;
+    font-size: $font-size-lg;
+    margin-bottom: ($content-padding * 1.25);
+    font-weight: $font-weight-bold;
+
+    @include respond-to("sm") {
+      font-size: $font-size-base;
+      margin-bottom: $content-padding;
+    }
+  }
+
+  p {
+    color: $text-secondary;
+    margin-bottom: ($content-padding * 1.25);
+    font-size: $font-size-sm;
+    line-height: 1.5;
+
+    @include respond-to("sm") {
+      font-size: $font-size-xs;
+      margin-bottom: $content-padding;
+    }
+  }
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: center;
+  gap: ($content-padding * 1.25);
+  margin-top: ($content-padding * 1.5625);
+
+  @include respond-to("sm") {
+    gap: $content-padding;
+    margin-top: ($content-padding * 1.25);
+  }
+}
+
+.final-message {
+  font-size: $font-size-base;
+  margin: ($content-padding * 1.25) 0;
+  min-height: 22px;
+
+  @include respond-to("sm") {
+    font-size: $font-size-sm;
+    margin: $content-padding 0;
+  }
 }
 
 .modal-input {
   width: 100%;
-  padding: 10px;
-  margin: 16px 0;
-  background-color: #333;
-  border: 1px solid #555;
-  color: #fff;
-  border-radius: 4px;
+  padding: ($content-padding * 0.625);
+  margin: $content-padding 0;
+  background-color: $bg-tertiary;
+  border: 1px solid $overlay-light;
+  color: $text-primary;
+  border-radius: $border-radius;
+  font-size: $font-size-sm;
+  transition: border-color $transition-base;
+  box-sizing: border-box;
+
+  &:focus {
+    outline: none;
+    border-color: $accent-green;
+  }
+
+  &::placeholder {
+    color: $text-disabled;
+  }
+
+  @include respond-to("sm") {
+    font-size: $font-size-xs;
+    padding: ($content-padding * 0.5);
+  }
+}
+
+// 高对比度模式支持
+@media (prefers-contrast: high) {
+
+  .library-card,
+  .modal-content {
+    border-width: 2px;
+    border-color: $text-primary;
+  }
+
+  .modal-input,
+  select {
+    border-width: 2px;
+  }
+}
+
+// 减少动画模式支持
+@media (prefers-reduced-motion: reduce) {
+
+  .library-card,
+  .btn-icon,
+  .modal-overlay,
+  .modal,
+  select,
+  .modal-input {
+    animation: none;
+    transition: none;
+  }
+
+  .library-card:hover,
+  .btn-icon:hover,
+  .add-library-card:hover {
+    transform: none;
+  }
 }
 </style>

@@ -55,7 +55,6 @@
     - `ipcWrapper.js`: IPC 注册封装，统一错误处理与可选节流
   - `constants/ipcChannels.js`: IPC 通道名称常量中心
   - `audioProcessor.js`: 音频处理服务，负责音频文件验证、转换和元数据提取
-  - `audioPlayer.js`: 兼容层，提供向后兼容的 API，内部使用 audioProcessor
   - **歌词解析器 (`lyricsParser.js`)**: 负责解析 `.lrc` 歌词文件，提取时间轴与歌词文本。
 - **`src-renderer/`**: Vue 渲染进程代码
   - `main.js`: Vue 应用入口
@@ -229,7 +228,6 @@
 | `database.js`        | 数据库模块，使用 lowdb 管理歌曲、播放列表、音乐库数据         | ✅ 正常   | 包含内存索引优化           |
 | `musicScanner.js`    | 音乐文件扫描引擎，递归扫描目录并解析音频元数据                | ✅ 正常   | 支持多格式音频文件         |
 | `audioProcessor.js`  | 音频处理服务，负责音频文件验证、转换和元数据提取              | ✅ 正常   | 重构后的核心模块           |
-| `audioPlayer.js`     | 音频播放器兼容层，提供向后兼容的 API                          | ✅ 正常   | 内部使用 audioProcessor    |
 | `lyricsParser.js`    | 歌词解析器，解析 LRC 格式歌词文件                             | ✅ 正常   | 已重构优化                 |
 | `tagEditor.js`       | 标签编辑器核心模块，处理音频文件标签读写                      | ✅ 正常   | 新增功能模块               |
 | `preload.js`         | 预加载脚本，安全地暴露主进程 API 给渲染进程                   | ✅ 正常   | 遵循 Electron 安全实践     |

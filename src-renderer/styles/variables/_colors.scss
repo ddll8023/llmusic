@@ -1,0 +1,36 @@
+// 主题色彩系统
+
+// 背景色
+$bg-primary: #121212; // 主背景色
+$bg-secondary: #181818; // 次级背景色
+$bg-tertiary: #282828; // 三级背景色(边框、分割线)
+$bg-tertiary-hover: #383838; // 三级背景色悬停状态
+
+// 文本色
+$text-primary: #ffffff; // 主文本色
+$text-secondary: #b3b3b3; // 次级文本色
+$text-disabled: #535353; // 禁用文本色
+
+// 功能色
+$accent-green: #4caf50; // 主要强调色
+$accent-hover: #66bb6a; // 悬停状态
+$danger: #f44336; // 危险操作
+$danger-hover: #d32f2f; // 危险操作悬停状态
+$warning: #ff9800; // 警告提示
+$info: #2196f3; // 信息提示
+$success: #4caf50; // 成功状态
+
+// 透明度变量
+$overlay-light: rgba(255, 255, 255, 0.1);
+$overlay-medium: rgba(255, 255, 255, 0.2);
+$overlay-dark: rgba(0, 0, 0, 0.3);
+
+// 层级系统(z-index)
+$z-base: 1;
+$z-sidebar: 50;
+$z-lyrics: 90;
+$z-modal: 100;
+$z-playlist: 150;
+$z-player: 200;
+$z-context-menu: 250;
+$z-tooltip: 300;

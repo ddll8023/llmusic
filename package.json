@@ -31,6 +31,8 @@
 		"concurrently": "^8.2.2",
 		"electron": "^36.5.0",
 		"electron-builder": "^26.0.12",
+		"element-plus": "^2.10.5",
+		"font-awesome": "^4.7.0",
 		"sass": "^1.89.2",
 		"vite": "^6.3.5"
 	},

@@ -12,8 +12,8 @@ const {
 	session,
 } = require("electron");
 const path = require("path");
-const { initDb, validateSongFiles } = require("./database");
-const { setupIpcHandlers } = require("./ipc-handlers");
+const { initDb, validateSongFiles } = require("./services/data/Database");
+const { setupIpcHandlers } = require("./handlers");
 const { CHANNELS } = require("./constants/ipcChannels");
 
 // 应用全局状态
@@ -79,7 +79,7 @@ function createWindow() {
 	}
 
 	// 开发环境打开开发者工具
-	// mainWindow.webContents.openDevTools();
+	mainWindow.webContents.openDevTools();
 
 	return mainWindow;
 }
@@ -253,25 +253,13 @@ function getFilePathFromArgs() {
  */
 function registerIpcHandlers() {
 	// 处理窗口关闭行为设置
-	ipcMain.handle(
-		CHANNELS.SET_CLOSE_BEHAVIOR || "set-close-behavior",
-		(event, behavior) => {
-			return setCloseWindowBehavior(behavior);
-		}
-	);
-
-	// 获取当前窗口关闭行为
-	ipcMain.handle(CHANNELS.GET_CLOSE_BEHAVIOR || "get-close-behavior", () => {
-		return appState.closeWindowBehavior;
+	ipcMain.handle(CHANNELS.SET_CLOSE_BEHAVIOR, (event, behavior) => {
+		return setCloseWindowBehavior(behavior);
 	});
 
-	// 显示窗口
-	ipcMain.handle(CHANNELS.SHOW_WINDOW || "show-window", () => {
-		if (appState.mainWindow && !appState.mainWindow.isDestroyed()) {
-			appState.mainWindow.show();
-			return true;
-		}
-		return false;
+	// 获取当前窗口关闭行为
+	ipcMain.handle(CHANNELS.GET_CLOSE_BEHAVIOR, () => {
+		return appState.closeWindowBehavior;
 	});
 }
 
@@ -286,9 +274,8 @@ function cleanup() {
 	}
 
 	// 移除自定义IPC处理程序
-	ipcMain.removeHandler(CHANNELS.SET_CLOSE_BEHAVIOR || "set-close-behavior");
-	ipcMain.removeHandler(CHANNELS.GET_CLOSE_BEHAVIOR || "get-close-behavior");
-	ipcMain.removeHandler(CHANNELS.SHOW_WINDOW || "show-window");
+	ipcMain.removeHandler(CHANNELS.SET_CLOSE_BEHAVIOR);
+	ipcMain.removeHandler(CHANNELS.GET_CLOSE_BEHAVIOR);
 }
 
 /**

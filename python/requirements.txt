@@ -1,0 +1,5 @@
+flask_cors
+flask
+qqmusic-api-python
+httpx
+asyncio
