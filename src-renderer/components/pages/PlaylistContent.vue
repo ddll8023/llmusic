@@ -1,9 +1,10 @@
 <script setup>
-import { ref, computed, watch, onMounted, reactive, nextTick } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { usePlaylistStore } from '../../store/playlist';
 import { usePlayerStore } from '../../store/player';
-import SongTable from '../common/SongTable.vue'; // 引入新的SongTable组件
 import ContentHeader from '../common/ContentHeader.vue';
+import SongTable from '../common/SongTable.vue';
+import CustomButton from '../custom/CustomButton.vue';
 
 // 接收父组件传递的导航函数
 const props = defineProps({
@@ -237,8 +238,8 @@ onMounted(() => {
                 <h3>删除歌单</h3>
                 <p>确定要删除歌单"{{ currentPlaylist?.name }}"吗？此操作不可撤销。</p>
                 <div class="dialog-buttons">
-                    <button @click="showDeleteConfirm = false" class="cancel-btn">取消</button>
-                    <button @click="deletePlaylist" class="delete-btn">确认删除</button>
+                    <CustomButton type="secondary" @click="showDeleteConfirm = false">取消</CustomButton>
+                    <CustomButton type="danger" @click="deletePlaylist">确认删除</CustomButton>
                 </div>
             </div>
         </div>
@@ -247,8 +248,6 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 @use "sass:color";
-@use "../../styles/variables/_colors" as *;
-@use "../../styles/variables/_layout" as *;
 
 .playlist-content {
     flex: 1;

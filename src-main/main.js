@@ -12,7 +12,7 @@ const {
 	session,
 } = require("electron");
 const path = require("path");
-const { initDb, validateSongFiles } = require("./services/data/Database");
+const { initDb, validateSongFiles } = require("./handlers/data/Database");
 const { setupIpcHandlers } = require("./handlers");
 const { CHANNELS } = require("./constants/ipcChannels");
 

@@ -4,10 +4,14 @@
     <div class="discover-header">
       <h2 class="page-title">发现音乐</h2>
       <div class="header-actions">
-        <button class="search-btn btn btn--primary" @click="openSearchModal">
-          <FAIcon name="search" size="medium" color="primary" />
+        <CustomButton 
+          type="primary" 
+          size="medium" 
+          icon="search" 
+          @click="openSearchModal"
+        >
           搜索音乐
-        </button>
+        </CustomButton>
       </div>
     </div>
 
@@ -16,11 +20,15 @@
       <div class="section">
         <div class="section-header">
           <h3>推荐歌曲</h3>
-          <button class="refresh-btn btn btn--secondary" @click="discoverStore.refreshRecommendations"
-            :disabled="discoverStore.loading">
-            <FAIcon name="refresh" size="small" color="secondary" :class="{ spinning: discoverStore.loading }" />
+          <CustomButton 
+            type="secondary" 
+            size="small" 
+            icon="refresh" 
+            :loading="discoverStore.loading"
+            @click="discoverStore.refreshRecommendations"
+          >
             刷新
-          </button>
+          </CustomButton>
         </div>
         <div class="song-grid">
           <div v-for="song in discoverStore.recommendedSongs" :key="song.id"
@@ -73,6 +81,7 @@ import { useDiscoverStore } from '../../store/discover.js';
 import { useUiStore } from '../../store/ui.js';
 import { formatPlayCount } from '../../utils/mockDiscoverData.js';
 import FAIcon from '../common/FAIcon.vue';
+import CustomButton from '../custom/CustomButton.vue';
 
 const discoverStore = useDiscoverStore();
 const uiStore = useUiStore();
@@ -90,7 +99,6 @@ const playSong = (song) => {
 </script>
 
 <style lang="scss" scoped>
-@use "../../styles/variables" as *;
 
 .discover-music {
   height: 100%;
@@ -136,44 +144,6 @@ const playSong = (song) => {
   }
 }
 
-.search-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px $content-padding;
-  background-color: $accent-green;
-  color: $text-primary;
-  border: none;
-  border-radius: 20px;
-  cursor: pointer;
-  font-weight: $font-weight-medium;
-  transition: all $transition-base;
-  font-size: $font-size-base;
-
-  &:hover:not(:disabled) {
-    background-color: $accent-hover;
-    transform: translateY(-1px);
-  }
-
-  &:active {
-    transform: translateY(0);
-  }
-
-  :deep(svg) {
-    width: 16px;
-    height: 16px;
-  }
-
-  @include respond-to("sm") {
-    padding: 8px $content-padding;
-    font-size: $font-size-sm;
-
-    :deep(svg) {
-      width: 14px;
-      height: 14px;
-    }
-  }
-}
 
 /* 推荐内容样式 */
 .recommend-content {
@@ -223,49 +193,7 @@ const playSong = (song) => {
   }
 }
 
-.refresh-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px $content-padding;
-  background: transparent;
-  border: 1px solid $bg-tertiary;
-  border-radius: 20px;
-  color: $text-secondary;
-  cursor: pointer;
-  transition: all $transition-base;
-  font-size: $font-size-sm;
 
-  &:hover:not(:disabled) {
-    border-color: $accent-green;
-    color: $text-primary;
-    background-color: $overlay-light;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  @include respond-to("sm") {
-    padding: 6px $item-padding;
-    font-size: $font-size-xs;
-  }
-}
-
-.spinning {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg);
-  }
-}
 
 .song-grid {
   display: grid;

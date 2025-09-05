@@ -1,8 +1,8 @@
 <script setup>
-import { useMediaStore } from '../../store/media';
-import { usePlayerStore, PlayMode } from '../../store/player';
+import { useMediaStore } from '../../../store/media';
+import { usePlayerStore, PlayMode } from '../../../store/player';
 import { ref, onMounted, watch, computed } from 'vue';
-import ContentHeader from '../common/ContentHeader.vue';
+import ContentHeader from '../../common/ContentHeader.vue';
 
 const mediaStore = useMediaStore();
 const playerStore = usePlayerStore();
@@ -105,3 +105,7 @@ const playAllSongs = () => {
   <ContentHeader title="本地音乐" :show-search="true" :search-value="mediaStore.searchTerm" search-placeholder="筛选歌曲、专辑或艺术家"
     :actions="headerActions" @search-input="handleSearchInput" @action-click="handleHeaderAction" />
 </template>
+
+<style scoped lang="scss">
+// 组件样式（如需要可在此处添加）
+</style>

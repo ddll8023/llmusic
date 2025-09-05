@@ -1,6 +1,8 @@
 <script setup>
 import { ref, watch } from 'vue';
 import FAIcon from './FAIcon.vue';
+import CustomButton from '../custom/CustomButton.vue';
+import CustomInput from '../custom/CustomInput.vue';
 
 // 接收父组件属性
 const props = defineProps({
@@ -54,10 +56,6 @@ const debouncedEmitSearch = debounce((value) => {
     emit('search-input', value);
 }, 300);
 
-// 处理搜索输入
-const handleSearchInput = (event) => {
-    localSearchValue.value = event.target.value;
-};
 
 // 监听本地搜索值变化
 watch(localSearchValue, (newValue) => {
@@ -69,10 +67,6 @@ watch(() => props.searchValue, (newValue) => {
     localSearchValue.value = newValue;
 });
 
-// 处理操作按钮点击
-const handleActionClick = (actionKey) => {
-    emit('action-click', actionKey);
-};
 </script>
 
 <template>
@@ -86,34 +80,22 @@ const handleActionClick = (actionKey) => {
 
             <!-- 搜索框 -->
             <div v-if="showSearch" class="content-header__search">
-                <FAIcon name="search" size="medium" color="secondary" class="search-icon" />
-                <input type="text" :value="localSearchValue" @input="handleSearchInput" class="search-input"
-                    :placeholder="searchPlaceholder" />
+                <CustomInput v-model="localSearchValue" type="text" :placeholder="searchPlaceholder" prefixIcon="search"
+                    clearable customClass="content-header-search-input" />
             </div>
         </div>
 
         <!-- 操作按钮组 -->
         <div v-if="actions.length > 0" class="content-header__actions">
-            <button v-for="action in actions" :key="action.key" @click="handleActionClick(action.key)"
-                :disabled="action.disabled" :class="[
-                    'action-button',
-                    `action-button--${action.type}`,
-                    { 'action-button--disabled': action.disabled }
-                ]">
-                <FAIcon :name="action.icon" size="medium"
-                    :color="action.type === 'primary' ? 'primary' : action.type === 'danger' ? 'danger' : 'secondary'" />
-                <span>{{ action.label }}</span>
-            </button>
+            <CustomButton v-for="action in actions" :key="action.key" :type="action.type" :icon="action.icon"
+                :disabled="action.disabled" @click="emit('action-click', action.key)">
+                {{ action.label }}
+            </CustomButton>
         </div>
     </div>
 </template>
 
 <style lang="scss" scoped>
-@use "../../styles/variables/_colors" as *;
-@use "../../styles/variables/_layout" as *;
-@use "../../styles/variables/_typography" as *;
-@use "sass:color";
-
 .content-header {
     display: flex;
     justify-content: space-between;
@@ -126,7 +108,6 @@ const handleActionClick = (actionKey) => {
         flex-direction: column;
         gap: ($content-padding * 0.875);
         align-items: stretch;
-        padding: $content-padding;
     }
 }
 
@@ -202,41 +183,25 @@ const handleActionClick = (actionKey) => {
     }
 }
 
-.search-icon {
-    position: absolute;
-    left: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 1;
-}
-
-.search-input {
-    background-color: $bg-tertiary;
-    border: 1px solid $bg-tertiary;
-    border-radius: 20px;
-    color: $text-primary;
-    padding: 8px 12px 8px 36px;
+// CustomInput 样式定制
+:deep(.content-header-search-input) {
     width: 300px;
-    font-size: $font-size-base;
-    transition: all $transition-base;
-
-    &::placeholder {
-        color: $text-secondary;
-    }
-
-    &:focus {
-        border-color: $accent-green;
-        outline: none;
-        box-shadow: 0 0 0 2px rgba($accent-green, 0.2);
-    }
-
-    &:hover {
-        border-color: color.adjust($bg-tertiary, $lightness: 10%);
-    }
 
     @include respond-to("sm") {
         width: 100%;
-        font-size: $font-size-sm;
+    }
+
+    .custom-input {
+        background: $bg-tertiary;
+        border-color: $bg-tertiary;
+
+        &:hover:not(.custom-input--focused):not(.custom-input--disabled) {
+            border-color: $bg-tertiary-hover;
+        }
+
+        .custom-input__field::placeholder {
+            color: $text-secondary;
+        }
     }
 }
 
@@ -256,141 +221,13 @@ const handleActionClick = (actionKey) => {
     }
 }
 
-.action-button {
-    display: flex;
-    align-items: center;
-    gap: ($content-padding * 0.5);
-    padding: ($content-padding * 0.5) ($content-padding * 1.125);
-    border-radius: ($border-radius * 5);
-    border: none;
-    font-weight: $font-weight-semibold;
-    font-size: $font-size-base;
-    cursor: pointer;
-    transition: all $transition-base;
-    white-space: nowrap;
-    min-height: 40px;
-    min-width: 120px;
-    justify-content: center;
-
-    &:disabled,
-    &--disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-
-        &:hover {
-            transform: none;
-        }
-    }
+// 多按钮布局优化
+.content-header__actions:has(.custom-button:nth-child(2)) .custom-button {
+    flex: 1;
+    max-width: 180px;
 
     @include respond-to("sm") {
-        padding: ($content-padding * 0.5) ($content-padding * 0.875);
-        font-size: $font-size-sm;
-        min-height: 44px;
-        min-width: 100px;
-        gap: ($content-padding * 0.375);
-        flex: 1;
-        max-width: 200px;
-    }
-}
-
-.action-button--primary {
-    background-color: $accent-green;
-    color: $text-primary;
-    box-shadow: $box-shadow;
-    font-weight: $font-weight-bold;
-
-    &:hover:not(:disabled):not(.action-button--disabled) {
-        background-color: $accent-hover;
-        transform: scale(1.02) translateY(-1px);
-        box-shadow: $box-shadow-hover;
-    }
-
-    &:active {
-        transform: scale(0.98);
-    }
-}
-
-.action-button--secondary {
-    background-color: transparent;
-    color: $text-secondary;
-    border: 1px solid $bg-tertiary;
-    font-weight: $font-weight-medium;
-
-    &:hover:not(:disabled):not(.action-button--disabled) {
-        border-color: $text-primary;
-        color: $text-primary;
-        background-color: $overlay-light;
-        transform: translateY(-1px);
-    }
-
-    &:active {
-        transform: translateY(0);
-    }
-}
-
-.action-button--danger {
-    background-color: transparent;
-    color: $danger;
-    border: 1px solid $danger;
-
-    &:hover:not(:disabled):not(.action-button--disabled) {
-        background-color: rgba($danger, 0.1);
-        transform: translateY(-2px);
-    }
-
-    &:active {
-        transform: translateY(0);
-    }
-}
-
-// 多按钮布局优化
-.content-header__actions:has(.action-button:nth-child(2)) {
-    .action-button {
-        flex: 1;
-        max-width: 180px;
-
-        @include respond-to("sm") {
-            max-width: none;
-        }
-    }
-}
-
-// 高对比度模式支持
-@media (prefers-contrast: high) {
-    .content-header {
-        border: 2px solid $text-primary;
-    }
-
-    .action-button {
-        border: 2px solid currentColor;
-    }
-
-    .search-input {
-        border: 2px solid $bg-tertiary;
-
-        &:focus {
-            border: 2px solid $accent-green;
-        }
-    }
-}
-
-// 减少动画模式支持
-@media (prefers-reduced-motion: reduce) {
-
-    *,
-    *::before,
-    *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-    }
-
-    .action-button {
-
-        &:hover,
-        &:active {
-            transform: none;
-        }
+        max-width: none;
     }
 }
 </style>

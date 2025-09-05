@@ -4,6 +4,7 @@ import { usePlayerStore } from '../../store/player';
 import { useUiStore } from '../../store/ui';
 import { ref, onMounted } from 'vue';
 import FAIcon from '../common/FAIcon.vue'; // 修改为FAIcon组件
+import CustomButton from '../custom/CustomButton.vue';
 
 const mediaStore = useMediaStore();
 const playerStore = usePlayerStore();
@@ -140,15 +141,9 @@ const setCloseBehavior = async (behavior) => {
               <span>{{ lib.songCount }} 首歌曲</span>
             </div>
             <div class="library-actions">
-              <button @click="openEditLibraryModal(lib)" class="btn-icon" title="重命名">
-                <FAIcon name="edit" size="medium" color="primary" :clickable="true" />
-              </button>
-              <button @click="handleRescanLibrary(lib)" class="btn-icon" title="重新扫描">
-                <FAIcon name="refresh" size="medium" color="primary" :clickable="true" />
-              </button>
-              <button @click="handleRemoveLibrary(lib)" class="btn-icon btn-danger" title="移除">
-                <FAIcon name="trash" size="medium" color="danger" :clickable="true" />
-              </button>
+              <CustomButton type="icon-only" icon="edit" circle size="medium" @click="openEditLibraryModal(lib)" title="重命名" />
+              <CustomButton type="icon-only" icon="refresh" circle size="medium" @click="handleRescanLibrary(lib)" title="重新扫描" />
+              <CustomButton type="danger" icon="trash" circle size="medium" @click="handleRemoveLibrary(lib)" title="移除" />
             </div>
           </div>
         </div>
@@ -198,8 +193,8 @@ const setCloseBehavior = async (behavior) => {
           <p>为您的音乐库"{{ editingLibrary.name }}"输入一个新名称。</p>
           <input type="text" v-model="newLibraryName" placeholder="新音乐库名称" class="modal-input" />
           <div class="modal-buttons">
-            <button class="btn btn--secondary" @click="showEditLibraryModal = false">取消</button>
-            <button class="btn btn--primary" @click="handleUpdateLibrary">保存</button>
+            <CustomButton type="secondary" @click="showEditLibraryModal = false">取消</CustomButton>
+            <CustomButton type="primary" @click="handleUpdateLibrary">保存</CustomButton>
           </div>
         </div>
       </div>
@@ -212,8 +207,8 @@ const setCloseBehavior = async (behavior) => {
           <h3>{{ confirmModalTitle }}</h3>
           <p>{{ confirmModalMessage }}</p>
           <div class="modal-buttons">
-            <button class="btn btn--secondary" @click="closeConfirmModal">取消</button>
-            <button class="btn btn--danger" @click="executeConfirmAction">确认</button>
+            <CustomButton type="secondary" @click="closeConfirmModal">取消</CustomButton>
+            <CustomButton type="danger" @click="executeConfirmAction">确认</CustomButton>
           </div>
         </div>
       </div>
@@ -226,9 +221,7 @@ const setCloseBehavior = async (behavior) => {
           <h3>{{ infoModalTitle }}</h3>
           <p class="final-message">{{ infoModalMessage }}</p>
           <div class="modal-buttons">
-            <button class="btn btn--primary" @click="closeInfoModal">
-              确定
-            </button>
+            <CustomButton type="primary" @click="closeInfoModal">确定</CustomButton>
           </div>
         </div>
       </div>
@@ -237,9 +230,6 @@ const setCloseBehavior = async (behavior) => {
 </template>
 
 <style lang="scss" scoped>
-// 导入样式变量
-@use "../../styles/variables/_colors" as *;
-@use "../../styles/variables/_layout" as *;
 @use "sass:color";
 
 .settings-page {

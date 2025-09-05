@@ -3,9 +3,7 @@
     <div class="tag-editor__modal">
       <div class="tag-editor__header">
         <h3>编辑歌曲标签</h3>
-        <button class="tag-editor__button tag-editor__button--close" @click="closeEditor">
-          <FAIcon name="times" size="small" color="secondary" :clickable="true" />
-        </button>
+        <CustomButton type="icon-only" icon="times" size="small" :circle="true" title="关闭" @click="closeEditor" />
       </div>
 
       <div class="tag-editor__content">
@@ -19,46 +17,33 @@
         <form @submit.prevent="saveTags" class="tag-form">
           <div class="form-row">
             <div class="form-group">
-              <label for="title">标题 *</label>
-              <input id="title" v-model="editingTags.title" type="text" class="form-input"
-                :class="{ 'is-error': validationErrors.title }" placeholder="请输入歌曲标题" maxlength="255" required />
-              <div v-if="validationErrors.title" class="error-message">
-                {{ validationErrors.title }}
-              </div>
+              <CustomInput :model-value="editingTags.title" @update:model-value="val => editingTags.title = val"
+                type="text" label="标题 *" placeholder="请输入歌曲标题" :maxlength="255" :required="true"
+                :error="!!validationErrors.title" :error-message="validationErrors.title" />
             </div>
           </div>
 
           <div class="form-row">
             <div class="form-group">
-              <label for="artist">艺术家</label>
-              <input id="artist" v-model="editingTags.artist" type="text" class="form-input"
-                :class="{ 'is-error': validationErrors.artist }" placeholder="请输入艺术家" maxlength="255" />
-              <div v-if="validationErrors.artist" class="error-message">
-                {{ validationErrors.artist }}
-              </div>
+              <CustomInput :model-value="editingTags.artist" @update:model-value="val => editingTags.artist = val"
+                type="text" label="艺术家" placeholder="请输入艺术家" :maxlength="255" :error="!!validationErrors.artist"
+                :error-message="validationErrors.artist" />
             </div>
           </div>
 
           <div class="form-row">
             <div class="form-group">
-              <label for="album">专辑</label>
-              <input id="album" v-model="editingTags.album" type="text" class="form-input"
-                :class="{ 'is-error': validationErrors.album }" placeholder="请输入专辑名称" maxlength="255" />
-              <div v-if="validationErrors.album" class="error-message">
-                {{ validationErrors.album }}
-              </div>
+              <CustomInput :model-value="editingTags.album" @update:model-value="val => editingTags.album = val"
+                type="text" label="专辑" placeholder="请输入专辑名称" :maxlength="255" :error="!!validationErrors.album"
+                :error-message="validationErrors.album" />
             </div>
           </div>
 
           <div class="form-row">
             <div class="form-group">
-              <label for="year">年份</label>
-              <input id="year" v-model="editingTags.year" type="number" class="form-input"
-                :class="{ 'is-error': validationErrors.year }" placeholder="年份" min="1900"
-                :max="new Date().getFullYear() + 1" />
-              <div v-if="validationErrors.year" class="error-message">
-                {{ validationErrors.year }}
-              </div>
+              <CustomInput :model-value="editingTags.year" @update:model-value="val => editingTags.year = val"
+                type="number" label="年份" placeholder="年份" :min="1900" :max="new Date().getFullYear() + 1"
+                :error="!!validationErrors.year" :error-message="validationErrors.year" />
             </div>
           </div>
 
@@ -88,17 +73,12 @@
       </div>
 
       <div class="tag-editor__footer">
-        <button type="button" class="tag-editor__button tag-editor__button--secondary" @click="resetTags">
-          重置
-        </button>
-        <button type="button" class="tag-editor__button tag-editor__button--secondary" @click="closeEditor">
-          取消
-        </button>
-        <button type="button" class="tag-editor__button tag-editor__button--primary" @click="saveTags"
-          :disabled="loading || !isFormValid" :class="{ 'is-loading': loading }">
-          <span v-if="loading">保存中...</span>
-          <span v-else>保存</span>
-        </button>
+        <CustomButton type="secondary" size="medium" @click="resetTags">重置</CustomButton>
+        <CustomButton type="secondary" size="medium" @click="closeEditor">取消</CustomButton>
+        <CustomButton type="primary" size="medium" :loading="loading" :disabled="loading || !isFormValid"
+          @click="saveTags">
+          保存
+        </CustomButton>
       </div>
     </div>
   </div>
@@ -108,6 +88,9 @@
 import { ref, reactive, computed, watch } from 'vue';
 import { useMediaStore } from '../../store/media';
 import FAIcon from './FAIcon.vue';
+import CustomButton from '../custom/CustomButton.vue';
+import CustomInput from '../custom/CustomInput.vue';
+import { formatDuration } from '../../utils/timeUtils';
 
 const mediaStore = useMediaStore();
 
@@ -144,6 +127,42 @@ watch(editingTags, async (newTags) => {
   }
 }, { deep: true });
 
+// 辅助函数
+const setEditingTagsFromObject = (tagsObject) => {
+  editingTags.title = tagsObject.title || '';
+  editingTags.artist = tagsObject.artist || '';
+  editingTags.album = tagsObject.album || '';
+  editingTags.year = tagsObject.year ? String(tagsObject.year) : '';
+};
+
+const convertReactiveToPlain = (reactiveObj) => {
+  return {
+    title: reactiveObj.title,
+    artist: reactiveObj.artist,
+    album: reactiveObj.album,
+    year: reactiveObj.year
+  };
+};
+
+const clearObjectProperties = (obj) => {
+  Object.keys(obj).forEach(key => {
+    if (typeof obj[key] === 'string') {
+      obj[key] = '';
+    } else {
+      delete obj[key];
+    }
+  });
+};
+
+const handleTagOperationError = (error, operation) => {
+  console.error(`${operation}过程中发生错误:`, error);
+  if (operation.includes('验证')) {
+    // 验证错误通常不需要用户提示
+    return;
+  }
+  alert(`${operation}异常: ${error.message}`);
+};
+
 // 方法
 const openEditor = async (song) => {
   if (!song || !song.id) {
@@ -174,11 +193,8 @@ const openEditor = async (song) => {
       };
       console.log('准备设置的编辑标签:', newTags);
 
-      // 逐个设置属性以确保响应式更新
-      editingTags.title = newTags.title;
-      editingTags.artist = newTags.artist;
-      editingTags.album = newTags.album;
-      editingTags.year = newTags.year;
+      // 使用统一函数设置标签
+      setEditingTagsFromObject(newTags);
 
       console.log('设置后的编辑标签:', editingTags);
     } else {
@@ -191,14 +207,11 @@ const openEditor = async (song) => {
         year: song.year ? String(song.year) : ''
       };
       console.log('使用备选标签:', fallbackTags);
-      // 逐个设置属性以确保响应式更新
-      editingTags.title = fallbackTags.title;
-      editingTags.artist = fallbackTags.artist;
-      editingTags.album = fallbackTags.album;
-      editingTags.year = fallbackTags.year;
+      // 使用统一函数设置标签
+      setEditingTagsFromObject(fallbackTags);
     }
   } catch (error) {
-    console.error('获取歌曲标签异常:', error);
+    handleTagOperationError(error, '获取歌曲标签');
   } finally {
     loading.value = false;
   }
@@ -208,40 +221,26 @@ const closeEditor = () => {
   showTagEditor.value = false;
   currentSong.value = null;
   originalTags.value = null;
-  Object.keys(editingTags).forEach(key => {
-    editingTags[key] = '';
-  });
-  Object.keys(validationErrors).forEach(key => {
-    delete validationErrors[key];
-  });
+  clearObjectProperties(editingTags);
+  clearObjectProperties(validationErrors);
 };
 
 const resetTags = () => {
   if (originalTags.value) {
-    // 逐个设置属性以确保响应式更新
-    editingTags.title = originalTags.value.title || '';
-    editingTags.artist = originalTags.value.artist || '';
-    editingTags.album = originalTags.value.album || '';
-    editingTags.year = originalTags.value.year ? String(originalTags.value.year) : '';
+    // 使用统一函数设置标签
+    setEditingTagsFromObject(originalTags.value);
   }
 };
 
 const validateTags = async (tags) => {
   try {
     // 将响应式对象转换为普通对象以避免序列化错误
-    const plainTags = {
-      title: tags.title,
-      artist: tags.artist,
-      album: tags.album,
-      year: tags.year
-    };
+    const plainTags = convertReactiveToPlain(tags);
 
     const result = await window.electronAPI.validateTagChanges(plainTags);
     if (result.success && result.validation) {
       // 清除之前的错误
-      Object.keys(validationErrors).forEach(key => {
-        delete validationErrors[key];
-      });
+      clearObjectProperties(validationErrors);
 
       // 设置新的错误
       if (result.validation.errors && result.validation.errors.length > 0) {
@@ -255,7 +254,7 @@ const validateTags = async (tags) => {
       }
     }
   } catch (error) {
-    console.error('验证标签失败:', error);
+    handleTagOperationError(error, '验证标签');
   }
 };
 
@@ -268,12 +267,7 @@ const saveTags = async () => {
 
   try {
     // 将响应式对象转换为普通对象以避免序列化错误
-    const plainTags = {
-      title: editingTags.title,
-      artist: editingTags.artist,
-      album: editingTags.album,
-      year: editingTags.year
-    };
+    const plainTags = convertReactiveToPlain(editingTags);
 
     const result = await window.electronAPI.updateSongTags(currentSong.value.id, plainTags);
     if (result.success) {
@@ -286,19 +280,12 @@ const saveTags = async () => {
       alert(`更新标签失败: ${result.error}`);
     }
   } catch (error) {
-    console.error('更新标签异常:', error);
-    alert(`更新标签异常: ${error.message}`);
+    handleTagOperationError(error, '更新标签');
   } finally {
     loading.value = false;
   }
 };
 
-const formatDuration = (seconds) => {
-  if (!seconds) return '-';
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = Math.floor(seconds % 60);
-  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-};
 
 // 暴露方法给父组件
 defineExpose({
@@ -307,46 +294,6 @@ defineExpose({
 </script>
 
 <style lang="scss" scoped>
-// 导入样式变量
-@use "../../styles/variables/_colors" as *;
-@use "../../styles/variables/_typography" as *;
-@use "../../styles/variables/_layout" as *;
-
-// 弹窗进入/退出动画
-@keyframes fadeIn {
-  0% {
-    opacity: 0;
-    transform: scale(0.9) translateY(-20px);
-    filter: blur(2px);
-  }
-
-  50% {
-    opacity: 0.8;
-    transform: scale(0.95) translateY(-10px);
-    filter: blur(1px);
-  }
-
-  100% {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-    filter: blur(0);
-  }
-}
-
-@keyframes fadeOut {
-  0% {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-    filter: blur(0);
-  }
-
-  100% {
-    opacity: 0;
-    transform: scale(0.9) translateY(-10px);
-    filter: blur(2px);
-  }
-}
-
 .tag-editor__overlay {
   position: fixed;
   top: 0;
@@ -371,7 +318,7 @@ defineExpose({
   box-shadow: $box-shadow;
   display: flex;
   flex-direction: column;
-  animation: fadeIn $transition-slow ease-out;
+  animation: modalFadeIn $transition-slow ease-out;
   font-family: $font-family-base;
 }
 
@@ -486,64 +433,11 @@ defineExpose({
   }
 }
 
-.form-input,
-.form-textarea {
-  background: $bg-primary;
-  border: 2px solid $bg-tertiary;
-  border-radius: $border-radius;
-  padding: ($content-padding * 0.5) ($content-padding * 0.75);
-  color: $text-primary;
-  font-size: $font-size-base;
-  font-family: $font-family-base;
-  transition: all $transition-base;
-  box-sizing: border-box;
 
-  &:focus {
-    outline: none;
-    border-color: $accent-green;
-    box-shadow: 0 0 0 2px rgba($accent-green, 0.2);
-  }
 
-  &:hover:not(:focus) {
-    border-color: $bg-tertiary-hover;
-  }
 
-  &::placeholder {
-    color: $text-disabled;
-  }
 
-  &.is-error {
-    border-color: $danger;
-    box-shadow: 0 0 0 2px rgba($danger, 0.2);
-  }
 
-  &:disabled {
-    background: $bg-tertiary;
-    color: $text-disabled;
-    cursor: not-allowed;
-    opacity: 0.6;
-  }
-}
-
-.form-textarea {
-  resize: vertical;
-  min-height: 60px;
-  line-height: 1.5;
-}
-
-.error-message {
-  font-size: $font-size-xs;
-  color: $danger;
-  margin-top: 4px;
-  font-weight: $font-weight-medium;
-  font-family: $font-family-base;
-  line-height: $line-height-base;
-  transition: color $transition-base;
-
-  &:hover {
-    color: $danger-hover;
-  }
-}
 
 .technical-info {
   margin-top: ($content-padding * 1.25);
@@ -607,90 +501,7 @@ defineExpose({
   background-color: $bg-primary;
 }
 
-.tag-editor__button {
-  padding: ($content-padding * 0.5) ($content-padding * 1.25);
-  border-radius: $border-radius;
-  border: none;
-  font-size: $font-size-base;
-  font-weight: $font-weight-medium;
-  font-family: $font-family-base;
-  cursor: pointer;
-  transition: all $transition-base;
-  white-space: nowrap;
-  min-height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-
-    &:hover {
-      transform: none;
-    }
-  }
-
-  &:hover:not(:disabled) {
-    transform: translateY(-1px);
-  }
-
-  &:active:not(:disabled) {
-    transform: translateY(0);
-  }
-
-  &.is-loading {
-    opacity: 0.7;
-    cursor: wait;
-  }
-
-  &--close {
-    background: none;
-    border: none;
-    color: $text-secondary;
-    cursor: pointer;
-    padding: ($content-padding * 0.5);
-    border-radius: 50%;
-    transition: all $transition-base;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 32px;
-    min-height: 32px;
-
-    &:hover {
-      background-color: $overlay-light;
-      color: $text-primary;
-      transform: scale(1.05);
-    }
-
-    &:active {
-      transform: scale(0.95);
-    }
-  }
-
-  &--secondary {
-    background: $bg-tertiary;
-    color: $text-primary;
-    border: 1px solid $bg-tertiary;
-
-    &:hover:not(:disabled) {
-      background: $overlay-light;
-      border-color: $overlay-light;
-    }
-  }
-
-  &--primary {
-    background: $accent-green;
-    color: $text-primary;
-    font-weight: $font-weight-bold;
-
-    &:hover:not(:disabled) {
-      background: $accent-hover;
-    }
-  }
-}
 
 /* 响应式设计 */
 @include respond-to("sm") {
@@ -724,16 +535,6 @@ defineExpose({
     padding: $content-padding;
     gap: ($content-padding * 0.5);
     flex-direction: column-reverse;
-
-    .tag-editor__button {
-      width: 100%;
-      font-size: $font-size-sm;
-    }
-  }
-
-  .tag-editor__button--close {
-    min-width: 28px;
-    min-height: 28px;
   }
 }
 
@@ -741,15 +542,6 @@ defineExpose({
 @media (prefers-contrast: high) {
   .tag-editor__modal {
     border: 2px solid $text-primary;
-  }
-
-  .form-input,
-  .form-textarea {
-    border-width: 2px;
-  }
-
-  .tag-editor__button {
-    border-width: 2px;
   }
 }
 
@@ -759,24 +551,24 @@ defineExpose({
     animation: none;
   }
 
-  .tag-editor__button,
-  .form-input,
-  .form-textarea,
-  .song-info,
-  .technical-info,
-  .form-group label,
-  .error-message {
+  %no-transition {
     transition: none !important;
   }
 
-  .tag-editor__button:hover,
-  .tag-editor__button--close:hover,
-  .tag-editor__button--close:active,
+  %no-transform {
+    transform: none !important;
+  }
+
+  .song-info,
+  .technical-info,
+  .form-group label {
+    @extend %no-transition;
+  }
+
   .song-info:hover,
   .technical-info:hover,
-  .form-group label:hover,
-  .error-message:hover {
-    transform: none !important;
+  .form-group label:hover {
+    @extend %no-transform;
   }
 }
 </style>

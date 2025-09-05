@@ -5,7 +5,7 @@ const {
 	addLibrary,
 	updateLibrary,
 	removeLibrary,
-} = require("../../services/data/Database");
+} = require("./Database");
 const { CHANNELS } = require("../../constants/ipcChannels");
 const { isScanRunning } = require("../scan/scanHandlers");
 

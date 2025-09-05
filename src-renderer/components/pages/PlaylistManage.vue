@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue';
 import { usePlaylistStore } from '../../store/playlist';
 import FAIcon from '../common/FAIcon.vue';
+import CustomButton from '../custom/CustomButton.vue';
 
 const playlistStore = usePlaylistStore();
 
@@ -56,9 +57,7 @@ async function handleSavePlaylist() {
         <div class="modal-content" @click.stop>
             <div class="modal-header">
                 <h3 class="modal-title">{{ dialogTitle }}</h3>
-                <button class="close-btn" @click="playlistStore.closePlaylistDialog()">
-                    <FAIcon name="times" size="medium" color="secondary" :clickable="true" />
-                </button>
+                <CustomButton type="icon-only" icon="times" size="medium" @click="playlistStore.closePlaylistDialog()" />
             </div>
 
             <div class="modal-body">
@@ -89,14 +88,13 @@ async function handleSavePlaylist() {
                     </div>
 
                     <div class="button-group">
-                        <button type="button" class="btn btn--secondary cancel-btn"
-                            @click="playlistStore.closePlaylistDialog()">
+                        <CustomButton type="secondary" @click="playlistStore.closePlaylistDialog()">
                             取消
-                        </button>
-                        <button type="submit" class="btn btn--primary save-btn" :disabled="playlistStore.loading">
+                        </CustomButton>
+                        <CustomButton type="primary" :disabled="playlistStore.loading" @click="$event.target.closest('form').requestSubmit()">
                             <span v-if="playlistStore.loading">保存中...</span>
                             <span v-else>保存</span>
-                        </button>
+                        </CustomButton>
                     </div>
                 </form>
             </div>
@@ -106,8 +104,6 @@ async function handleSavePlaylist() {
 
 <style lang="scss" scoped>
 @use "sass:color";
-@use "../../styles/variables/_colors" as *;
-@use "../../styles/variables/_layout" as *;
 
 .modal-overlay {
     position: fixed;

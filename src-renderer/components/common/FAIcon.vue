@@ -22,8 +22,6 @@ const props = defineProps({
     }
 });
 
-const emit = defineEmits(['click']);
-
 // 计算图标的CSS类
 const iconClasses = computed(() => {
     const classes = ['fa', `fa-${props.name}`];
@@ -41,28 +39,66 @@ const iconClasses = computed(() => {
 
     return classes;
 });
-
-// 处理点击事件
-const handleClick = (event) => {
-    if (props.clickable) {
-        emit('click', event);
-    }
-};
 </script>
 
 <template>
-    <i :class="iconClasses" @click="handleClick" aria-hidden="true"></i>
+    <i :class="iconClasses" aria-hidden="true"></i>
 </template>
 
 <style lang="scss" scoped>
-// 导入样式变量
-@use "../../styles/variables/_colors" as *;
-@use "../../styles/variables/_layout" as *;
-
 // Font Awesome 图标基础样式
 .fa {
     display: inline-block;
     vertical-align: middle;
     transition: color $transition-base;
+}
+
+// 图标尺寸样式
+.icon--small {
+    font-size: 12px;
+}
+
+.icon--medium {
+    font-size: 16px;
+}
+
+.icon--large {
+    font-size: 20px;
+}
+
+.icon--xl {
+    font-size: 24px;
+}
+
+// 图标颜色样式
+.icon--primary {
+    color: $text-primary;
+}
+
+.icon--secondary {
+    color: $text-secondary;
+}
+
+.icon--accent {
+    color: $accent-green;
+}
+
+.icon--danger {
+    color: $danger;
+}
+
+// 可点击图标样式
+.icon--clickable {
+    cursor: pointer;
+    transition: color $transition-base, transform $transition-fast;
+
+    &:hover {
+        color: $accent-hover;
+        transform: scale(1.1);
+    }
+
+    &:active {
+        transform: scale(0.95);
+    }
 }
 </style>

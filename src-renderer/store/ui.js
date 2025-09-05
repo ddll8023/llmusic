@@ -30,6 +30,8 @@ export const useUiStore = defineStore("ui", {
 	state: () => ({
 		isSidebarVisible: loadState().isSidebarVisible,
 		sidebarWidth: 250,
+		tempSidebarWidth: 250, // 拖拽时的临时宽度
+		isDraggingSidebar: false, // 是否正在拖拽侧边栏
 		isPlaylistVisible: false,
 		currentView: "main",
 		lyricsAnimationStyle: loadState().lyricsAnimationStyle, // 歌词页面动画效果
@@ -41,6 +43,16 @@ export const useUiStore = defineStore("ui", {
 		// 计算当前侧边栏的实际显示宽度
 		effectiveSidebarWidth: (state) =>
 			state.isSidebarVisible ? state.sidebarWidth : 0,
+		// 获取当前显示的侧边栏宽度（拖拽时使用临时宽度）
+		currentDisplayWidth: (state) =>
+			state.isDraggingSidebar ? state.tempSidebarWidth : state.sidebarWidth,
+		// 计算拖拽时的实际显示宽度
+		effectiveDragWidth: (state) =>
+			state.isSidebarVisible
+				? state.isDraggingSidebar
+					? state.tempSidebarWidth
+					: state.sidebarWidth
+				: 0,
 	},
 	actions: {
 		setView(view) {
@@ -101,6 +113,40 @@ export const useUiStore = defineStore("ui", {
 				this.sidebarWidth = maxWidth;
 			} else {
 				this.sidebarWidth = newWidth;
+			}
+		},
+		// 设置临时侧边栏宽度（拖拽时使用）
+		setTempSidebarWidth(newWidth) {
+			const minWidth = 60;
+			const maxWidth = 300;
+			this.tempSidebarWidth = Math.min(Math.max(newWidth, minWidth), maxWidth);
+		},
+		// 开始拖拽侧边栏
+		startSidebarDrag() {
+			this.isDraggingSidebar = true;
+			this.tempSidebarWidth = this.sidebarWidth;
+		},
+		// 结束拖拽侧边栏并应用最终宽度
+		endSidebarDrag() {
+			this.isDraggingSidebar = false;
+			this.sidebarWidth = this.tempSidebarWidth;
+		},
+		// 取消拖拽侧边栏（恢复原始宽度）
+		cancelSidebarDrag() {
+			this.isDraggingSidebar = false;
+			this.tempSidebarWidth = this.sidebarWidth;
+		},
+		// 批量更新侧边栏宽度（优化性能）
+		updateSidebarWidthBatch(newWidth, isTemp = false) {
+			const minWidth = 60;
+			const maxWidth = 300;
+			const clampedWidth = Math.min(Math.max(newWidth, minWidth), maxWidth);
+
+			if (isTemp) {
+				this.tempSidebarWidth = clampedWidth;
+			} else {
+				this.sidebarWidth = clampedWidth;
+				this.tempSidebarWidth = clampedWidth;
 			}
 		},
 		// 设置歌词页面动画效果

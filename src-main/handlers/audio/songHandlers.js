@@ -7,7 +7,7 @@ const {
 	incrementPlayCount,
 	deleteSong,
 	addSongs,
-} = require("../../services/data/Database");
+} = require("../data/Database");
 const { isScanRunning } = require("../scan/scanHandlers");
 const { coverCache } = require("./coverHandlers");
 

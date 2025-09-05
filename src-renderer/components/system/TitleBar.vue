@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
-import FAIcon from './FAIcon.vue';
+import FAIcon from '../common/FAIcon.vue';
+import CustomButton from '../custom/CustomButton.vue';
 import { useUiStore } from '../../store/ui';
 
 // 最大化状态
@@ -57,21 +58,41 @@ const uiStore = useUiStore();
       </div>
       <div class="title-bar__right">
         <!-- 显示侧边栏按钮 -->
-        <button v-if="!uiStore.isSidebarVisible" class="title-bar__button title-bar__button--show-sidebar"
-          @click="uiStore.showSidebar()" title="显示侧边栏">
-          <FAIcon name="bars" size="small" :clickable="true" />
-        </button>
+        <CustomButton
+          v-if="!uiStore.isSidebarVisible"
+          type="icon-only"
+          size="small"
+          icon="bars"
+          icon-size="small"
+          custom-class="title-bar__button title-bar__button--show-sidebar"
+          @click="uiStore.showSidebar()"
+          title="显示侧边栏"
+        />
 
-        <button class="title-bar__button" @click="minimizeWindow">
-          <FAIcon name="minus" size="small" :clickable="true" />
-        </button>
-        <button class="title-bar__button" @click="maximizeRestoreWindow">
-          <FAIcon v-if="isMaximized" name="window-restore" size="small" :clickable="true" />
-          <FAIcon v-else name="square-o" size="small" :clickable="true" />
-        </button>
-        <button class="title-bar__button title-bar__button--close" @click="closeWindow">
-          <FAIcon name="times" size="small" color="danger" :clickable="true" />
-        </button>
+        <CustomButton
+          type="icon-only"
+          size="small"
+          icon="minus"
+          icon-size="small"
+          custom-class="title-bar__button"
+          @click="minimizeWindow"
+        />
+        <CustomButton
+          type="icon-only"
+          size="small"
+          :icon="isMaximized ? 'window-restore' : 'square-o'"
+          icon-size="small"
+          custom-class="title-bar__button"
+          @click="maximizeRestoreWindow"
+        />
+        <CustomButton
+          type="icon-only"
+          size="small"
+          icon="times"
+          icon-size="small"
+          custom-class="title-bar__button title-bar__button--close"
+          @click="closeWindow"
+        />
       </div>
     </div>
   </div>

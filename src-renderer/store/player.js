@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { useMediaStore } from "./media";
+import { formatTimeProgress } from "../utils/timeUtils";
 
 // 播放模式枚举
 export const PlayMode = {
@@ -55,18 +56,7 @@ export const usePlayerStore = defineStore("player", {
 
 		// 播放进度时间格式化 (分:秒)
 		formattedTime: (state) => {
-			const formatTime = (time) => {
-				const minutes = Math.floor(time / 60);
-				const seconds = Math.floor(time % 60);
-				return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-			};
-
-			const currentTime = formatTime(state.currentTime);
-			const totalTime = state.currentSong
-				? formatTime(state.currentSong.duration)
-				: "0:00";
-
-			return `${currentTime} / ${totalTime}`;
+			return formatTimeProgress(state.currentTime, state.currentSong?.duration);
 		},
 	},
 

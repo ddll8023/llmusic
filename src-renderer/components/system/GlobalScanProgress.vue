@@ -10,10 +10,14 @@
       <div class="progress-bar-container">
         <div class="progress-bar" :style="{ width: progressBarWidth }"></div>
       </div>
-      <button class="cancel-scan-button" @click="cancelScan">
-        <FAIcon name="times" size="small" color="primary" />
-        <span>取消扫描</span>
-      </button>
+      <CustomButton
+        type="danger"
+        size="medium"
+        icon="times"
+        @click="cancelScan"
+      >
+        取消扫描
+      </CustomButton>
     </div>
   </div>
 </template>
@@ -21,7 +25,8 @@
 <script setup>
 import { computed } from 'vue';
 import { useMediaStore } from '../../store/media';
-import FAIcon from './FAIcon.vue';
+import FAIcon from '../common/FAIcon.vue';
+import CustomButton from '../custom/CustomButton.vue';
 
 const mediaStore = useMediaStore();
 
@@ -39,9 +44,6 @@ const cancelScan = () => {
 </script>
 
 <style lang="scss" scoped>
-@use "../../styles/variables/_colors" as *;
-@use "../../styles/variables/_layout" as *;
-@use "sass:color";
 
 .scan-progress-overlay {
   position: fixed;
@@ -124,37 +126,4 @@ const cancelScan = () => {
   border-radius: $border-radius;
 }
 
-.cancel-scan-button {
-  background-color: $bg-secondary;
-  color: $text-primary;
-  border: 1px solid $bg-tertiary;
-  padding: $content-padding * 0.625 $content-padding * 1.25;
-  border-radius: $border-radius * 5;
-  cursor: pointer;
-  transition: all $transition-base;
-  font-size: $font-size-base;
-  font-weight: $font-weight-medium;
-  min-width: 100px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-
-  &:hover {
-    background-color: color.adjust($bg-secondary, $lightness: 10%);
-    border-color: $accent-green;
-    transform: translateY(-1px);
-  }
-
-  &:active {
-    transform: translateY(0);
-    background-color: $bg-secondary;
-  }
-
-  @include respond-to("sm") {
-    font-size: $font-size-sm;
-    padding: $content-padding * 0.5 $content-padding;
-    min-width: 80px;
-  }
-}
 </style>

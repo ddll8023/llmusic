@@ -5,6 +5,7 @@ import { usePlayerStore } from '../../store/player';
 import SongTable from '../common/SongTable.vue'; // 引入新的SongTable组件
 import TagEditor from '../common/TagEditor.vue'; // 引入TagEditor组件
 import DeleteConfirmDialog from '../common/DeleteConfirmDialog.vue'; // 引入删除确认对话框
+import LocalMusicHeader from '../components/local-music/LocalMusicHeader.vue'; // 引入本地音乐头部组件
 
 const mediaStore = useMediaStore();
 const playerStore = usePlayerStore();
@@ -241,6 +242,7 @@ const forceRefreshTable = () => {
 
 <template>
   <div class="main-content">
+    <LocalMusicHeader />
     <SongTable ref="songTableRef" :songs="sortedSongs" :loading="mediaStore.isLoading" :show-sortable="true"
       :show-play-count="true" :show-action-column="false" :context-menu-type="'main'" :current-list-id="currentListId"
       :empty-text="'暂无歌曲'" :empty-icon="'music'" @play-song="handlePlaySong" @sort-change="handleSortChange"
@@ -256,17 +258,14 @@ const forceRefreshTable = () => {
 </template>
 
 <style lang="scss" scoped>
-@use "../../styles/variables/_colors" as *;
-@use "../../styles/variables/_layout" as *;
-
 .main-content {
-  flex-grow: 1;
+  flex: 1;
+  min-height: 0;
   background-color: $bg-primary;
   color: $text-primary;
   padding: 0;
   display: flex;
   flex-direction: column;
-  height: 100%;
   position: relative;
 }
 

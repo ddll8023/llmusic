@@ -15,7 +15,7 @@ const { createPlayerHandlers } = require("./audio/playerHandlers");
 // 数据相关处理器
 const { createPlaylistHandlers } = require("./data/playlistHandlers");
 const { createLibraryHandlers } = require("./data/libraryHandlers");
-const { createTagHandlers } = require("./data/tagHandlers");
+const { createTagHandlers } = require("./audio/tagHandlers");
 
 /**
  * setupIpcHandlers(mainWindow)

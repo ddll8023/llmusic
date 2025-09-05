@@ -1,21 +1,20 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import SideBar from './components/common/SideBar.vue';
-import MainContent from './components/pages/MainContent.vue';
+import SideBar from './components/system/SideBar.vue';
+import MusicLibrary from './components/pages/MusicLibrary.vue';
 import Settings from './components/pages/Settings.vue';
 import MetadataManager from './components/pages/MetadataManager.vue';
-import PlayerBar from './components/common/PlayerBar.vue';
-import LocalMusicHeader from './components/local-music/LocalMusicHeader.vue';
+import PlayerBar from './components/system/PlayerBar.vue';
 import Playlist from './components/common/Playlist.vue';
-import LyricPage from './components/pages/LyricPage.vue';
-import PlaylistManage from './components/pages/PlaylistManage.vue';
 import PlaylistContent from './components/pages/PlaylistContent.vue';
-import TitleBar from './components/common/TitleBar.vue';
-import GlobalScanProgress from './components/common/GlobalScanProgress.vue';
+import TitleBar from './components/system/TitleBar.vue';
+import GlobalScanProgress from './components/system/GlobalScanProgress.vue';
+import LyricPage from './components/pages/LyricPage.vue';
 import { useUiStore } from './store/ui';
 import { usePlaylistStore } from './store/playlist';
 import { usePlayerStore } from './store/player';
 import { useMediaStore } from './store/media';
+import { useSidebarResize } from './composables/useSidebarResize.js';
 
 const uiStore = useUiStore();
 const playlistStore = usePlaylistStore();
@@ -25,8 +24,6 @@ const mediaStore = useMediaStore();
 // 初始化窗口关闭行为
 uiStore.initCloseBehavior();
 
-// 播放器控制栏的高度，单位为px
-const playerBarHeight = 90; // 这个值应该与PlayerBar.vue中的height值一致
 
 // 存储IPC事件监听器的引用
 let removeNavigateListener = null;
@@ -96,11 +93,6 @@ onMounted(async () => {
     });
 });
 
-// 修正PlaylistContent组件内的导航问题
-// 设置一个函数使得PlaylistContent可以通过props调用
-const navigateToMain = () => {
-    uiStore.setView('main');
-};
 
 // 监听删除歌单事件并处理导航
 playlistStore.$subscribe((mutation, state) => {
@@ -110,7 +102,7 @@ playlistStore.$subscribe((mutation, state) => {
         mutation.events.payload &&
         mutation.events.payload.success) {
         // 导航到主界面
-        navigateToMain();
+        uiStore.setView('main');
     }
 });
 
@@ -121,81 +113,33 @@ const layoutClasses = computed(() => {
     };
 });
 
-// 规范化CSS变量设置
+// 更新CSS变量
 const updateLayoutVariables = () => {
     if (typeof document !== 'undefined') {
         const root = document.documentElement;
-
-        // 使用统一的CSS变量设置方法
-        const setCSSVariable = (name, value) => {
-            root.style.setProperty(name, value);
-        };
-
-        // 设置侧边栏宽度变量
-        // 始终使用实际宽度，不根据可见性判断
-        setCSSVariable('--sidebar-width', `${uiStore.sidebarWidth}px`);
-
-        // 设置播放器高度变量（仅在必要时更新）
-        if (!root.style.getPropertyValue('--player-bar-height')) {
-            setCSSVariable('--player-bar-height', `${playerBarHeight}px`);
-        }
+        const currentWidth = uiStore.isDraggingSidebar ? uiStore.tempSidebarWidth : uiStore.sidebarWidth;
+        root.style.setProperty('--sidebar-width', `${currentWidth}px`);
     }
 };
+
+// 使用侧边栏拖拽组合式函数
+const { startResize, handleDoubleClick: handleResizeHandleDoubleClick } = useSidebarResize({
+    minWidth: 60,
+    maxWidth: 300,
+    onDragStart: null,
+    onDragEnd: null
+});
 
 // 监听侧边栏状态变化
-watch([() => uiStore.sidebarWidth, () => uiStore.isSidebarVisible], updateLayoutVariables, { immediate: true });
+watch([
+    () => uiStore.sidebarWidth,
+    () => uiStore.tempSidebarWidth,
+    () => uiStore.isDraggingSidebar,
+    () => uiStore.isSidebarVisible
+], updateLayoutVariables, { immediate: true });
 
-const isResizing = ref(false);
-
-// 用于存储添加的事件监听器函数
-const mouseMoveListener = (event) => {
-    if (isResizing.value) {
-        event.preventDefault();
-        const newWidth = uiStore.sidebarWidth + event.movementX;
-        uiStore.setSidebarWidth(newWidth);
-    }
-};
-
-const mouseUpListener = () => {
-    isResizing.value = false;
-
-    // 移除拖拽状态类
-    document.body.classList.remove('is-resizing');
-
-    window.removeEventListener('mousemove', mouseMoveListener);
-    window.removeEventListener('mouseup', mouseUpListener);
-};
-
-const startResize = (event) => {
-    event.preventDefault();
-    isResizing.value = true;
-
-    // 添加拖拽状态类
-    document.body.classList.add('is-resizing');
-
-    window.addEventListener('mousemove', mouseMoveListener);
-    window.addEventListener('mouseup', mouseUpListener);
-};
-
-// 处理拖拽手柄双击事件
-const handleResizeHandleDoubleClick = () => {
-    uiStore.toggleSidebarCollapse();
-};
-
-// 在组件卸载时清理所有事件监听器
+// 在组件卸载时清理事件监听器
 onUnmounted(() => {
-    // 清理DOM事件监听器
-    if (window) {
-        window.removeEventListener('mousemove', mouseMoveListener);
-        window.removeEventListener('mouseup', mouseUpListener);
-    }
-
-    // 确保清理拖拽状态类（防止内存泄漏）
-    if (document.body) {
-        document.body.classList.remove('is-resizing');
-    }
-
-    // 清理IPC事件监听器
     if (removeNavigateListener) {
         removeNavigateListener();
     }
@@ -219,11 +163,11 @@ onUnmounted(() => {
                 <div class="resize-handle" @mousedown="startResize" @dblclick="handleResizeHandleDoubleClick"></div>
             </div>
             <div class="content-wrapper">
-                <LocalMusicHeader v-if="uiStore.currentView === 'main'" />
-                <MainContent v-if="uiStore.currentView === 'main'" />
+                <MusicLibrary v-if="uiStore.currentView === 'main'" />
                 <MetadataManager v-else-if="uiStore.currentView === 'metadata'" />
                 <Settings v-else-if="uiStore.currentView === 'settings'" />
-                <PlaylistContent v-else-if="uiStore.currentView === 'playlist'" :navigate-to-main="navigateToMain" />
+                <PlaylistContent v-else-if="uiStore.currentView === 'playlist'"
+                    :navigate-to-main="() => uiStore.setView('main')" />
             </div>
         </div>
         <div class="playlist-container" :class="{ 'is-visible': uiStore.isPlaylistVisible }">
@@ -234,16 +178,81 @@ onUnmounted(() => {
         <!-- 歌词页面 -->
         <LyricPage />
 
-        <!-- 歌单管理对话框 -->
-        <PlaylistManage />
     </div>
 </template>
 
-<style lang="scss" scoped>
+<style scoped lang="scss">
 // 标题栏样式
 .title-bar {
     flex-shrink: 0;
     z-index: $z-modal;
+}
+
+// 主布局样式
+#app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.main-layout {
+    display: flex;
+    height: calc(100vh - #{$title-bar-height} - #{$player-bar-height});
+    overflow: hidden;
+}
+
+.sidebar-container {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    width: var(--sidebar-width, 250px);
+    height: 100%;
+}
+
+.content-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+}
+
+.resize-handle {
+    width: 4px;
+    background-color: transparent;
+    cursor: col-resize;
+    flex-shrink: 0;
+
+    &:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+}
+
+// 播放列表容器样式
+.playlist-container {
+    position: fixed;
+    top: $title-bar-height;
+    right: 0;
+    bottom: $player-bar-height;
+    width: 350px;
+    z-index: $z-playlist;
+    transform: translateX(100%);
+    transition: transform $transition-base ease-out;
+
+    &.is-visible {
+        transform: translateX(0);
+    }
+
+    @include respond-to("md") {
+        width: 320px;
+    }
+
+    @include respond-to("sm") {
+        width: 100%;
+        top: 0;
+        bottom: $player-bar-height;
+    }
 }
 
 // 播放器控制栏样式

@@ -50,10 +50,15 @@
                         </div>
                     </div>
 
-                    <button v-if="!playerStore.isAutoScrolling" class="lyric-page__resume-scroll-btn"
-                        @click.stop="resumeAutoScroll">
-                        <span>回到当前</span>
-                    </button>
+                    <CustomButton
+                        v-if="!playerStore.isAutoScrolling"
+                        type="primary"
+                        size="small"
+                        class="lyric-page__resume-scroll-btn"
+                        @click.stop="resumeAutoScroll"
+                    >
+                        回到当前
+                    </CustomButton>
                 </div>
 
                 <div class="lyric-page__controls">
@@ -61,35 +66,70 @@
                         <span>{{ formattedCurrentTime }}</span>
                     </div>
                     <div class="lyric-page__font-size-controls">
-                        <button @click="decreaseFontSize" title="减小字体">
-                            <span>A-</span>
-                        </button>
-                        <button @click="resetFontSize" title="重置字体">
-                            <span>A</span>
-                        </button>
-                        <button @click="increaseFontSize" title="增大字体">
-                            <span>A+</span>
-                        </button>
+                        <CustomButton
+                            type="secondary"
+                            size="small"
+                            @click="decreaseFontSize"
+                            title="减小字体"
+                        >
+                            A-
+                        </CustomButton>
+                        <CustomButton
+                            type="secondary"
+                            size="small"
+                            @click="resetFontSize"
+                            title="重置字体"
+                        >
+                            A
+                        </CustomButton>
+                        <CustomButton
+                            type="secondary"
+                            size="small"
+                            @click="increaseFontSize"
+                            title="增大字体"
+                        >
+                            A+
+                        </CustomButton>
                     </div>
                     <div class="lyric-page__sync-controls">
-                        <button @click="adjustSync(-500)" title="歌词提前 0.5 秒">
-                            <span>-0.5s</span>
-                        </button>
-                        <button @click="adjustSync(0)" title="重置同步">
-                            <span>重置</span>
-                        </button>
-                        <button @click="adjustSync(500)" title="歌词延后 0.5 秒">
-                            <span>+0.5s</span>
-                        </button>
+                        <CustomButton
+                            type="secondary"
+                            size="small"
+                            @click="adjustSync(-500)"
+                            title="歌词提前 0.5 秒"
+                        >
+                            -0.5s
+                        </CustomButton>
+                        <CustomButton
+                            type="secondary"
+                            size="small"
+                            @click="adjustSync(0)"
+                            title="重置同步"
+                        >
+                            重置
+                        </CustomButton>
+                        <CustomButton
+                            type="secondary"
+                            size="small"
+                            @click="adjustSync(500)"
+                            title="歌词延后 0.5 秒"
+                        >
+                            +0.5s
+                        </CustomButton>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- 返回按钮，放在最左上角 -->
-        <button class="lyric-page__back-btn" @click="closeLyrics">
-            <span>返回</span>
-        </button>
+        <CustomButton
+            type="icon-only"
+            size="medium"
+            icon="arrow-left"
+            class="lyric-page__back-btn"
+            @click="closeLyrics"
+            title="返回"
+        />
     </div>
 </template>
 
@@ -98,6 +138,8 @@ import { ref, computed, watch, nextTick, onUnmounted, onMounted } from 'vue';
 import { usePlayerStore } from '../../store/player';
 import { useUiStore } from '../../store/ui';
 import FAIcon from '../common/FAIcon.vue';
+import CustomButton from '../custom/CustomButton.vue';
+import { formatTimeFromMs } from '../../utils/timeUtils';
 
 const playerStore = usePlayerStore();
 const uiStore = useUiStore();
@@ -106,16 +148,6 @@ const manualScrollTimer = ref(null);
 const fontSizeClass = ref('normal'); // 'small', 'normal', 'large'
 const albumCoverUrl = ref('');
 
-// 格式化毫秒为时间字符串 (mm:ss)
-const formatTimeFromMs = (ms) => {
-    if (ms < 0) return '--:--';
-    const totalSeconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-
-    // 只显示分钟和秒，使界面更简洁
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-};
 
 // 动画样式
 const animationStyle = computed(() => uiStore.lyricsAnimationStyle);
@@ -300,12 +332,16 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss" scoped>
-@use "../../styles/variables/_colors" as *;
-@use "../../styles/variables/_layout" as *;
 
 .lyric-page {
-    background-color: $overlay-dark;
+    background-color: $bg-primary;
     color: $text-primary;
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: $title-bar-height;
+    bottom: $player-bar-height;
+    z-index: $z-modal;
     pointer-events: none;
     overflow: hidden;
     visibility: hidden;
@@ -400,19 +436,7 @@ onUnmounted(() => {
     top: $content-padding;
     left: ($content-padding * 3.75);
     /* 调整左边距，与容器边距保持一定距离 */
-    background: none;
-    border: none;
-    color: $text-primary;
-    font-size: $font-size-base;
-    cursor: pointer;
-    padding: ($content-padding * 0.5) ($content-padding * 0.75);
-    border-radius: $border-radius;
-    transition: background-color $transition-fast;
     z-index: 10;
-}
-
-.lyric-page__back-btn:hover {
-    background-color: $overlay-light;
 }
 
 /* 右侧歌词内容区域 */
@@ -591,38 +615,12 @@ text-align: center;
     gap: ($content-padding * 0.625);
 }
 
-.lyric-page__font-size-controls button {
-    padding: ($content-padding * 0.3125) ($content-padding * 0.625);
-    background: $bg-tertiary;
-    border: none;
-    color: $text-primary;
-    border-radius: $border-radius;
-    cursor: pointer;
-    transition: background-color $transition-fast;
-}
-
-.lyric-page__font-size-controls button:hover {
-    background: $overlay-medium;
-}
 
 .lyric-page__sync-controls {
     display: flex;
     gap: ($content-padding * 0.625);
 }
 
-.lyric-page__sync-controls button {
-    padding: ($content-padding * 0.3125) ($content-padding * 0.625);
-    background: $bg-tertiary;
-    border: none;
-    color: $text-primary;
-    border-radius: $border-radius;
-    cursor: pointer;
-    transition: background-color $transition-fast;
-}
-
-.lyric-page__sync-controls button:hover {
-    background: $overlay-medium;
-}
 
 /* 手动滚动样式 */
 .lyric-page__content--manual-scroll .lyric-page__lyrics {
@@ -652,21 +650,7 @@ text-align: center;
     bottom: ($content-padding * 1.875);
     left: 50%;
     transform: translateX(-50%);
-    background-color: $accent-green;
-    color: $text-primary;
-    border: none;
-    border-radius: ($border-radius * 5);
-    padding: ($content-padding * 0.5) $content-padding;
-    font-size: $font-size-sm;
-    cursor: pointer;
     z-index: 10;
-    transition: all $transition-base;
-    box-shadow: $box-shadow-hover;
-}
-
-.lyric-page__resume-scroll-btn:hover {
-    background-color: $accent-hover;
-    transform: translateX(-50%) scale(1.05);
 }
 
 /* 字体大小调整 */

@@ -23,12 +23,6 @@ const playlistStore = usePlaylistStore();
 
 // 展开歌单子菜单状态
 const showPlaylistSubmenu = ref(false);
-
-// 本地存储歌单列表，避免依赖全局状态
-const localPlaylists = ref([]);
-const isLoadingPlaylists = ref(false);
-const loadingError = ref(null);
-
 const menuRef = ref(null);
 
 // 计算菜单位置，确保不超出视口
@@ -106,38 +100,6 @@ const handleMenuAction = (action) => {
   emit('close');
 };
 
-// 独立函数：加载歌单列表
-async function fetchPlaylists() {
-  if (isLoadingPlaylists.value) return;
-
-  isLoadingPlaylists.value = true;
-  loadingError.value = null;
-
-  try {
-    const result = await window.electronAPI.getPlaylists();
-    if (result.success) {
-      localPlaylists.value = result.playlists || [];
-    } else {
-      loadingError.value = result.error || "加载歌单失败";
-    }
-  } catch (error) {
-    loadingError.value = error.message || "获取歌单出错";
-  } finally {
-    isLoadingPlaylists.value = false;
-  }
-}
-
-// 切换子菜单显示状态
-const togglePlaylistSubmenu = async () => {
-  // 切换子菜单状态
-  showPlaylistSubmenu.value = !showPlaylistSubmenu.value;
-
-  // 每次打开子菜单时刷新歌单列表
-  if (showPlaylistSubmenu.value) {
-    await fetchPlaylists();
-  }
-};
-
 // 处理添加到歌单
 const handleAddToPlaylist = async (playlist) => {
   if (props.song && playlist) {
@@ -149,11 +111,10 @@ const handleAddToPlaylist = async (playlist) => {
       );
 
       if (result.success) {
-        // 重新加载歌单列表以获取最新数据
-        playlistStore.loadPlaylists();
+        // 歌曲添加成功，playlist store会自动更新
       }
     } catch (error) {
-      // 错误处理
+      console.error('添加歌曲到歌单失败:', error);
     }
   }
   emit('close');
@@ -166,32 +127,17 @@ const handleDocumentClick = (event) => {
   }
 };
 
-// 创建新歌单并添加当前歌曲
-const handleCreateNewPlaylist = () => {
-  // 打开歌单创建对话框
-  playlistStore.openCreatePlaylistDialog();
-
-  // 关闭右键菜单
-  emit('close');
-};
-
 // 监听菜单显示状态
 watch(() => props.show, (newVal) => {
-  if (newVal) {
-    // 菜单显示时预加载歌单列表
-    fetchPlaylists();
-  } else {
+  if (!newVal) {
     // 菜单关闭时重置子菜单状态
     showPlaylistSubmenu.value = false;
   }
 });
 
-// 挂载后添加全局点击事件监听，加载歌单列表，并在需要时调整位置
+// 挂载后添加全局点击事件监听
 onMounted(async () => {
   document.addEventListener('click', handleDocumentClick);
-
-  // 初始加载歌单列表
-  await fetchPlaylists();
 
   if (props.show && menuRef.value) {
     await nextTick();
@@ -218,7 +164,7 @@ onUnmounted(() => {
       <template v-for="item in availableMenuItems" :key="item.key">
         <!-- 有子菜单的项 -->
         <div v-if="item.hasSubmenu" class="menu-section">
-          <div class="menu-item toggle-submenu" @click="togglePlaylistSubmenu">
+          <div class="menu-item toggle-submenu" @click="showPlaylistSubmenu = !showPlaylistSubmenu; if (showPlaylistSubmenu && playlistStore.playlists.length === 0) playlistStore.loadPlaylists()">
             <FAIcon :name="item.icon" size="medium" color="primary" class="menu-icon" />
             <span>{{ item.label }}</span>
             <FAIcon :name="showPlaylistSubmenu ? 'chevron-up' : 'chevron-down'" size="small" color="secondary"
@@ -228,23 +174,23 @@ onUnmounted(() => {
           <!-- 内联子菜单 -->
           <div v-if="showPlaylistSubmenu" class="inline-submenu">
             <!-- 加载中状态 -->
-            <div v-if="isLoadingPlaylists" class="submenu-item loading">
+            <div v-if="playlistStore.loading" class="submenu-item loading">
               加载中...
             </div>
 
             <!-- 加载错误 -->
-            <div v-else-if="loadingError" class="submenu-item error">
-              <span>{{ loadingError }}</span>
+            <div v-else-if="playlistStore.error" class="submenu-item error">
+              <span>{{ playlistStore.error }}</span>
             </div>
 
             <!-- 没有歌单提示 -->
-            <div v-else-if="localPlaylists.length === 0" class="submenu-item no-playlists">
+            <div v-else-if="playlistStore.playlists.length === 0" class="submenu-item no-playlists">
               <span>暂无歌单</span>
             </div>
 
             <!-- 歌单列表 -->
             <template v-else>
-              <div v-for="playlist in localPlaylists" :key="playlist.id" class="submenu-item"
+              <div v-for="playlist in playlistStore.playlists" :key="playlist.id" class="submenu-item"
                 @click.stop="handleAddToPlaylist(playlist)">
                 <FAIcon name="music" size="small" color="primary" class="menu-icon small" />
                 <span>{{ playlist.name }}</span>
@@ -252,7 +198,7 @@ onUnmounted(() => {
             </template>
 
             <!-- 创建新歌单 -->
-            <div class="submenu-item create-new" @click.stop="handleCreateNewPlaylist">
+            <div class="submenu-item create-new" @click.stop="playlistStore.openCreatePlaylistDialog(); emit('close')">
               <FAIcon name="plus-circle" size="small" color="accent" class="menu-icon small" />
               <span>创建新歌单</span>
             </div>
@@ -271,9 +217,6 @@ onUnmounted(() => {
 </template>
 
 <style lang="scss" scoped>
-// 导入样式变量
-@use "../../styles/variables/_colors" as *;
-@use "../../styles/variables/_layout" as *;
 
 .context-menu {
   position: fixed;
@@ -284,7 +227,7 @@ onUnmounted(() => {
   border-radius: $border-radius;
   box-shadow: $box-shadow-hover;
   overflow: hidden;
-  animation: fadeIn $transition-fast ease-out;
+  animation: fadeInUp $transition-fast ease-out;
   user-select: none;
   border: 1px solid $bg-tertiary;
 
@@ -294,17 +237,6 @@ onUnmounted(() => {
   }
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 
 .menu-header {
   padding: $item-padding;
@@ -341,7 +273,7 @@ onUnmounted(() => {
 .menu-item {
   display: flex;
   align-items: center;
-  padding: 10px $content-padding;
+  padding: $item-padding $content-padding;
   cursor: pointer;
   font-size: $font-size-base;
   color: $text-primary;
@@ -391,20 +323,9 @@ onUnmounted(() => {
   background-color: $bg-primary;
   border-top: 1px solid $bg-secondary;
   border-bottom: 1px solid $bg-secondary;
-  animation: slideDown $transition-base ease-out;
+  animation: slideInDown $transition-base ease-out;
 }
 
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 
 .submenu-item {
   padding: 8px $content-padding 8px 32px;
@@ -424,7 +345,7 @@ onUnmounted(() => {
     color: $text-disabled;
     font-style: italic;
     cursor: default;
-    padding: 10px $content-padding 10px 32px;
+    padding: $item-padding $content-padding $item-padding 32px;
 
     &:hover {
       background-color: transparent;

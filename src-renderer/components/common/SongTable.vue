@@ -4,6 +4,8 @@ import { RecycleScroller } from 'vue-virtual-scroller';
 import { usePlayerStore } from '../../store/player';
 import ContextMenu from './ContextMenu.vue';
 import FAIcon from './FAIcon.vue';
+import CustomButton from '../custom/CustomButton.vue';
+import { formatDuration } from '../../utils/timeUtils';
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
 
 // Props 定义
@@ -177,38 +179,6 @@ const tableHeaders = computed(() => {
     return headers;
 });
 
-// 格式化函数
-const formatDuration = (seconds) => {
-    if (!seconds) return '0:00';
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-};
-
-const formatBitrate = (bitrate) => {
-    if (!bitrate) return '未知';
-    const kbps = (bitrate / 1000).toFixed(1);
-    return `${kbps} kbps`;
-};
-
-const formatFileSize = (bytes) => {
-    if (!bytes) return '未知';
-
-    if (bytes >= 1024 * 1024) {
-        const mb = (bytes / (1024 * 1024)).toFixed(2);
-        return `${mb} MB`;
-    } else if (bytes >= 1024) {
-        const kb = (bytes / 1024).toFixed(1);
-        return `${kb} KB`;
-    } else {
-        return `${bytes} B`;
-    }
-};
-
-const formatSampleRate = (sampleRate) => {
-    if (!sampleRate) return '未知';
-    return `${sampleRate / 1000} kHz`;
-};
 
 // 封面加载
 const loadSongCover = async (songId) => {
@@ -473,14 +443,10 @@ defineExpose({
                     <!-- 操作列 -->
                     <div v-if="showActionColumn" class="song-col action-column">
                         <template v-if="actionColumnType === 'metadata'">
-                            <button class="action-button edit-button" @click="handleActionClick('edit', song, $event)"
-                                title="编辑元数据">
-                                <FAIcon name="edit" size="small" color="primary" />
-                            </button>
-                            <button class="action-button search-button"
-                                @click="handleActionClick('search-online', song, $event)" title="搜索在线元数据">
-                                <FAIcon name="search" size="small" color="primary" />
-                            </button>
+                            <CustomButton type="icon-only" icon="edit" size="small" :circle="true" title="编辑元数据"
+                                @click="handleActionClick('edit', song, $event)" />
+                            <CustomButton type="icon-only" icon="search" size="small" :circle="true" title="搜索在线元数据"
+                                @click="handleActionClick('search-online', song, $event)" />
                         </template>
                     </div>
                 </div>
@@ -511,7 +477,7 @@ defineExpose({
             :menu-type="contextMenuType" @close="closeContextMenu" @action="handleMenuAction" />
 
         <!-- 歌曲信息对话框 -->
-        <div v-if="songInfoDialogVisible" class="song-info-dialog">
+        <div v-if="songInfoDialogVisible" class="song-info-dialog fade-in">
             <div class="dialog-content">
                 <h2>歌曲信息</h2>
                 <div class="info-grid">
@@ -543,11 +509,20 @@ defineExpose({
                         <h3>技术信息</h3>
                         <div class="info-item">
                             <span class="info-label">比特率:</span>
-                            <span class="info-value">{{ formatBitrate(currentSongForInfo.bitrate) }}</span>
+                            <span class="info-value">{{ currentSongForInfo.bitrate ? `${(currentSongForInfo.bitrate /
+                                1000).toFixed(1)} kbps` : '未知' }}</span>
                         </div>
                         <div class="info-item">
                             <span class="info-label">文件大小:</span>
-                            <span class="info-value">{{ formatFileSize(currentSongForInfo.fileSize) }}</span>
+                            <span class="info-value">{{
+                                currentSongForInfo.fileSize
+                                    ? currentSongForInfo.fileSize >= 1024 * 1024
+                                        ? `${(currentSongForInfo.fileSize / (1024 * 1024)).toFixed(2)} MB`
+                                        : currentSongForInfo.fileSize >= 1024
+                                            ? `${(currentSongForInfo.fileSize / 1024).toFixed(1)} KB`
+                                            : `${currentSongForInfo.fileSize} B`
+                                    : '未知'
+                            }}</span>
                         </div>
                         <div class="info-item">
                             <span class="info-label">格式:</span>
@@ -555,7 +530,9 @@ defineExpose({
                         </div>
                         <div class="info-item">
                             <span class="info-label">采样率:</span>
-                            <span class="info-value">{{ formatSampleRate(currentSongForInfo.sampleRate) }}</span>
+                            <span class="info-value">{{ currentSongForInfo.sampleRate ? `${currentSongForInfo.sampleRate
+                                / 1000}
+                                kHz` : '未知' }}</span>
                         </div>
                     </div>
                 </div>
@@ -565,17 +542,13 @@ defineExpose({
                     <span class="info-value path">{{ currentSongForInfo.filePath || '未知路径' }}</span>
                 </div>
 
-                <button @click="closeSongInfoDialog">关闭</button>
+                <CustomButton type="primary" @click="closeSongInfoDialog">关闭</CustomButton>
             </div>
         </div>
     </div>
 </template>
 
 <style lang="scss" scoped>
-@use "sass:color";
-@use "../../styles/variables/_colors" as *;
-@use "../../styles/variables/_layout" as *;
-
 .song-table {
     flex: 1;
     display: flex;
@@ -618,15 +591,6 @@ defineExpose({
     }
 }
 
-@keyframes spin {
-    0% {
-        transform: rotate(0deg);
-    }
-
-    100% {
-        transform: rotate(360deg);
-    }
-}
 
 // 空状态
 .empty-state {
@@ -665,7 +629,8 @@ defineExpose({
     flex: 1;
     display: flex;
     flex-direction: column;
-    height: 100%;
+    height: calc(100% - 40px);
+    min-height: 0;
     position: relative;
     overflow: hidden;
 }
@@ -731,7 +696,8 @@ defineExpose({
 
 // 虚拟滚动器
 .song-scroller {
-    height: 100%;
+    flex: 1;
+    min-height: 0;
     width: 100%;
     overflow-y: auto;
 
@@ -795,7 +761,7 @@ defineExpose({
         }
 
         &.highlighted {
-            animation: pulse 1.5s ease;
+            animation: playingPulse 1.5s ease;
         }
     }
 
@@ -809,27 +775,6 @@ defineExpose({
     }
 }
 
-@keyframes pulse {
-    0% {
-        background-color: rgba($accent-green, 0.1);
-        box-shadow: 0 0 0 rgba($accent-green, 0);
-    }
-
-    25% {
-        background-color: rgba($accent-green, 0.2);
-        box-shadow: 0 0 10px rgba($accent-green, 0.5);
-    }
-
-    50% {
-        background-color: rgba($accent-green, 0.1);
-        box-shadow: 0 0 10px rgba($accent-green, 0.3);
-    }
-
-    100% {
-        background-color: rgba($accent-green, 0.1);
-        box-shadow: 0 0 0 rgba($accent-green, 0);
-    }
-}
 
 .song-col {
     padding: ($content-padding * 0.5);
@@ -906,54 +851,14 @@ defineExpose({
     }
 }
 
-// 淡入淡出动画
-.fade-enter-active,
-.fade-leave-active {
-    transition: opacity $transition-base;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-    opacity: 0;
-}
-
 // 操作按钮
 .action-column {
     flex-shrink: 0;
     justify-content: center;
-}
-
-.action-button {
-    background: none;
-    border: none;
-    color: $text-secondary;
-    cursor: pointer;
-    padding: ($content-padding * 0.25);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all $transition-base;
-    min-width: 32px;
-    min-height: 32px;
-    margin: 0 2px;
-
-    &.edit-button:hover,
-    &.search-button:hover {
-        color: $accent-green;
-        background-color: rgba($accent-green, 0.1);
-        transform: scale(1.1);
-    }
-
-    &:active {
-        transform: scale(0.9);
-    }
+    gap: 2px;
 
     @include respond-to("sm") {
-        min-width: 28px;
-        min-height: 28px;
-        padding: ($content-padding * 0.125);
-        margin: 0 1px;
+        gap: 1px;
     }
 }
 
@@ -1009,16 +914,6 @@ defineExpose({
     }
 }
 
-.slide-fade-enter-active,
-.slide-fade-leave-active {
-    transition: all $transition-slow;
-}
-
-.slide-fade-enter-from,
-.slide-fade-leave-to {
-    transform: translateY(20px);
-    opacity: 0;
-}
 
 .fixed-button {
     width: 44px;
@@ -1036,7 +931,7 @@ defineExpose({
 
     &:hover {
         transform: scale(1.05);
-        background-color: color.adjust($bg-tertiary, $lightness: 10%);
+        background-color: $bg-tertiary-hover;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     }
 
@@ -1071,7 +966,6 @@ defineExpose({
     align-items: center;
     justify-content: center;
     z-index: $z-tooltip;
-    animation: fadeIn $transition-base ease-out;
 
     .dialog-content {
         background-color: $bg-secondary;
@@ -1130,32 +1024,11 @@ defineExpose({
         }
     }
 
-    button {
-        background-color: $accent-green;
-        color: $text-primary;
-        border: none;
-        padding: ($content-padding * 0.625) ($content-padding * 1.25);
-        border-radius: $border-radius;
-        cursor: pointer;
+    .custom-button {
         margin-top: ($content-padding * 1.25);
-        font-weight: $font-weight-semibold;
         width: 100%;
-        transition: all $transition-base;
-        font-size: $font-size-base;
-
-        &:hover {
-            background-color: $accent-hover;
-            transform: translateY(-1px);
-            box-shadow: $box-shadow;
-        }
-
-        &:active {
-            transform: translateY(0);
-        }
 
         @include respond-to("sm") {
-            padding: ($content-padding * 0.5) $content-padding;
-            font-size: $font-size-sm;
             margin-top: $content-padding;
         }
     }
@@ -1255,64 +1128,6 @@ defineExpose({
 
         .info-label {
             width: 60px;
-        }
-    }
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
-}
-
-// 高对比度模式支持
-@media (prefers-contrast: high) {
-    .song-table {
-        border: 2px solid $text-primary;
-    }
-
-    .song-row {
-        border-bottom: 1px solid $text-secondary;
-
-        &.playing {
-            border-left-width: 4px;
-        }
-    }
-
-    .action-button,
-    .fixed-button {
-        border: 2px solid currentColor;
-    }
-}
-
-// 减少动画模式支持
-@media (prefers-reduced-motion: reduce) {
-
-    *,
-    *::before,
-    *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-    }
-
-    .song-row,
-    .action-button,
-    .fixed-button {
-
-        &:hover,
-        &:active {
-            transform: none;
-        }
-    }
-
-    .song-cover {
-        &:hover {
-            transform: none;
         }
     }
 }

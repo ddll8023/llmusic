@@ -1,185 +1,70 @@
-// 发现音乐页面的模拟数据
+// 发现音乐页面的模拟数据生成器
+
+// 基础数据模板
+const songTemplates = [
+  { title: '夜曲', artist: '周杰伦', album: '十一月的萧邦', duration: 233 },
+  { title: '稻香', artist: '周杰伦', album: '魔杰座', duration: 223 },
+  { title: '青花瓷', artist: '周杰伦', album: '我很忙', duration: 238 },
+  { title: '告白气球', artist: '周杰伦', album: '周杰伦的床边故事', duration: 203 },
+  { title: '演员', artist: '薛之谦', album: '绅士', duration: 267 },
+  { title: '体面', artist: '于文文', album: '体面', duration: 247 },
+  { title: '起风了', artist: '买辣椒也用券', album: '起风了', duration: 318 }
+];
+
+const platforms = ['网易云音乐', 'QQ音乐', '酷狗音乐'];
+const playlistNames = ['华语流行经典', '2024年度热歌', '深夜电台', '运动健身BGM'];
+const artistNames = ['周杰伦', '薛之谦', '邓紫棋', '林俊杰'];
+
+// 生成模拟数据
+function generateSongs(count = 8) {
+  return Array.from({ length: count }, (_, i) => {
+    const template = songTemplates[i % songTemplates.length];
+    return {
+      id: `discover_${i + 1}`,
+      ...template,
+      cover: '/img/defualt_img.jpg',
+      platform: platforms[i % platforms.length],
+      playCount: Math.floor(Math.random() * 5000000) + 1000000,
+      isOnline: true
+    };
+  });
+}
+
+function generatePlaylists(count = 4) {
+  return Array.from({ length: count }, (_, i) => ({
+    id: `playlist_${i + 1}`,
+    name: playlistNames[i % playlistNames.length],
+    cover: '/img/defualt_img.jpg',
+    songCount: Math.floor(Math.random() * 80) + 20,
+    playCount: Math.floor(Math.random() * 20000000) + 5000000,
+    creator: platforms[i % platforms.length],
+    description: `精选${playlistNames[i % playlistNames.length]}歌曲合集`
+  }));
+}
+
+function generateArtists(count = 4) {
+  return Array.from({ length: count }, (_, i) => ({
+    id: `artist_${i + 1}`,
+    name: artistNames[i % artistNames.length],
+    avatar: '/img/defualt_img.jpg',
+    songCount: Math.floor(Math.random() * 150) + 50,
+    fanCount: Math.floor(Math.random() * 30000000) + 20000000,
+    description: '知名音乐人'
+  }));
+}
 
 export const mockDiscoverData = {
-  // 推荐歌曲
-  recommendedSongs: [
-    {
-      id: 'discover_1',
-      title: '夜曲',
-      artist: '周杰伦',
-      album: '十一月的萧邦',
-      duration: 233,
-      cover: '/img/defualt_img.jpg',
-      platform: '网易云音乐',
-      playCount: 1234567,
-      isOnline: true
-    },
-    {
-      id: 'discover_2', 
-      title: '稻香',
-      artist: '周杰伦',
-      album: '魔杰座',
-      duration: 223,
-      cover: '/img/defualt_img.jpg',
-      platform: 'QQ音乐',
-      playCount: 987654,
-      isOnline: true
-    },
-    {
-      id: 'discover_3',
-      title: '青花瓷',
-      artist: '周杰伦', 
-      album: '我很忙',
-      duration: 238,
-      cover: '/img/defualt_img.jpg',
-      platform: '酷狗音乐',
-      playCount: 2345678,
-      isOnline: true
-    },
-    {
-      id: 'discover_4',
-      title: '告白气球',
-      artist: '周杰伦',
-      album: '周杰伦的床边故事',
-      duration: 203,
-      cover: '/img/defualt_img.jpg',
-      platform: '网易云音乐',
-      playCount: 3456789,
-      isOnline: true
-    },
-    {
-      id: 'discover_5',
-      title: '七里香',
-      artist: '周杰伦',
-      album: '七里香',
-      duration: 245,
-      cover: '/img/defualt_img.jpg',
-      platform: 'QQ音乐',
-      playCount: 1876543,
-      isOnline: true
-    },
-    {
-      id: 'discover_6',
-      title: '演员',
-      artist: '薛之谦',
-      album: '绅士',
-      duration: 267,
-      cover: '/img/defualt_img.jpg',
-      platform: '网易云音乐',
-      playCount: 4567890,
-      isOnline: true
-    },
-    {
-      id: 'discover_7',
-      title: '体面',
-      artist: '于文文',
-      album: '体面',
-      duration: 247,
-      cover: '/img/defualt_img.jpg',
-      platform: '酷狗音乐',
-      playCount: 2987654,
-      isOnline: true
-    },
-    {
-      id: 'discover_8',
-      title: '起风了',
-      artist: '买辣椒也用券',
-      album: '起风了',
-      duration: 318,
-      cover: '/img/defualt_img.jpg',
-      platform: '网易云音乐',
-      playCount: 5678901,
-      isOnline: true
-    }
-  ],
-
-  // 热门歌单
-  hotPlaylists: [
-    {
-      id: 'playlist_1',
-      name: '华语流行经典',
-      cover: '/img/defualt_img.jpg',
-      songCount: 50,
-      playCount: 12345678,
-      creator: '网易云音乐',
-      description: '收录华语乐坛最经典的流行歌曲'
-    },
-    {
-      id: 'playlist_2',
-      name: '2024年度热歌',
-      cover: '/img/defualt_img.jpg',
-      songCount: 100,
-      playCount: 23456789,
-      creator: 'QQ音乐',
-      description: '2024年最受欢迎的热门歌曲合集'
-    },
-    {
-      id: 'playlist_3',
-      name: '深夜电台',
-      cover: '/img/defualt_img.jpg',
-      songCount: 30,
-      playCount: 8765432,
-      creator: '酷狗音乐',
-      description: '适合深夜聆听的温柔歌曲'
-    },
-    {
-      id: 'playlist_4',
-      name: '运动健身BGM',
-      cover: '/img/defualt_img.jpg',
-      songCount: 80,
-      playCount: 15432109,
-      creator: '网易云音乐',
-      description: '让你充满动力的运动音乐'
-    }
-  ],
-
-  // 音乐分类
+  recommendedSongs: generateSongs(),
+  hotPlaylists: generatePlaylists(),
   categories: [
     { id: 'pop', name: '流行', icon: 'music' },
     { id: 'rock', name: '摇滚', icon: 'music' },
     { id: 'folk', name: '民谣', icon: 'music' },
     { id: 'electronic', name: '电子', icon: 'music' },
     { id: 'classical', name: '古典', icon: 'music' },
-    { id: 'jazz', name: '爵士', icon: 'music' },
-    { id: 'country', name: '乡村', icon: 'music' },
-    { id: 'hiphop', name: '说唱', icon: 'music' }
+    { id: 'jazz', name: '爵士', icon: 'music' }
   ],
-
-  // 热门艺术家
-  hotArtists: [
-    {
-      id: 'artist_1',
-      name: '周杰伦',
-      avatar: '/img/defualt_img.jpg',
-      songCount: 200,
-      fanCount: 50000000,
-      description: '华语流行音乐天王'
-    },
-    {
-      id: 'artist_2',
-      name: '薛之谦',
-      avatar: '/img/defualt_img.jpg',
-      songCount: 120,
-      fanCount: 30000000,
-      description: '实力派创作歌手'
-    },
-    {
-      id: 'artist_3',
-      name: '邓紫棋',
-      avatar: '/img/defualt_img.jpg',
-      songCount: 80,
-      fanCount: 25000000,
-      description: '铁肺歌后'
-    },
-    {
-      id: 'artist_4',
-      name: '林俊杰',
-      avatar: '/img/defualt_img.jpg',
-      songCount: 150,
-      fanCount: 35000000,
-      description: '全能音乐人'
-    }
-  ]
+  hotArtists: generateArtists()
 };
 
 // 搜索模拟函数
@@ -231,9 +116,3 @@ export function formatPlayCount(count) {
   return count.toString();
 }
 
-// 格式化时长
-export function formatDuration(seconds) {
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-}

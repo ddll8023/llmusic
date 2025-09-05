@@ -6,7 +6,7 @@ const {
 	deletePlaylist,
 	addSongsToPlaylist,
 	removeSongsFromPlaylist,
-} = require("../../services/data/Database");
+} = require("./Database");
 const { CHANNELS } = require("../../constants/ipcChannels");
 
 function createPlaylistHandlers() {

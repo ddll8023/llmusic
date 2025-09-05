@@ -1,109 +1,85 @@
 // LLMusic 主样式入口文件
 
 // 1. 变量 - 必须最先导入 (@use 规则必须在文件最前面)
+@use "sass:color";
 @use "variables/_colors" as *;
 @use "variables/_typography" as *;
 @use "variables/_layout" as *;
 
 // 2. 基础样式
-@use "base/_reset";
 @use "base/_global";
-@use "base/_transitions";
+@use "variables/_transitions";
 
-// 3. 组件样式
-@use "components/_buttons";
-@use "components/_forms";
-@use "components/_cards";
-@use "components/_icons";
-@use "components/_app-layout";
-@use "components/_sidebar";
+// 3. 组件样式 - 已移除，统一使用通用变量
 
-// 4. 主题样式
-@use "themes/_dark";
-@use "themes/_element-plus";
-
-// 注意：图标样式已迁移到 components/_icons.scss
-
-// 侧边栏拖拽手柄样式
-.resize-handle {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    right: 0;
-    width: 1px;
-    cursor: col-resize;
-    background-color: $bg-tertiary;
-    z-index: $z-sidebar;
-    transition: background-color $transition-base, width $transition-base;
-
-    &:hover {
-        width: 3px;
-        background-color: $accent-green;
-    }
-}
-
-// 播放列表容器样式
-.playlist-container {
-    position: fixed;
-    bottom: var(--player-bar-height);
-    right: 0;
-    width: 300px;
-    height: calc(100vh - var(--player-bar-height) - var(--title-bar-height));
-    background-color: $bg-secondary;
-    border-left: 1px solid $bg-tertiary;
-    transform: translateX(100%);
-    transition: transform $transition-slow;
-    z-index: $z-playlist;
-    display: flex;
-    flex-direction: column;
-
-    &.is-visible {
-        transform: translateX(0);
-    }
-}
-
-// 歌词页面样式
-.lyric-page {
-    position: fixed;
-    top: var(--title-bar-height);
-    left: 0;
-    right: 0;
-    bottom: var(--player-bar-height);
-    background-color: $bg-primary;
-    z-index: $z-lyrics;
-    display: flex;
-    flex-direction: column;
-    transform: translateY(100%);
-    transition: transform $transition-slow;
-
-    &.is-visible {
-        transform: translateY(0);
-    }
-
-    &--slide.lyric-page--show {
-        transform: translateY(0) !important;
-        max-height: calc(100% - var(--player-bar-height) - var(--title-bar-height)) !important;
-    }
-
-    &--fade.lyric-page--show {
-        transform: translateY(0) !important;
-    }
-}
-
-// 应用CSS变量到根元素
+// 4. Element Plus 主题变量覆盖
 :root {
-    --player-bar-height: #{$player-bar-height};
-    --title-bar-height: #{$title-bar-height};
-    --sidebar-width-default: #{$sidebar-width-default};
-    --content-padding: #{$content-padding};
-    --border-radius: #{$border-radius};
-    --box-shadow: #{$box-shadow};
+    // 主色调
+    --el-color-primary: #{$accent-green};
+    // 主色调变体
+    --el-color-primary-light-3: #{color.adjust($accent-green, $lightness: 15%)};
+    --el-color-primary-light-5: #{color.adjust($accent-green, $lightness: 25%)};
+    --el-color-primary-light-7: #{color.adjust($accent-green, $lightness: 35%)};
+    --el-color-primary-light-8: #{color.adjust($accent-green, $lightness: 40%)};
+    --el-color-primary-light-9: #{color.adjust($accent-green, $lightness: 45%)};
+    --el-color-primary-dark-2: #{color.adjust($accent-green, $lightness: -10%)};
 
-    // 动态侧边栏宽度，默认使用标准宽度
-    --sidebar-width: #{$sidebar-width-default};
+    // 功能色
+    --el-color-success: #{$success};
+    --el-color-warning: #{$warning};
+    --el-color-danger: #{$danger};
+    --el-color-error: #{$danger};
+    --el-color-info: #{$info};
+
+    // 背景色
+    --el-bg-color: #{$bg-primary};
+    --el-bg-color-page: #{$bg-primary};
+    --el-bg-color-overlay: #{$bg-secondary};
+
+    // 文本色
+    --el-text-color-primary: #{$text-primary};
+    --el-text-color-regular: #{$text-secondary};
+    --el-text-color-secondary: #{$text-disabled};
+    --el-text-color-placeholder: #{$text-disabled};
+    --el-text-color-disabled: #{$text-disabled};
+
+    // 边框色
+    --el-border-color: #{$bg-tertiary};
+    --el-border-color-light: #{color.adjust($bg-tertiary, $lightness: 10%)};
+    --el-border-color-lighter: #{color.adjust($bg-tertiary, $lightness: 20%)};
+    --el-border-color-extra-light: #{color.adjust($bg-tertiary, $lightness: 30%)};
+    --el-border-color-dark: #{color.adjust($bg-tertiary, $lightness: -10%)};
+    --el-border-color-darker: #{color.adjust($bg-tertiary, $lightness: -20%)};
+
+    // 填充色
+    --el-fill-color: #{$bg-secondary};
+    --el-fill-color-light: #{color.adjust($bg-secondary, $lightness: 5%)};
+    --el-fill-color-lighter: #{color.adjust($bg-secondary, $lightness: 10%)};
+    --el-fill-color-extra-light: #{color.adjust($bg-secondary, $lightness: 15%)};
+    --el-fill-color-dark: #{color.adjust($bg-secondary, $lightness: -5%)};
+    --el-fill-color-darker: #{color.adjust($bg-secondary, $lightness: -10%)};
+    --el-fill-color-blank: transparent;
+
+    // 遮罩层
+    --el-overlay-color: rgba(0, 0, 0, 0.8);
+    --el-overlay-color-light: rgba(0, 0, 0, 0.7);
+    --el-overlay-color-lighter: rgba(0, 0, 0, 0.5);
+
+    // 圆角
+    --el-border-radius-base: #{$border-radius};
+    --el-border-radius-small: #{$border-radius-small};
+    --el-border-radius-round: 20px;
+    --el-border-radius-circle: 100%;
 }
 
-// 确保应用默认使用深色主题
+// 注意：组件样式已移除，页面统一使用variables目录中的通用变量
+
+
+
+
+
+// 深色主题样式
 body {
-    @extend .theme-dark;
+    background-color: $bg-primary;
+    color: $text-primary;
 }

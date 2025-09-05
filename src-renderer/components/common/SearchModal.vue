@@ -7,42 +7,41 @@
             <!-- 弹窗头部 -->
             <div class="modal-header">
               <h3>搜索音乐</h3>
-              <button class="close-btn" @click="closeModal">
-                <FAIcon name="times" size="medium" color="secondary" :clickable="true" />
-              </button>
+              <CustomButton type="icon-only" :circle="true" icon="times" icon-size="medium" @click="closeModal" />
             </div>
 
             <!-- 搜索模式切换 -->
             <div class="search-mode-tabs">
-              <button class="mode-tab" :class="{ active: searchMode === 'general' }" @click="setSearchMode('general')">
+              <CustomButton :type="searchMode === 'general' ? 'primary' : 'secondary'" size="small"
+                custom-class="mode-tab" @click="setSearchMode('general')">
                 普通搜索
-              </button>
-              <button class="mode-tab" :class="{ active: searchMode === 'link' }" @click="setSearchMode('link')">
+              </CustomButton>
+              <CustomButton :type="searchMode === 'link' ? 'primary' : 'secondary'" size="small" custom-class="mode-tab"
+                @click="setSearchMode('link')">
                 链接分析
-              </button>
+              </CustomButton>
             </div>
 
             <!-- 普通搜索模式 -->
             <div v-if="searchMode === 'general'" class="search-content">
               <!-- 搜索输入框 -->
               <div class="search-input-container">
-                <FAIcon name="search" size="medium" color="secondary" />
-                <input ref="searchInput" type="text" v-model="searchTerm" @input="onSearchInput" class="search-input"
-                  placeholder="搜索歌曲、艺术家或专辑..." @keydown.esc="closeModal" />
-                <button v-if="searchTerm" @click="clearSearch" class="clear-search-btn">
-                  <FAIcon name="times" size="small" color="secondary" :clickable="true" />
-                </button>
+                <CustomInput ref="searchInput" v-model="searchTerm" type="text" placeholder="搜索歌曲、艺术家或专辑..."
+                  prefix-icon="search" :clearable="true" @input="onSearchInput" @clear="discoverStore.clearSearch()" />
               </div>
 
               <!-- 搜索历史 -->
               <div v-if="!isSearching && discoverStore.searchHistory.length > 0" class="search-history">
                 <div class="history-header">
                   <span>搜索历史</span>
-                  <button @click="discoverStore.clearSearchHistory" class="clear-history-btn">清空</button>
+                  <CustomButton type="secondary" size="small" custom-class="clear-history-btn"
+                    @click="discoverStore.clearSearchHistory">
+                    清空
+                  </CustomButton>
                 </div>
                 <div class="history-tags">
                   <span v-for="keyword in discoverStore.searchHistory" :key="keyword" class="history-tag"
-                    @click="searchFromHistory(keyword)">
+                    @click="searchTerm = keyword; discoverStore.search(keyword)">
                     {{ keyword }}
                     <FAIcon name="times" size="small" color="secondary" :clickable="true"
                       @click.stop="discoverStore.removeFromSearchHistory(keyword)" />
@@ -100,7 +99,7 @@
                         <div class="playlist-details">
                           <div class="playlist-name">{{ playlist.name }}</div>
                           <div class="playlist-info">{{ playlist.songCount }}首 · {{ formatPlayCount(playlist.playCount)
-                            }}次播放</div>
+                          }}次播放</div>
                         </div>
                       </div>
                     </div>
@@ -118,22 +117,20 @@
             <!-- 链接分析模式 -->
             <div v-if="searchMode === 'link'" class="link-analysis-content">
               <div class="link-input-container">
-                <input type="text" v-model="linkInput" class="link-input" placeholder="请输入音乐平台链接..."
-                  @keydown.esc="closeModal" />
-                <button @click="analyzeLink" :disabled="!canAnalyzeLink || discoverStore.linkAnalysisLoading"
-                  class="analyze-btn">
-                  <FAIcon name="spinner" v-if="discoverStore.linkAnalysisLoading" size="medium" color="primary" />
-                  <FAIcon name="search" v-else size="medium" color="primary" />
+                <CustomInput v-model="linkInput" type="text" placeholder="请输入音乐平台链接..." />
+                <CustomButton type="primary" :loading="discoverStore.linkAnalysisLoading"
+                  :disabled="!canAnalyzeLink || discoverStore.linkAnalysisLoading" icon="search" icon-size="medium"
+                  custom-class="analyze-btn" @click="canAnalyzeLink && discoverStore.analyzeLink(linkInput)">
                   {{ discoverStore.linkAnalysisLoading ? '分析中...' : '开始分析' }}
-                </button>
+                </CustomButton>
               </div>
 
               <!-- 分析结果 -->
-              <div v-if="discoverStore.linkAnalysisResult" class="analysis-result">
+              <div v-if="linkAnalysisResult" class="analysis-result">
                 <div class="analysis-steps">
                   <h4>分析步骤</h4>
                   <div class="steps-list">
-                    <div v-for="(step, index) in discoverStore.linkAnalysisResult.steps" :key="index" class="step-item"
+                    <div v-for="(step, index) in linkAnalysisResult.steps" :key="index" class="step-item"
                       :class="step.status">
                       <div class="step-icon">
                         <FAIcon name="check" v-if="step.status === 'success'" size="small" color="primary" />
@@ -151,19 +148,17 @@
                 </div>
 
                 <!-- 解析结果 -->
-                <div v-if="discoverStore.linkAnalysisResult.isValid && discoverStore.linkAnalysisResult.mockData"
-                  class="parsed-result">
+                <div v-if="linkAnalysisResult.isValid && linkAnalysisResult.mockData" class="parsed-result">
                   <h4>解析结果</h4>
                   <div class="result-card">
                     <div class="result-info">
-                      <div class="platform-badge"
-                        :style="{ backgroundColor: discoverStore.linkAnalysisResult.platform?.color }">
-                        {{ discoverStore.linkAnalysisResult.platform?.name }}
+                      <div class="platform-badge" :style="{ backgroundColor: linkAnalysisResult.platform?.color }">
+                        {{ linkAnalysisResult.platform?.name }}
                       </div>
-                      <div class="content-type">{{ getContentTypeText(discoverStore.linkAnalysisResult.type) }}</div>
+                      <div class="content-type">{{ contentTypeText(linkAnalysisResult.type) }}</div>
                     </div>
                     <div class="mock-data">
-                      <pre>{{ JSON.stringify(discoverStore.linkAnalysisResult.mockData, null, 2) }}</pre>
+                      <pre>{{ JSON.stringify(linkAnalysisResult.mockData, null, 2) }}</pre>
                     </div>
                   </div>
                 </div>
@@ -183,6 +178,8 @@ import { useDiscoverStore } from '../../store/discover.js';
 import { formatPlayCount } from '../../utils/mockDiscoverData.js';
 import { isValidUrl, isMusicLink } from '../../utils/linkAnalyzer.js';
 import FAIcon from './FAIcon.vue';
+import CustomButton from '../custom/CustomButton.vue';
+import CustomInput from '../custom/CustomInput.vue';
 
 const uiStore = useUiStore();
 const discoverStore = useDiscoverStore();
@@ -202,6 +199,20 @@ const canAnalyzeLink = computed(() => {
     isMusicLink(linkInput.value);
 });
 
+// 链接分析结果缓存
+const linkAnalysisResult = computed(() => discoverStore.linkAnalysisResult);
+
+// 内容类型文本映射
+const contentTypeText = computed(() => {
+  const typeMap = {
+    song: '歌曲',
+    playlist: '歌单',
+    album: '专辑',
+    artist: '艺术家'
+  };
+  return (type) => typeMap[type] || type;
+});
+
 // 监听弹窗显示状态，自动聚焦搜索框
 watch(() => uiStore.isSearchModalVisible, async (visible) => {
   if (visible) {
@@ -211,7 +222,8 @@ watch(() => uiStore.isSearchModalVisible, async (visible) => {
     }
   } else {
     // 清空搜索状态
-    clearSearch();
+    searchTerm.value = '';
+    discoverStore.clearSearch();
     discoverStore.clearLinkAnalysis();
   }
 });
@@ -226,7 +238,8 @@ const setSearchMode = (mode) => {
   if (mode === 'general') {
     discoverStore.clearLinkAnalysis();
   } else {
-    clearSearch();
+    searchTerm.value = '';
+    discoverStore.clearSearch();
   }
 };
 
@@ -242,48 +255,16 @@ const onSearchInput = () => {
   }, 300);
 };
 
-// 清空搜索
-const clearSearch = () => {
-  searchTerm.value = '';
-  discoverStore.clearSearch();
-};
-
-// 从历史记录搜索
-const searchFromHistory = (keyword) => {
-  searchTerm.value = keyword;
-  discoverStore.search(keyword);
-};
-
 // 播放歌曲（模拟）
 const playSong = (song) => {
   console.log('播放歌曲:', song);
   alert(`模拟播放: ${song.title} - ${song.artist}`);
   closeModal(); // 播放后关闭弹窗
 };
-
-// 分析链接
-const analyzeLink = () => {
-  if (canAnalyzeLink.value) {
-    discoverStore.analyzeLink(linkInput.value);
-  }
-};
-
-// 获取内容类型文本
-const getContentTypeText = (type) => {
-  const typeMap = {
-    song: '歌曲',
-    playlist: '歌单',
-    album: '专辑',
-    artist: '艺术家'
-  };
-  return typeMap[type] || type;
-};
 </script>
 
 <style lang="scss" scoped>
-// 导入样式变量
-@use "../../styles/variables/_colors" as *;
-@use "../../styles/variables/_layout" as *;
+// 样式变量已通过Vite自动注入，无需手动导入
 
 // 弹窗遮罩层动画
 .modal-enter-active,
@@ -319,20 +300,20 @@ const getContentTypeText = (type) => {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding-top: 80px;
+  padding-top: ($content-padding * 5);
   z-index: $z-modal;
   padding: ($content-padding * 1.25) ($content-padding * 1.25) ($content-padding * 2.5) ($content-padding * 1.25);
 
   @include respond-to("sm") {
     padding: $content-padding;
-    padding-top: 60px;
+    padding-top: ($content-padding * 3.75);
   }
 }
 
 // 弹窗主体
 .search-modal {
   background-color: $bg-secondary;
-  border-radius: ($border-radius * 3);
+  border-radius: $border-radius-large;
   width: 100%;
   max-width: 800px;
   max-height: 80vh;
@@ -344,7 +325,7 @@ const getContentTypeText = (type) => {
 
   @include respond-to("sm") {
     max-height: 90vh;
-    border-radius: ($border-radius * 2);
+    border-radius: $border-radius;
   }
 }
 
@@ -375,46 +356,7 @@ h3 {
 }
 }
 
-.close-btn {
-  background: none;
-  border: none;
-  color: $text-secondary;
-  cursor: pointer;
-  padding: ($content-padding * 0.5);
-  border-radius: 50%;
-  transition: all $transition-base;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 32px;
-  min-height: 32px;
 
-  &:hover {
-    background-color: $overlay-light;
-    color: $text-primary;
-    transform: scale(1.05);
-  }
-
-  &:active {
-    transform: scale(0.95);
-  }
-
-  svg {
-    width: 20px;
-    height: 20px;
-
-    @include respond-to("sm") {
-      width: 18px;
-      height: 18px;
-    }
-  }
-
-  @include respond-to("sm") {
-    min-width: 28px;
-    min-height: 28px;
-    padding: ($content-padding * 0.375);
-  }
-}
 
 // 搜索模式切换
 .search-mode-tabs {
@@ -429,28 +371,11 @@ h3 {
 }
 
 .mode-tab {
-  padding: ($content-padding * 0.75) $content-padding;
-  background: none;
-  border: none;
-  color: $text-secondary;
-  cursor: pointer;
-  font-size: $font-size-sm;
   border-bottom: 2px solid transparent;
-  transition: all $transition-base;
-  font-weight: $font-weight-medium;
+  border-radius: 0;
 
-  &:hover {
-    color: $text-primary;
-  }
-
-  &.active {
-    color: $accent-green;
+  &.custom-button--primary {
     border-bottom-color: $accent-green;
-  }
-
-  @include respond-to("sm") {
-    font-size: $font-size-xs;
-    padding: ($content-padding * 0.5) ($content-padding * 0.75);
   }
 }
 
@@ -472,72 +397,9 @@ h3 {
   margin-bottom: ($content-padding * 1.5);
 }
 
-.search-input {
-  width: 100%;
-  padding: ($content-padding * 0.875) $content-padding (
-    $content-padding * 0.875) ($content-padding * 3
-  );
-background-color: $bg-tertiary;
-border: 2px solid transparent;
-border-radius: ($border-radius * 6.25);
-color: $text-primary;
-font-size: $font-size-base;
-outline: none;
-transition: border-color $transition-base;
-box-sizing: border-box;
 
-&:focus {
-  border-color: $accent-green;
-}
 
-&::placeholder {
-  color: $text-disabled;
-}
 
-@include respond-to("sm") {
-  font-size: $font-size-sm;
-  padding: ($content-padding * 0.75) ($content-padding * 0.875) ($content-padding * 0.75) ($content-padding * 2.5);
-}
-}
-
-// 搜索图标定位（FAIcon组件已处理样式）
-.search-input-container {
-  .fa {
-    position: absolute;
-    left: $content-padding;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 1;
-
-    @include respond-to("sm") {
-      left: ($content-padding * 0.875);
-    }
-  }
-}
-
-.clear-search-btn {
-  position: absolute;
-  right: ($content-padding * 0.75);
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  color: $text-secondary;
-  cursor: pointer;
-  padding: ($content-padding * 0.25);
-  border-radius: 50%;
-  transition: background-color $transition-base;
-
-  &:hover {
-    background-color: $overlay-light;
-    color: $text-primary;
-  }
-
-  svg {
-    width: 16px;
-    height: 16px;
-  }
-}
 
 // 搜索历史
 .search-history {
@@ -557,19 +419,7 @@ box-sizing: border-box;
   }
 }
 
-.clear-history-btn {
-  background: none;
-  border: none;
-  color: $text-disabled;
-  cursor: pointer;
-  font-size: $font-size-xs;
-  transition: color $transition-base;
-  padding: ($content-padding * 0.25);
 
-  &:hover {
-    color: $text-secondary;
-  }
-}
 
 .history-tags {
   display: flex;
@@ -583,7 +433,7 @@ box-sizing: border-box;
   gap: ($content-padding * 0.375);
   padding: ($content-padding * 0.375) ($content-padding * 0.75);
   background-color: $bg-tertiary;
-  border-radius: ($border-radius * 4);
+  border-radius: $border-radius;
   color: $text-secondary;
   cursor: pointer;
   font-size: $font-size-sm;
@@ -615,7 +465,7 @@ box-sizing: border-box;
 // 旋转动画已由FAIcon组件内置处理
 
 .results-container {
-  max-height: 400px;
+  max-height: ($content-padding * 25);
   overflow-y: auto;
 
   &::-webkit-scrollbar {
@@ -747,12 +597,12 @@ box-sizing: border-box;
 
 // 播放图标悬停效果
 .song-item {
-  .fa-play {
+  .fa-icon {
     opacity: 0;
     transition: opacity $transition-base;
   }
 
-  &:hover .fa-play {
+  &:hover .fa-icon {
     opacity: 1;
   }
 }
@@ -797,74 +647,9 @@ box-sizing: border-box;
   }
 }
 
-.link-input {
-  flex: 1;
-  padding: ($content-padding * 0.75) $content-padding;
-  background-color: $bg-tertiary;
-  border: 2px solid transparent;
-  border-radius: $border-radius;
-  color: $text-primary;
-  font-size: $font-size-base;
-  outline: none;
-  transition: border-color $transition-base;
 
-  &:focus {
-    border-color: $accent-green;
-  }
 
-  &::placeholder {
-    color: $text-disabled;
-  }
 
-  @include respond-to("sm") {
-    font-size: $font-size-sm;
-  }
-}
-
-.analyze-btn {
-  display: flex;
-  align-items: center;
-  gap: ($content-padding * 0.5);
-  padding: ($content-padding * 0.75) ($content-padding * 1.5);
-  background-color: $accent-green;
-  border: none;
-  border-radius: $border-radius;
-  color: $text-primary;
-  font-weight: $font-weight-bold;
-  cursor: pointer;
-  transition: all $transition-base;
-  white-space: nowrap;
-  font-size: $font-size-base;
-
-  &:hover:not(:disabled) {
-    background-color: $accent-hover;
-    transform: translateY(-1px);
-  }
-
-  &:active:not(:disabled) {
-    transform: translateY(0);
-  }
-
-  &:disabled {
-    background-color: $text-disabled;
-    cursor: not-allowed;
-    transform: none;
-
-    &:hover {
-      transform: none;
-    }
-  }
-
-  svg {
-    width: 16px;
-    height: 16px;
-  }
-
-  @include respond-to("sm") {
-    align-self: flex-start;
-    font-size: $font-size-sm;
-  }
-}
 
 .analysis-result {
   margin-top: ($content-padding * 1.5);
@@ -980,7 +765,7 @@ box-sizing: border-box;
 
 .platform-badge {
   padding: ($content-padding * 0.25) ($content-padding * 0.75);
-  border-radius: ($border-radius * 4);
+  border-radius: $border-radius;
   color: $text-primary;
   font-size: $font-size-xs;
   font-weight: $font-weight-bold;
@@ -993,7 +778,7 @@ box-sizing: border-box;
 
 .mock-data {
   background-color: $bg-secondary;
-  border-radius: ($border-radius * 1.5);
+  border-radius: $border-radius;
   padding: $content-padding;
   overflow-x: auto;
   border: 1px solid $bg-tertiary;
@@ -1015,11 +800,6 @@ box-sizing: border-box;
     border: 2px solid $text-primary;
   }
 
-  .search-input,
-  .link-input {
-    border-width: 2px;
-  }
-
   .analyze-btn {
     border-width: 2px;
     border-color: transparent;
@@ -1033,26 +813,17 @@ box-sizing: border-box;
   .modal-leave-active,
   .modal-content-enter-active,
   .modal-content-leave-active,
-  .search-input,
-  .link-input,
-  .analyze-btn,
-  .close-btn,
-  .mode-tab,
   .history-tag,
   .song-item,
   .artist-item,
-  .playlist-item,
-  .clear-search-btn {
+  .playlist-item {
     animation: none;
     transition: none;
   }
 
   .song-item:hover,
   .artist-item:hover,
-  .playlist-item:hover,
-  .analyze-btn:hover,
-  .close-btn:hover,
-  .close-btn:active {
+  .playlist-item:hover {
     transform: none;
   }
 

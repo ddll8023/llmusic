@@ -3,7 +3,8 @@ import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import { usePlayerStore, PlayMode } from '../../store/player';
 import { useUiStore } from '../../store/ui';
 import defaultCoverImage from '../../assets/default_img.jpg';
-import FAIcon from './FAIcon.vue';
+import CustomButton from '../custom/CustomButton.vue';
+import { formatTime } from '../../utils/timeUtils';
 
 const playerStore = usePlayerStore();
 const uiStore = useUiStore();
@@ -16,6 +17,39 @@ const playbackError = ref(null);
 const isDraggingVolume = ref(false);
 
 let scheduledTime = 0;
+
+// 单曲循环重新播放的通用逻辑
+const handleRepeatOneReplay = async () => {
+    const currentSongId = playerStore.currentSong?.id;
+    const currentSongTitle = playerStore.currentSong?.title;
+    
+    if (currentSongId) {
+        console.log(`单曲循环: 歌曲 ${currentSongTitle} (ID: ${currentSongId}) 重新播放，增加播放次数`);
+        try {
+            await playerStore.incrementCurrentSongPlayCount();
+            setTimeout(() => playerStore.seek(0), 50);
+        } catch (error) {
+            console.error(`增加播放次数失败:`, error);
+            setTimeout(() => playerStore.seek(0), 50);
+        }
+    }
+};
+
+// 安全停止音频源的通用逻辑
+const safeStopAudioSource = () => {
+    if (window.sourceNode) {
+        try {
+            window.sourceNode.onended = null;
+            if (window.isAudioPlaying) {
+                window.sourceNode.stop();
+            }
+            window.sourceNode = null;
+        } catch (error) {
+            console.error("停止音频源时出错:", error);
+            window.sourceNode = null;
+        }
+    }
+};
 
 // Web Audio API 相关状态
 // 将这些变量暴露到window对象，以便其他组件可以访问
@@ -31,14 +65,46 @@ if (!window.isPositionLocked) window.isPositionLocked = false; // 新增：防�
 if (!window.positionLockTimeout) window.positionLockTimeout = null; // 新增：用于清除位置锁定的定时器
 if (!window.isSeekingFromTimer) window.isSeekingFromTimer = false; // 新增：用于防止定时器重复触发seek
 
-// 同时保留本地引用，以便在组件内使用
-let audioContext = window.audioContext;
-let sourceNode = window.sourceNode;
-let decodedAudioBuffer = window.decodedAudioBuffer;
-let songStartTimeInAc = window.songStartTimeInAc;
-let songStartOffset = window.songStartOffset;
-let isAudioPlaying = window.isAudioPlaying;
-let gainNode = window.gainNode;
+
+// 处理音频播放结束的通用逻辑
+const handleAudioEnded = async () => {
+    const wasPlaying = window.isAudioPlaying;
+    const currentMode = playerStore.playMode;
+
+    if (wasPlaying) {
+        window.isAudioPlaying = false;
+
+        // 保存当前歌曲信息，避免异步操作中丢失
+        const currentSongId = playerStore.currentSong?.id;
+        const currentSongTitle = playerStore.currentSong?.title;
+
+        console.log(`onended: 歌曲 ${currentSongTitle} (ID: ${currentSongId}) 播放完成`);
+
+        try {
+            // 检查是否是单曲循环模式
+            if (currentMode === PlayMode.REPEAT_ONE) {
+                // 延迟一小段时间再重新开始播放，避免可能的竞态条件
+                setTimeout(() => {
+                    if (playerStore.playing && playerStore.playMode === PlayMode.REPEAT_ONE) {
+                        playerStore.seek(0);
+                    }
+                }, 50);
+            } else {
+                // 非单曲循环模式，播放下一首
+                // 注意：playNext内部会增加播放次数，所以这里不需要再调用incrementCurrentSongPlayCount
+                await playerStore.playNext(true);
+            }
+        } catch (error) {
+            console.error(`处理歌曲播放完成时出错:`, error);
+            // 即使出错也尝试继续播放
+            if (currentMode === PlayMode.REPEAT_ONE) {
+                setTimeout(() => playerStore.seek(0), 50);
+            } else {
+                playerStore.playNext(true);
+            }
+        }
+    }
+};
 
 // MediaSession API 相关代码
 const initMediaSession = () => {
@@ -154,9 +220,6 @@ const initAudioContext = () => {
             window.gainNode.connect(window.audioContext.destination);
             scheduledTime = window.audioContext.currentTime;
 
-            // 更新本地引用
-            audioContext = window.audioContext;
-            gainNode = window.gainNode;
         } catch (e) {
             console.error("Web Audio API is not supported in this browser.", e);
             playbackError.value = "浏览器不支持音频播放";
@@ -179,47 +242,7 @@ const playAudioBuffer = (offset = 0) => {
     window.sourceNode.buffer = window.decodedAudioBuffer;
     window.sourceNode.connect(window.gainNode);
 
-    // 记录当前播放模式，用于日志记录
-    const currentPlayMode = playerStore.playMode;
-
-    window.sourceNode.onended = async () => {
-        const wasPlaying = window.isAudioPlaying;
-        const currentMode = playerStore.playMode;
-
-        if (wasPlaying) {
-            window.isAudioPlaying = false;
-
-            // 保存当前歌曲信息，避免异步操作中丢失
-            const currentSongId = playerStore.currentSong?.id;
-            const currentSongTitle = playerStore.currentSong?.title;
-
-            console.log(`onended: 歌曲 ${currentSongTitle} (ID: ${currentSongId}) 播放完成`);
-
-            try {
-                // 检查是否是单曲循环模式
-                if (currentMode === PlayMode.REPEAT_ONE) {
-                    // 延迟一小段时间再重新开始播放，避免可能的竞态条件
-                    setTimeout(() => {
-                        if (playerStore.playing && playerStore.playMode === PlayMode.REPEAT_ONE) {
-                            playerStore.seek(0);
-                        }
-                    }, 50);
-                } else {
-                    // 非单曲循环模式，播放下一首
-                    // 注意：playNext内部会增加播放次数，所以这里不需要再调用incrementCurrentSongPlayCount
-                    await playerStore.playNext(true);
-                }
-            } catch (error) {
-                console.error(`处理歌曲播放完成时出错:`, error);
-                // 即使出错也尝试继续播放
-                if (currentMode === PlayMode.REPEAT_ONE) {
-                    setTimeout(() => playerStore.seek(0), 50);
-                } else {
-                    playerStore.playNext(true);
-                }
-            }
-        }
-    };
+    window.sourceNode.onended = handleAudioEnded;
 
     const clippedOffset = Math.max(0, Math.min(offset, window.decodedAudioBuffer.duration));
     window.sourceNode.start(0, clippedOffset);
@@ -228,11 +251,6 @@ const playAudioBuffer = (offset = 0) => {
     window.songStartOffset = clippedOffset;
     window.isAudioPlaying = true;
 
-    // 更新本地引用
-    sourceNode = window.sourceNode;
-    songStartTimeInAc = window.songStartTimeInAc;
-    songStartOffset = window.songStartOffset;
-    isAudioPlaying = window.isAudioPlaying;
 };
 
 // 重置音频播放器状态
@@ -247,21 +265,8 @@ const resetAudioPlayer = () => {
     window.songStartTimeInAc = 0;
     window.songStartOffset = 0;
 
-    // 更新本地引用
-    sourceNode = window.sourceNode;
-    decodedAudioBuffer = window.decodedAudioBuffer;
-    songStartTimeInAc = window.songStartTimeInAc;
-    songStartOffset = window.songStartOffset;
-    isAudioPlaying = window.isAudioPlaying;
 };
 
-// 格式化时间
-const formatTime = (seconds) => {
-    if (isNaN(seconds) || seconds === null) return '0:00';
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-};
 
 // 进度条百分比
 const progressPercentage = computed(() => {
@@ -285,7 +290,13 @@ const setPlayTime = (event) => {
     const newTime = percent * window.decodedAudioBuffer.duration;
 
     // 锁定位置，防止定时器立即覆盖
-    lockPosition();
+    if (window.positionLockTimeout) {
+        clearTimeout(window.positionLockTimeout);
+    }
+    window.isPositionLocked = true;
+    window.positionLockTimeout = setTimeout(() => {
+        window.isPositionLocked = false;
+    }, 300);
 
     // 直接使用seek方法，它会更新UI和音频状态
     playerStore.seek(newTime);
@@ -476,16 +487,7 @@ watch(
             // 无论之前的AudioContext状态如何，只要开始播放就重新创建音频源并从当前位置开始播放
             if (window.decodedAudioBuffer) {
                 // 如果有正在播放的音源，先停止
-                if (window.sourceNode) {
-                    try {
-                        window.sourceNode.onended = null;
-                        if (window.isAudioPlaying) { // 只有在实际播放中才调用stop
-                            window.sourceNode.stop();
-                        }
-                    } catch (error) {
-                        console.error("停止音频源时出错:", error);
-                    }
-                }
+                safeStopAudioSource();
 
                 // 创建新的音频源
                 window.sourceNode = window.audioContext.createBufferSource();
@@ -493,44 +495,7 @@ watch(
                 if (window.gainNode) window.sourceNode.connect(window.gainNode);
 
                 // 设置回调
-                window.sourceNode.onended = async () => {
-                    const wasPlaying = window.isAudioPlaying;
-                    const currentMode = playerStore.playMode;
-
-                    if (wasPlaying) {
-                        window.isAudioPlaying = false;
-
-                        // 保存当前歌曲信息，避免异步操作中丢失
-                        const currentSongId = playerStore.currentSong?.id;
-                        const currentSongTitle = playerStore.currentSong?.title;
-
-                        console.log(`onended: 歌曲 ${currentSongTitle} (ID: ${currentSongId}) 播放完成`);
-
-                        try {
-                            // 检查是否是单曲循环模式
-                            if (currentMode === PlayMode.REPEAT_ONE) {
-                                // 延迟一小段时间再重新开始播放，避免可能的竞态条件
-                                setTimeout(() => {
-                                    if (playerStore.playing && playerStore.playMode === PlayMode.REPEAT_ONE) {
-                                        playerStore.seek(0);
-                                    }
-                                }, 50);
-                            } else {
-                                // 非单曲循环模式，播放下一首
-                                // 注意：playNext内部会增加播放次数，所以这里不需要再调用incrementCurrentSongPlayCount
-                                await playerStore.playNext(true);
-                            }
-                        } catch (error) {
-                            console.error(`处理歌曲播放完成时出错:`, error);
-                            // 即使出错也尝试继续播放
-                            if (currentMode === PlayMode.REPEAT_ONE) {
-                                setTimeout(() => playerStore.seek(0), 50);
-                            } else {
-                                playerStore.playNext(true);
-                            }
-                        }
-                    }
-                };
+                window.sourceNode.onended = handleAudioEnded;
 
                 // 从当前时间开始播放
                 const currentPosition = playerStore.currentTime; // 使用store中的currentTime
@@ -539,11 +504,6 @@ watch(
                 window.songStartOffset = currentPosition;
                 window.isAudioPlaying = true;
 
-                // 更新本地引用
-                sourceNode = window.sourceNode;
-                songStartTimeInAc = window.songStartTimeInAc;
-                songStartOffset = window.songStartOffset;
-                isAudioPlaying = true;
             }
         } else {
             // 暂停播放
@@ -561,27 +521,11 @@ watch(
                 }
 
                 // 停止当前音源，但需要检查它是否已经开始
-                try {
-                    if (window.sourceNode) {
-                        window.sourceNode.onended = null;
-                        if (window.isAudioPlaying) { // 只有在实际播放中才调用stop
-                            window.sourceNode.stop();
-                        }
-                        window.sourceNode = null;
-                        sourceNode = null;
-                    }
-                } catch (error) {
-                    console.error("停止音频源时出错:", error);
-                    // 即使出错也确保清理引用
-                    window.sourceNode = null;
-                    sourceNode = null;
-                }
+                safeStopAudioSource();
 
                 // 更新偏移量，为下次播放做准备
                 window.songStartOffset = currentPosition;
                 window.isAudioPlaying = false;
-                songStartOffset = currentPosition;
-                isAudioPlaying = false;
 
                 // 更新播放器状态
                 playerStore.updateCurrentTime(currentPosition);
@@ -644,14 +588,24 @@ watch(
 // 设置播放器事件监听器
 onMounted(async () => {
     // 声明清理资源的引用
-    let removeAudioDataListener, removeEndedListener, removeErrorListener, progressTimer;
+    let removeAudioDataListener, removeErrorListener, progressTimer;
+
+    // 添加键盘事件监听器
+    window.addEventListener('keydown', handleKeydown);
 
     // 在任何await之前注册onUnmounted钩子
     onUnmounted(() => {
+        // 移除键盘事件监听器
+        window.removeEventListener('keydown', handleKeydown);
+
+        // 确保清理音量拖动的事件监听器
+        if (isDraggingVolume.value) {
+            document.removeEventListener('mousemove', updateVolume);
+            document.removeEventListener('mouseup', endVolumeChange);
+        }
         // 清理事件监听器
         if (removeErrorListener) removeErrorListener();
         if (removeAudioDataListener) removeAudioDataListener();
-        if (removeEndedListener) removeEndedListener();
 
         // 清理定时器
         if (progressTimer) clearInterval(progressTimer);
@@ -660,7 +614,6 @@ onMounted(async () => {
         if (window.audioContext) {
             window.audioContext.close();
             window.audioContext = null;
-            audioContext = null;
         }
 
         // 清理MediaSession处理程序
@@ -710,7 +663,6 @@ onMounted(async () => {
             }
             const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
             window.decodedAudioBuffer = await window.audioContext.decodeAudioData(arrayBuffer);
-            decodedAudioBuffer = window.decodedAudioBuffer; // 更新本地引用
 
             // 使用解码出的准确时长更新store
             if (playerStore.currentSong) {
@@ -732,15 +684,10 @@ onMounted(async () => {
             console.error("解码音频数据时出错:", error);
             playbackError.value = `音频解码失败: ${error.message}`;
             window.decodedAudioBuffer = null;
-            decodedAudioBuffer = null;
             playerStore.setPlaying(false);
         }
     });
 
-    // 主进程的ended事件现在只作为备份/调试
-    removeEndedListener = window.electronAPI.onPlayerEnded(() => {
-        // 移除调试信息
-    });
 
     // 监听播放错误事件
     removeErrorListener = window.electronAPI.onPlayerError((error) => {
@@ -776,14 +723,7 @@ onMounted(async () => {
                     const currentSongTitle = playerStore.currentSong?.title;
 
                     if (currentSongId) {
-                        console.log(`单曲循环: 歌曲 ${currentSongTitle} (ID: ${currentSongId}) 即将结束，增加播放次数`);
-                        try {
-                            await playerStore.incrementCurrentSongPlayCount();
-                            setTimeout(() => playerStore.seek(0), 50);
-                        } catch (error) {
-                            console.error(`增加播放次数失败:`, error);
-                            setTimeout(() => playerStore.seek(0), 50);
-                        }
+                        await handleRepeatOneReplay();
                     }
                 }
             } else if (window.decodedAudioBuffer && newCurrentTime >= window.decodedAudioBuffer.duration) {
@@ -797,13 +737,7 @@ onMounted(async () => {
                     playerStore.playNext(true);
                 } else {
                     // 单曲循环模式下，单独处理
-                    try {
-                        await playerStore.incrementCurrentSongPlayCount();
-                        setTimeout(() => playerStore.seek(0), 50);
-                    } catch (error) {
-                        console.error(`增加播放次数失败:`, error);
-                        setTimeout(() => playerStore.seek(0), 50);
-                    }
+                    await handleRepeatOneReplay();
                 }
             }
         }
@@ -821,21 +755,6 @@ onMounted(async () => {
     }
 });
 
-// 添加一个辅助函数用于设置位置锁定
-const lockPosition = (duration = 300) => {
-    // 清除之前的超时调用（如果有）
-    if (window.positionLockTimeout) {
-        clearTimeout(window.positionLockTimeout);
-    }
-
-    // 设置位置锁定
-    window.isPositionLocked = true;
-
-    // 设置超时以解除锁定
-    window.positionLockTimeout = setTimeout(() => {
-        window.isPositionLocked = false;
-    }, duration);
-};
 
 // 键盘快捷键控制
 const handleKeydown = (event) => {
@@ -858,58 +777,7 @@ const handleKeydown = (event) => {
     }
 };
 
-// 组件挂载后添加键盘事件监听器
-onMounted(() => {
-    window.addEventListener('keydown', handleKeydown);
-});
 
-// 组件卸载前移除键盘事件监听器
-onUnmounted(() => {
-    window.removeEventListener('keydown', handleKeydown);
-
-    // 确保清理音量拖动的事件监听器
-    if (isDraggingVolume.value) {
-        document.removeEventListener('mousemove', updateVolume);
-        document.removeEventListener('mouseup', endVolumeChange);
-    }
-});
-
-// 强制提取封面
-const forceExtractCover = async (songId) => {
-    try {
-        const forceResult = await window.electronAPI.forceExtractCover(songId);
-
-        if (forceResult.success && forceResult.cover) {
-            // 验证base64数据
-            if (!/^[A-Za-z0-9+/=]+$/.test(forceResult.cover)) {
-                console.error(`强制提取的封面数据不是有效的base64字符串`);
-                return;
-            }
-
-            const imageFormat = forceResult.format || 'image/jpeg';
-
-            // 清除可能存在的换行符或空白字符
-            const cleanBase64 = forceResult.cover.trim();
-            coverImage.value = `data:${imageFormat};base64,${cleanBase64}`;
-
-            // 测试图片加载
-            const testImg = new Image();
-            testImg.onload = () => {
-                coverLoadError.value = false;
-            };
-            testImg.onerror = (e) => {
-                console.error('强制提取的封面加载失败:', e);
-                coverLoadError.value = true;
-            };
-            testImg.src = coverImage.value;
-
-        } else {
-            console.warn(`强制提取封面失败:`, forceResult.error || "未知错误");
-        }
-    } catch (error) {
-        console.error('强制提取封面时出错:', error);
-    }
-};
 
 // 显示歌词
 const showLyrics = async () => {
@@ -930,7 +798,6 @@ const showLyrics = async () => {
     }
 };
 
-// 移除updateLocalTime函数，因为我们不再使用audio元素
 </script>
 
 <template>
@@ -946,35 +813,24 @@ const showLyrics = async () => {
                 <span class="song-title">{{ playerStore.currentSong.title }}</span>
                 <span class="song-artist">{{ playerStore.currentSong.artist }}</span>
             </div>
-            <button class="control-button favorite-button" :class="{ 'is-favorite': false }" title="收藏歌曲">
-                <FAIcon name="heart" size="medium" color="secondary" :clickable="true" />
-            </button>
+            <CustomButton type="icon-only" icon="heart" icon-size="medium" :custom-class="'favorite-button'"
+                title="收藏歌曲" />
         </div>
 
         <!-- Main Controls -->
         <div class="main-controls">
             <div class="top-controls">
-                <button @click="togglePlayMode" class="control-button"
-                    :class="{ 'is-active': playerStore.playMode !== 'sequence' }" :title="playModeText">
-                    <FAIcon :name="playModeIconName" size="medium"
-                        :color="playerStore.playMode !== 'sequence' ? 'accent' : 'secondary'" :clickable="true" />
-                </button>
-                <button @click="playerStore.playPrevious" class="control-button" title="上一首">
-                    <FAIcon name="step-backward" size="large" color="secondary" :clickable="true" />
-                </button>
-                <button @click="togglePlayPause" class="control-button play-pause-button"
-                    :title="playerStore.playing ? '暂停' : '播放'">
-                    <FAIcon :name="playerStore.playing ? 'pause' : 'play'" size="large" color="primary"
-                        :clickable="true" />
-                </button>
-                <button @click="playerStore.playNext()" class="control-button" title="下一首">
-                    <FAIcon name="step-forward" size="large" color="secondary" :clickable="true" />
-                </button>
-                <button @click="uiStore.togglePlaylist()" class="control-button"
-                    :class="{ 'is-active': uiStore.showPlaylist }" title="播放列表">
-                    <FAIcon name="list" size="medium" :color="uiStore.showPlaylist ? 'accent' : 'secondary'"
-                        :clickable="true" />
-                </button>
+                <CustomButton type="icon-only" :icon="playModeIconName" icon-size="medium" :title="playModeText"
+                    :custom-class="playerStore.playMode !== 'sequence' ? 'is-active' : ''" @click="togglePlayMode" />
+                <CustomButton type="icon-only" icon="step-backward" icon-size="large" title="上一首"
+                    @click="playerStore.playPrevious" />
+                <CustomButton type="icon-only" :icon="playerStore.playing ? 'pause' : 'play'" icon-size="large"
+                    :title="playerStore.playing ? '暂停' : '播放'" :circle="true" custom-class="play-pause-button"
+                    @click="togglePlayPause" />
+                <CustomButton type="icon-only" icon="step-forward" icon-size="large" title="下一首"
+                    @click="playerStore.playNext()" />
+                <CustomButton type="icon-only" icon="list" icon-size="medium" title="播放列表"
+                    :custom-class="uiStore.showPlaylist ? 'is-active' : ''" @click="uiStore.togglePlaylist()" />
             </div>
             <div class="progress-section">
                 <span class="time-display">{{ formatTime(playerStore.currentTime) }}</span>
@@ -987,11 +843,10 @@ const showLyrics = async () => {
 
         <!-- Volume Control -->
         <div class="volume-controls">
-            <button @click="toggleMute" class="control-button" :class="{ 'is-active': playerStore.muted }"
-                :title="playerStore.muted ? '取消静音' : '静音'">
-                <FAIcon :name="(playerStore.muted || playerStore.volume === 0) ? 'volume-off' : 'volume-up'"
-                    size="medium" :color="playerStore.muted ? 'accent' : 'secondary'" :clickable="true" />
-            </button>
+            <CustomButton type="icon-only"
+                :icon="(playerStore.muted || playerStore.volume === 0) ? 'volume-off' : 'volume-up'" icon-size="medium"
+                :title="playerStore.muted ? '取消静音' : '静音'" :custom-class="playerStore.muted ? 'is-active' : ''"
+                @click="toggleMute" />
             <div class="volume-bar-wrapper" ref="volumeRef" @mousedown="startVolumeChange" title="调节音量">
                 <div class="volume-bar-fill" :style="{ width: volumePercentage }"></div>
             </div>
@@ -1000,17 +855,13 @@ const showLyrics = async () => {
 </template>
 
 <style lang="scss" scoped>
-// 导入样式变量
-@use "../../styles/variables/_colors" as *;
-@use "../../styles/variables/_layout" as *;
-
 .player-bar-container {
     display: grid;
     grid-template-columns: 1fr 2fr 1fr;
     align-items: center;
     background-color: $bg-secondary;
     padding: $content-padding;
-    height: var(--player-bar-height);
+    height: $player-bar-height;
     border-top: 1px solid $bg-tertiary;
     color: $text-primary;
     z-index: $z-player;
@@ -1027,7 +878,7 @@ const showLyrics = async () => {
         grid-template-rows: auto auto;
         gap: ($content-padding * 0.5);
         height: auto;
-        min-height: var(--player-bar-height);
+        min-height: $player-bar-height;
         padding: ($content-padding * 0.75);
     }
 }
@@ -1101,21 +952,10 @@ const showLyrics = async () => {
     }
 }
 
+// 收藏按钮特殊样式
 .favorite-button {
-    color: $text-secondary;
-    transition: all $transition-base;
-    flex-shrink: 0;
-    padding: ($content-padding * 0.5);
-    border-radius: $border-radius;
-
-    &:hover {
-        color: $accent-green;
-        background-color: $overlay-light;
-        transform: scale(1.1);
-    }
-
     &.is-favorite {
-        color: $accent-green;
+        color: $accent-green !important;
     }
 
     @include respond-to("sm") {
@@ -1148,62 +988,18 @@ const showLyrics = async () => {
     }
 }
 
-.control-button {
-    background: none;
-    border: none;
-    color: $text-secondary;
-    cursor: pointer;
-    padding: ($content-padding * 0.375);
-    transition: all $transition-base;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: $border-radius;
-    position: relative;
-
-    &:hover {
-        color: $text-primary;
-        background-color: $overlay-light;
-        transform: scale(1.1);
-    }
-
-    &:active {
-        transform: scale(0.95);
-    }
-
-    &.is-active {
-        color: $accent-green;
-    }
-
-    // 为触摸设备增加最小触摸面积
-    @include respond-to("sm") {
-        min-width: 44px;
-        min-height: 44px;
-    }
+// CustomButton 组件已处理基础按钮样式
+// 保留特殊状态样式
+.is-active {
+    color: $accent-green !important;
 }
 
+// 播放/暂停按钮特殊样式（圆形边框）
 .play-pause-button {
-    background-color: transparent;
-    color: $text-primary;
-    border: 2px solid $text-secondary;
-    border-radius: 50%;
-    width: 48px;
-    height: 48px;
-    transition: all $transition-base;
+    border: 2px solid $text-secondary !important;
 
     &:hover {
-        border-color: $accent-green;
-        color: $accent-green;
-        transform: scale(1.08);
-    }
-
-    &:active {
-        transform: scale(0.95);
-    }
-
-    @include respond-to("sm") {
-        width: 44px;
-        height: 44px;
+        border-color: $accent-green !important;
     }
 }
 
@@ -1229,7 +1025,7 @@ const showLyrics = async () => {
 
     @include respond-to("sm") {
         min-width: 35px;
-        font-size: 10px;
+        font-size: $font-size-xs;
     }
 }
 
@@ -1358,20 +1154,13 @@ const showLyrics = async () => {
     }
 }
 
-/* 播放模式激活状态 */
-.control-button[title*="随机"] {
-    &.is-active {
-        color: $accent-green;
-    }
-}
-
-.control-button[title*="单曲循环"] {
-    &.is-active {
-        color: $accent-green;
-    }
-}
+/* 播放模式激活状态已由 .is-active 统一处理 */
 
 /* 加载动画 */
+.song-cover.loading {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
 @keyframes pulse {
 
     0%,
@@ -1382,10 +1171,6 @@ const showLyrics = async () => {
     50% {
         opacity: 0.5;
     }
-}
-
-.song-cover.loading {
-    animation: pulse $transition-slow infinite;
 }
 
 /* 错误状态 */

@@ -1,11 +1,10 @@
 <template>
-  <div v-if="show" class="delete-confirm-overlay" @click="handleOverlayClick">
+  <div v-if="show" class="delete-confirm-overlay" @click="!loading && handleCancel()">
     <div class="delete-confirm-dialog" @click.stop>
       <div class="dialog-header">
         <h3>确认删除</h3>
-        <button class="close-btn" @click="handleCancel" :disabled="loading">
-          <FAIcon name="times" size="medium" color="secondary" :clickable="true" />
-        </button>
+        <CustomButton type="icon-only" icon="times" iconSize="medium" :disabled="loading" @click="handleCancel"
+          title="关闭" />
       </div>
 
       <div class="dialog-content">
@@ -28,13 +27,12 @@
       </div>
 
       <div class="dialog-actions">
-        <button class="cancel-btn" @click="handleCancel" :disabled="loading">
+        <CustomButton type="secondary" @click="handleCancel" :disabled="loading">
           取消
-        </button>
-        <button class="delete-btn" @click="handleConfirm" :disabled="loading">
-          <span v-if="loading" class="loading-spinner"></span>
-          <span v-else>删除</span>
-        </button>
+        </CustomButton>
+        <CustomButton type="danger" @click="handleConfirm" :disabled="loading" :loading="loading">
+          删除
+        </CustomButton>
       </div>
 
       <!-- 错误信息显示 -->
@@ -49,6 +47,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import FAIcon from './FAIcon.vue'
+import CustomButton from '../custom/CustomButton.vue'
 
 const props = defineProps({
   show: {
@@ -74,18 +73,9 @@ watch(() => props.show, (newShow) => {
   }
 })
 
-// 处理覆盖层点击
-const handleOverlayClick = () => {
-  if (!loading.value) {
-    handleCancel()
-  }
-}
-
 // 处理取消
 const handleCancel = () => {
-  if (!loading.value) {
-    emit('close')
-  }
+  emit('close')
 }
 
 // 处理确认删除
@@ -136,10 +126,6 @@ watch(() => props.show, (newShow) => {
 </script>
 
 <style lang="scss" scoped>
-// 导入样式变量
-@use "../../styles/variables/_colors" as *;
-@use "../../styles/variables/_layout" as *;
-
 .delete-confirm-overlay {
   position: fixed;
   top: 0;
@@ -179,25 +165,7 @@ watch(() => props.show, (newShow) => {
   font-weight: $font-weight-bold;
 }
 
-.close-btn {
-  background: none;
-  border: none;
-  color: $text-secondary;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: $border-radius;
-  transition: all $transition-base;
-}
 
-.close-btn:hover:not(:disabled) {
-  color: $text-primary;
-  background-color: $bg-tertiary;
-}
-
-.close-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
 
 .dialog-content {
   padding: $section-padding;

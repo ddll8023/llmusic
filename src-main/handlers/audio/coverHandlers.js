@@ -3,7 +3,7 @@ const fs = require("fs").promises;
 const { parseFile } = require("music-metadata");
 const LRUCache = require("../../utils/cache/LRUCache");
 const { CHANNELS } = require("../../constants/ipcChannels");
-const { getSongById } = require("../../services/data/Database");
+const { getSongById } = require("../data/Database");
 
 // ---- 封面缓存 ----
 const coverCache = new LRUCache(100);

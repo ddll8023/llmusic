@@ -1,0 +1,164 @@
+// 过渡动画和动效
+
+@use "_colors" as *;
+@use "_typography" as *;
+@use "_layout" as *;
+
+// Vue 过渡动画
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity $transition-base;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+    opacity: 0;
+}
+
+// 滑动淡入淡出动画
+.slide-fade-enter-active,
+.slide-fade-leave-active {
+    transition: all $transition-slow;
+}
+
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+    transform: translateY(20px);
+    opacity: 0;
+}
+
+// 旋转动画
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+// 悬停效果
+.hover-lift {
+    transition: transform $transition-base, box-shadow $transition-base;
+
+    &:hover {
+        transform: translateY(-2px);
+        box-shadow: $box-shadow-hover;
+    }
+}
+
+.hover-glow {
+    transition: box-shadow $transition-base;
+
+    &:hover {
+        box-shadow: 0 0 20px rgba(76, 175, 80, 0.3);
+    }
+}
+
+// 脉冲加载动画
+@keyframes pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.pulse {
+    animation: pulse $transition-slow infinite;
+}
+
+// 播放列表专用动画
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.slide-in {
+    animation: slideIn $transition-base ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in-up {
+    animation: fadeInUp $transition-slow ease-out;
+}
+
+@keyframes playingPulse {
+    0% {
+        opacity: 0.6;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+.playing-pulse {
+    animation: playingPulse $transition-slow infinite alternate;
+}
+
+// 淡入动画
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.fade-in {
+    animation: fadeIn $transition-base ease-out;
+}
+
+// 模态框专用动画
+@keyframes modalFadeIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.9) translateY(-20px);
+        filter: blur(2px);
+    }
+
+    50% {
+        opacity: 0.8;
+        transform: scale(0.95) translateY(-10px);
+        filter: blur(1px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+        filter: blur(0);
+    }
+}
+
+.modal-fade-in {
+    animation: modalFadeIn $transition-slow ease-out;
+}

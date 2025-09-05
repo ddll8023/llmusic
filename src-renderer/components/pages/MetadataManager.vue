@@ -1,8 +1,11 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import TagEditor from '../common/TagEditor.vue';
-import SongTable from '../common/SongTable.vue'; // 引入新的SongTable组件
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { useMediaStore } from '../../store/media';
 import FAIcon from '../common/FAIcon.vue';
+import SongTable from '../common/SongTable.vue';
+import TagEditor from '../common/TagEditor.vue';
+import CustomButton from '../custom/CustomButton.vue';
+import CustomInput from '../custom/CustomInput.vue';
 
 const selectedSongs = ref([]);
 const searchQuery = ref('');
@@ -322,26 +325,24 @@ onMounted(async () => {
         <div class="metadata-header">
             <h1>音乐元数据管理</h1>
             <div class="search-box">
-                <FAIcon name="search" size="medium" color="secondary" />
-                <input v-model="searchQuery" type="text" placeholder="搜索歌曲..." class="search-input" />
+                <CustomInput :model-value="searchQuery" @update:model-value="val => searchQuery = val" type="text"
+                    placeholder="搜索歌曲..." prefix-icon="search" size="medium" />
             </div>
         </div>
 
         <div class="metadata-toolbar">
-            <button class="btn btn--primary import-btn" :disabled="isImporting" @click="importMusicFiles">
-                <FAIcon :name="isImporting ? 'spinner' : 'download'" size="small" color="primary"
-                    :class="{ 'loading-icon': isImporting }" />
+            <CustomButton type="primary" :disabled="isImporting" :loading="isImporting" icon="download"
+                @click="importMusicFiles">
                 {{ isImporting ? '正在导入...' : '导入歌曲' }}
-            </button>
+            </CustomButton>
 
-            <button class="btn btn--secondary select-all-btn" @click="toggleSelectAll">
+            <CustomButton type="secondary" @click="toggleSelectAll">
                 {{ selectedSongs.length === filteredSongs.length ? '取消全选' : '全选' }}
-            </button>
-            <button class="btn btn--secondary clear-all-btn" :disabled="isClearing" @click="showClearWorkspaceDialog">
-                <FAIcon :name="isClearing ? 'spinner' : 'trash'" size="small" color="secondary"
-                    :class="{ 'loading-icon': isClearing }" />
+            </CustomButton>
+            <CustomButton type="secondary" :disabled="isClearing" :loading="isClearing" icon="trash"
+                @click="showClearWorkspaceDialog">
                 {{ isClearing ? '清除中...' : '清空工作区' }}
-            </button>
+            </CustomButton>
         </div>
 
         <!-- 导入状态提示 -->
@@ -396,10 +397,10 @@ onMounted(async () => {
                             </div>
                         </div>
                         <div class="apply-actions" v-if="selectedOnlineResult">
-                            <button class="btn btn--primary apply-btn" :disabled="isLoading"
+                            <CustomButton type="primary" :disabled="isLoading" :loading="isLoading"
                                 @click="applyOnlineMetadata(currentSearchingSong, selectedOnlineResult)">
                                 {{ isLoading ? '应用中...' : '应用选中元数据' }}
-                            </button>
+                            </CustomButton>
                         </div>
                     </div>
                 </div>
@@ -432,11 +433,10 @@ onMounted(async () => {
                     </div>
                 </div>
                 <div class="confirm-actions">
-                    <button class="btn btn--secondary cancel-btn" @click="showClearConfirm = false">取消</button>
-                    <button class="btn btn--primary confirm-btn" @click="clearWorkspace">
-                        <FAIcon name="trash" size="small" color="primary" />
+                    <CustomButton type="secondary" @click="showClearConfirm = false">取消</CustomButton>
+                    <CustomButton type="primary" icon="trash" @click="clearWorkspace">
                         清空工作区
-                    </button>
+                    </CustomButton>
                 </div>
             </div>
         </div>
@@ -448,8 +448,6 @@ onMounted(async () => {
 
 <style lang="scss" scoped>
 // 导入样式变量
-@use "../../styles/variables/_colors" as *;
-@use "../../styles/variables/_layout" as *;
 @use "sass:color";
 
 .metadata-manager {
@@ -481,21 +479,7 @@ onMounted(async () => {
 }
 
 .search-box {
-    display: flex;
-    align-items: center;
-    background: $bg-secondary;
-    padding: ($content-padding * 0.5) $content-padding;
-    border-radius: ($border-radius * 5);
     width: 300px;
-}
-
-.search-input {
-    background: transparent;
-    border: none;
-    color: $text-primary;
-    margin-left: ($content-padding * 0.5);
-    outline: none;
-    width: 100%;
 }
 
 .metadata-toolbar {
