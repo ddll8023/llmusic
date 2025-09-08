@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, reactive } from 'vue';
 import { useMediaStore } from '../../store/media';
 import FAIcon from '../common/FAIcon.vue';
 import SongTable from '../common/SongTable.vue';
@@ -26,6 +26,9 @@ const currentSearchingSong = ref(null);
 
 // MetadataManager专用的歌曲列表（只显示用户导入的歌曲）
 const localSongs = ref([]);
+
+// 工作区封面缓存（独立于数据库）
+const workspaceCoverCache = reactive({});
 
 // 文件导入相关
 const isImporting = ref(false);
@@ -80,10 +83,11 @@ const toggleSelectSong = (song) => {
     }
 };
 
-// 编辑单首歌曲
+// 编辑单首歌曲（工作区模式）
 const editSong = (song) => {
     if (tagEditorRef.value) {
-        tagEditorRef.value.openEditor(song);
+        // 使用工作区专用的编辑器方法
+        tagEditorRef.value.openEditorForFile(song);
     }
 };
 
@@ -124,21 +128,56 @@ const processImportFiles = async (filePaths) => {
     importResultMessage.value = '';
 
     try {
-        // 使用Electron API处理文件
-        const results = await window.electronAPI.parseAudioFiles(filePaths);
+        // 直接解析文件元数据，不添加到数据库（保持工作区独立）
+        let successCount = 0;
+        const failedFiles = [];
 
-        if (results && results.length > 0) {
-            // 添加到本地歌曲列表，避免重复
-            const existingIds = new Set(localSongs.value.map(song => song.filePath));
-            const newSongs = results.filter(song => !existingIds.has(song.filePath));
+        // 循环处理每个文件
+        for (const filePath of filePaths) {
+            try {
+                const parseResult = await window.electronAPI.parseSongFromFile(filePath);
 
-            localSongs.value.push(...newSongs);
+                if (parseResult.success && parseResult.song) {
+                    // 检查是否已存在于工作区，避免重复
+                    const existingIndex = localSongs.value.findIndex(song =>
+                        song.filePath === parseResult.song.filePath
+                    );
 
+                    if (existingIndex === -1) {
+                        // 添加新歌曲到工作区
+                        localSongs.value.push(parseResult.song);
+                        successCount++;
+
+                        // 异步加载封面
+                        loadWorkspaceSongCover(parseResult.song);
+                    } else {
+                        // 更新现有歌曲信息
+                        localSongs.value[existingIndex] = parseResult.song;
+                        successCount++;
+
+                        // 重新加载封面
+                        loadWorkspaceSongCover(parseResult.song);
+                    }
+                } else {
+                    failedFiles.push(filePath);
+                }
+            } catch (parseError) {
+                console.error(`解析文件失败: ${filePath}`, parseError);
+                failedFiles.push(filePath);
+            }
+        }
+
+        // 设置导入结果
+        if (successCount > 0) {
             importStatus.value = 'success';
-            importResultMessage.value = `成功导入 ${newSongs.length} 首歌曲`;
+            importResultMessage.value = `成功添加 ${successCount} 首歌曲到工作区`;
+
+            if (failedFiles.length > 0) {
+                importResultMessage.value += `，${failedFiles.length} 个文件解析失败`;
+            }
         } else {
             importStatus.value = 'error';
-            importResultMessage.value = '没有找到有效的音乐文件';
+            importResultMessage.value = `所有文件解析失败${failedFiles.length > 0 ? `，失败文件：${failedFiles.slice(0, 3).join(', ')}${failedFiles.length > 3 ? '...' : ''}` : ''}`;
         }
     } catch (error) {
         console.error('处理导入文件失败:', error);
@@ -296,11 +335,30 @@ const showClearWorkspaceDialog = () => {
     showClearConfirm.value = true;
 };
 
+// 加载工作区歌曲封面
+const loadWorkspaceSongCover = async (song) => {
+    if (!song || !song.filePath || workspaceCoverCache[song.id]) {
+        return; // 如果已有缓存则跳过
+    }
+
+    try {
+        const result = await window.electronAPI.getCoverFromFile(song.filePath);
+        if (result.success && result.cover) {
+            const imageFormat = result.format || 'image/jpeg';
+            workspaceCoverCache[song.id] = `data:${imageFormat};base64,${result.cover}`;
+        }
+    } catch (error) {
+        console.error('加载工作区封面失败:', error);
+    }
+};
+
 // 重置所有状态
 const resetAllStates = () => {
     selectedSongs.value = [];
     searchQuery.value = '';
     localSongs.value = [];
+    // 清空封面缓存
+    Object.keys(workspaceCoverCache).forEach(key => delete workspaceCoverCache[key]);
     onlineSearchStatus.value = 'idle';
     onlineSearchResults.value = [];
     selectedOnlineResult.value = null;
@@ -364,7 +422,8 @@ onMounted(async () => {
                 :show-play-count="false" :show-action-column="true" :action-column-type="'metadata'"
                 :show-selection="true" :selected-song-ids="selectedSongIds" :context-menu-type="'metadata'"
                 :current-list-id="'metadata'" :empty-text="'请导入音乐文件或拖拽文件到此区域'" :empty-icon="'upload'"
-                @action-click="handleActionClick" @selection-change="handleSelectionChange" />
+                :external-cover-cache="workspaceCoverCache" @action-click="handleActionClick"
+                @selection-change="handleSelectionChange" />
 
             <!-- 在线搜索面板 -->
             <div class="online-search-panel" v-if="onlineSearchStatus !== 'idle'">

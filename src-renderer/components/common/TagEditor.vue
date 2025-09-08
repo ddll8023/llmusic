@@ -217,6 +217,60 @@ const openEditor = async (song) => {
   }
 };
 
+// 用于工作区歌曲的编辑器（直接从文件路径获取标签）
+const openEditorForFile = async (song) => {
+  if (!song || !song.filePath) {
+    console.error('无效的歌曲对象或缺少文件路径');
+    return;
+  }
+
+  currentSong.value = song;
+  loading.value = true;
+  showTagEditor.value = true;
+
+  try {
+    // 直接从文件路径获取歌曲标签
+    console.log('正在从文件获取歌曲标签，文件路径:', song.filePath);
+    const result = await window.electronAPI.getTagsFromFile(song.filePath);
+    console.log('获取标签结果:', result);
+
+    if (result.success) {
+      originalTags.value = result.tags;
+      console.log('原始标签数据:', result.tags);
+
+      // 复制标签到编辑对象
+      const newTags = {
+        title: result.tags.title || '',
+        artist: result.tags.artist || '',
+        album: result.tags.album || '',
+        year: result.tags.year ? String(result.tags.year) : ''
+      };
+      console.log('准备设置的编辑标签:', newTags);
+
+      // 使用统一函数设置标签
+      setEditingTagsFromObject(newTags);
+
+      console.log('设置后的编辑标签:', editingTags);
+    } else {
+      console.error('获取歌曲标签失败:', result.error);
+      // 使用歌曲对象中的信息作为备选
+      const fallbackTags = {
+        title: song.title || '',
+        artist: song.artist || '',
+        album: song.album || '',
+        year: song.year ? String(song.year) : ''
+      };
+      console.log('使用备选标签:', fallbackTags);
+      // 使用统一函数设置标签
+      setEditingTagsFromObject(fallbackTags);
+    }
+  } catch (error) {
+    handleTagOperationError(error, '获取歌曲标签');
+  } finally {
+    loading.value = false;
+  }
+};
+
 const closeEditor = () => {
   showTagEditor.value = false;
   currentSong.value = null;
@@ -269,18 +323,42 @@ const saveTags = async () => {
     // 将响应式对象转换为普通对象以避免序列化错误
     const plainTags = convertReactiveToPlain(editingTags);
 
-    const result = await window.electronAPI.updateSongTags(currentSong.value.id, plainTags);
+    console.log('准备保存标签:', plainTags);
+
+    let result;
+    // 判断是工作区模式还是数据库模式
+    if (currentSong.value.filePath && !currentSong.value.id) {
+      // 工作区模式：直接使用文件路径保存
+      console.log('使用工作区模式保存标签到文件:', currentSong.value.filePath);
+      result = await window.electronAPI.updateTagsToFile(currentSong.value.filePath, plainTags);
+    } else {
+      // 数据库模式：使用歌曲ID保存
+      console.log('使用数据库模式保存标签，歌曲ID:', currentSong.value.id);
+      result = await window.electronAPI.updateSongTags(currentSong.value.id, plainTags);
+    }
+
+    console.log('保存标签结果:', result);
+
     if (result.success) {
-      // 更新成功，刷新歌曲列表
-      await mediaStore.loadSongs();
+      console.log('标签保存成功');
+
+      // 根据模式不同执行不同的后续操作
+      if (currentSong.value.filePath && !currentSong.value.id) {
+        // 工作区模式：不需要重新加载媒体库，但可能需要更新工作区歌曲信息
+        alert('标签保存成功！');
+      } else {
+        // 数据库模式：通知媒体库重新加载歌曲数据
+        await mediaStore.loadSongs();
+        alert('标签保存成功！');
+      }
+
       closeEditor();
     } else {
-      console.error('更新标签失败:', result.error);
-      // 显示错误信息
-      alert(`更新标签失败: ${result.error}`);
+      console.error('标签保存失败:', result.error);
+      alert(`保存失败: ${result.error}`);
     }
   } catch (error) {
-    handleTagOperationError(error, '更新标签');
+    handleTagOperationError(error, '保存标签');
   } finally {
     loading.value = false;
   }
@@ -289,7 +367,8 @@ const saveTags = async () => {
 
 // 暴露方法给父组件
 defineExpose({
-  openEditor
+  openEditor,
+  openEditorForFile
 });
 </script>
 
@@ -304,7 +383,7 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: $z-modal;
+  z-index: calc(#{$z-player} + 50);
 }
 
 .tag-editor__modal {

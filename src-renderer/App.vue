@@ -7,6 +7,7 @@ import MetadataManager from './components/pages/MetadataManager.vue';
 import PlayerBar from './components/system/PlayerBar.vue';
 import Playlist from './components/common/Playlist.vue';
 import PlaylistContent from './components/pages/PlaylistContent.vue';
+import PlaylistManage from './components/pages/PlaylistManage.vue';
 import TitleBar from './components/system/TitleBar.vue';
 import GlobalScanProgress from './components/system/GlobalScanProgress.vue';
 import LyricPage from './components/pages/LyricPage.vue';
@@ -177,6 +178,9 @@ onUnmounted(() => {
 
         <!-- 歌词页面 -->
         <LyricPage />
+
+        <!-- 播放列表管理对话框 -->
+        <PlaylistManage />
 
     </div>
 </template>

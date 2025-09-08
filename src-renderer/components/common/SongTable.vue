@@ -76,6 +76,11 @@ const props = defineProps({
     containerHeight: {
         type: String,
         default: '100%'
+    },
+    // 外部封面缓存（用于MetadataManager等独立场景）
+    externalCoverCache: {
+        type: Object,
+        default: null
     }
 });
 
@@ -180,9 +185,22 @@ const tableHeaders = computed(() => {
 });
 
 
+// 获取歌曲封面URL
+const getSongCoverUrl = (song) => {
+    // 如果提供了外部封面缓存，优先使用
+    if (props.externalCoverCache && props.externalCoverCache[song.id]) {
+        return props.externalCoverCache[song.id];
+    }
+    // 否则使用内部缓存
+    return songCovers[song.id] || placeholderCover;
+};
+
 // 封面加载
 const loadSongCover = async (songId) => {
     if (!songId || songCovers[songId]) return;
+
+    // 如果使用外部封面缓存，跳过内部封面加载
+    if (props.externalCoverCache) return;
 
     try {
         const result = await window.electronAPI.getSongCover(songId);
@@ -403,7 +421,7 @@ defineExpose({
                     <!-- 封面 -->
                     <div class="song-col" style="width: 60px; flex-shrink: 0;">
                         <div class="song-cover-container">
-                            <img :src="songCovers[song.id] || placeholderCover" alt="封面" class="song-cover" />
+                            <img :src="getSongCoverUrl(song)" alt="封面" class="song-cover" />
                             <transition name="fade">
                                 <div v-if="hoveredSongId === song.id" class="play-icon-overlay"
                                     @click="handleSongPlay(song)">

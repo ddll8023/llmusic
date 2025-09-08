@@ -105,6 +105,48 @@ async function getCover(songId) {
 }
 
 /**
+ * 直接从文件路径获取封面（不依赖数据库）
+ * @param {string} filePath - 音乐文件路径
+ * @returns {Object} 包含封面数据的结果对象
+ */
+async function getCoverFromFile(filePath) {
+	if (!filePath) {
+		return { success: false, error: "文件路径不能为空" };
+	}
+
+	try {
+		// 首先尝试从音乐文件中提取封面
+		let info = await extractCoverFromMusicFile(filePath);
+
+		// 如果音乐文件中没有封面，尝试在目录中查找
+		if (!info) {
+			// 创建一个临时的歌曲对象用于目录搜索
+			const tempSong = {
+				album: require("path").basename(
+					filePath,
+					require("path").extname(filePath)
+				),
+			};
+			info = await findCoverInDirectory(filePath, tempSong);
+		}
+
+		if (info) {
+			return {
+				success: true,
+				cover: info.data,
+				format: info.format,
+				source: info.source,
+			};
+		} else {
+			return { success: false, error: "未找到封面" };
+		}
+	} catch (err) {
+		console.error("从文件获取封面失败:", err);
+		return { success: false, error: err.message };
+	}
+}
+
+/**
  * 创建封面相关的IPC处理器
  * @returns {{ handlers: Array<{channel:string, handler:Function}>, cleanup: Function }}
  */
@@ -120,6 +162,10 @@ function createCoverHandlers() {
 				coverCache.delete(songId);
 				return await getCover(songId);
 			},
+		},
+		{
+			channel: CHANNELS.GET_COVER_FROM_FILE,
+			handler: (event, filePath) => getCoverFromFile(filePath),
 		},
 	];
 

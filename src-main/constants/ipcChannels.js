@@ -83,6 +83,13 @@ const CHANNELS = {
 	// --- 窗口行为设置 ---
 	SET_CLOSE_BEHAVIOR: "set-close-behavior",
 	GET_CLOSE_BEHAVIOR: "get-close-behavior",
+
+	// --- 直接从文件获取封面 ---
+	GET_COVER_FROM_FILE: "get-cover-from-file",
+
+	// --- 直接从文件获取和更新标签 ---
+	GET_TAGS_FROM_FILE: "get-tags-from-file",
+	UPDATE_TAGS_TO_FILE: "update-tags-to-file",
 };
 
 module.exports = { CHANNELS };

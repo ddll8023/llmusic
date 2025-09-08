@@ -1,14 +1,88 @@
 <script setup>
 import { ref, onMounted, computed, reactive, onUnmounted, nextTick, toRefs, watch } from 'vue';
 import { useMediaStore } from '../../store/media';
-import { usePlayerStore } from '../../store/player';
+import { usePlayerStore, PlayMode } from '../../store/player';
 import SongTable from '../common/SongTable.vue'; // 引入新的SongTable组件
 import TagEditor from '../common/TagEditor.vue'; // 引入TagEditor组件
 import DeleteConfirmDialog from '../common/DeleteConfirmDialog.vue'; // 引入删除确认对话框
-import LocalMusicHeader from '../components/local-music/LocalMusicHeader.vue'; // 引入本地音乐头部组件
+import ContentHeader from '../common/ContentHeader.vue'; // 直接使用 ContentHeader 组件
 
 const mediaStore = useMediaStore();
 const playerStore = usePlayerStore();
+
+// --- 从 LocalMusicHeader 迁移的搜索功能 ---
+const localSearchTerm = ref('');
+
+// 防抖函数
+const debounce = (func, delay) => {
+  let timeout;
+  return (...args) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), delay);
+  };
+};
+
+// 创建防抖版的 setSearchTerm action 调用
+const debouncedSetSearchTerm = debounce((term) => {
+  mediaStore.setSearchTerm(term);
+}, 300);
+
+// 监听本地搜索词的变化，并调用防抖函数
+watch(localSearchTerm, (newTerm) => {
+  debouncedSetSearchTerm(newTerm);
+});
+
+// 处理搜索输入
+const handleSearchInput = (value) => {
+  localSearchTerm.value = value;
+};
+
+// --- 从 LocalMusicHeader 迁移的头部操作功能 ---
+// 头部操作按钮配置
+const headerActions = computed(() => [
+  {
+    key: 'play-all',
+    label: '播放全部',
+    icon: 'play',
+    type: 'primary',
+    disabled: !mediaStore.songs.length
+  }
+]);
+
+// 处理头部操作按钮点击
+const handleHeaderAction = (actionKey) => {
+  if (actionKey === 'play-all') {
+    playAllSongs();
+  }
+};
+
+// 播放全部歌曲
+const playAllSongs = () => {
+  if (!mediaStore.songs.length) {
+    return;
+  }
+
+  // activeLibraryId 为 null 代表"所有音乐"，这是有效的选择
+
+  // 根据当前播放模式确定起始歌曲
+  let songToPlayId;
+
+  if (playerStore.playMode === PlayMode.RANDOM) {
+    // 随机播放模式：随机选择一首歌曲
+    const randomIndex = Math.floor(Math.random() * mediaStore.songs.length);
+    songToPlayId = mediaStore.songs[randomIndex].id;
+  } else {
+    // 顺序播放和单曲循环模式：从第一首开始
+    songToPlayId = mediaStore.songs[0].id;
+  }
+
+  // 播放全部歌曲
+  playerStore.playSongFromList({
+    listId: mediaStore.activeLibraryId ? `library-${mediaStore.activeLibraryId}` : 'library-all',
+    songIds: mediaStore.songs.map(song => song.id),
+    songToPlayId: songToPlayId
+  });
+};
 
 // 排序状态
 const { sortBy, sortDirection } = toRefs(reactive({
@@ -162,6 +236,13 @@ const handleContextMenuAction = async ({ action, song }) => {
 
 // 在组件挂载后加载歌曲
 onMounted(async () => {
+  // 使用setTimeout确保DOM完全加载后再清除焦点
+  setTimeout(() => {
+    if (document.activeElement) {
+      document.activeElement.blur();
+    }
+  }, 100);
+
   await mediaStore.loadSongs();
 
   // 监听媒体库中歌曲播放次数更新事件
@@ -242,7 +323,9 @@ const forceRefreshTable = () => {
 
 <template>
   <div class="main-content">
-    <LocalMusicHeader />
+    <ContentHeader title="本地音乐" :show-search="true" :search-value="mediaStore.searchTerm"
+      search-placeholder="筛选歌曲、专辑或艺术家" :actions="headerActions" @search-input="handleSearchInput"
+      @action-click="handleHeaderAction" />
     <SongTable ref="songTableRef" :songs="sortedSongs" :loading="mediaStore.isLoading" :show-sortable="true"
       :show-play-count="true" :show-action-column="false" :context-menu-type="'main'" :current-list-id="currentListId"
       :empty-text="'暂无歌曲'" :empty-icon="'music'" @play-song="handlePlaySong" @sort-change="handleSortChange"

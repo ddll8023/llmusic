@@ -8,10 +8,7 @@
  */
 
 const { CHANNELS } = require("../../constants/ipcChannels");
-const {
-	getSongById,
-	parseSongFromFile,
-} = require("../data/Database");
+const { getSongById, parseSongFromFile } = require("../data/Database");
 const ffmpeg = require("fluent-ffmpeg");
 const ffmpegPath = require("ffmpeg-static");
 const ffprobePath = require("ffprobe-static").path;
@@ -222,6 +219,87 @@ async function updateSongTags(filePath, tags) {
 }
 
 /**
+ * 直接从文件路径获取标签（不依赖数据库）
+ * @param {string} filePath - 音频文件路径
+ * @returns {Promise<Object>} 标签数据对象
+ */
+async function getTagsFromFile(filePath) {
+	if (!filePath) {
+		return { success: false, error: "文件路径不能为空" };
+	}
+
+	try {
+		const result = await getSongTags(filePath);
+		if (result.success) {
+			return {
+				success: true,
+				filePath,
+				tags: result.tags,
+				format: result.format,
+			};
+		} else {
+			return {
+				success: false,
+				error: result.error,
+				filePath,
+			};
+		}
+	} catch (error) {
+		console.error("从文件获取标签失败:", error);
+		return {
+			success: false,
+			error: error.message,
+			filePath,
+		};
+	}
+}
+
+/**
+ * 直接更新文件的标签（不依赖数据库）
+ * @param {string} filePath - 音频文件路径
+ * @param {Object} tags - 要更新的标签数据
+ * @returns {Promise<Object>} 更新结果
+ */
+async function updateTagsToFile(filePath, tags) {
+	if (!filePath) {
+		return { success: false, error: "文件路径不能为空" };
+	}
+
+	if (!tags || typeof tags !== "object") {
+		return { success: false, error: "标签数据无效" };
+	}
+
+	try {
+		// 验证标签数据
+		const validationResult = validateTagChanges(tags);
+		if (validationResult.errors.length > 0) {
+			return {
+				success: false,
+				error: `标签验证失败: ${validationResult.errors.join(", ")}`,
+				filePath,
+			};
+		}
+
+		// 直接更新文件标签（不通过数据库）
+		const result = await updateSongTags(filePath, tags);
+
+		return {
+			success: result.success,
+			error: result.error,
+			filePath,
+			updatedTags: result.success ? tags : null,
+		};
+	} catch (error) {
+		console.error("更新文件标签失败:", error);
+		return {
+			success: false,
+			error: error.message,
+			filePath,
+		};
+	}
+}
+
+/**
  * 创建标签编辑相关的 IPC 处理器
  * @returns {{ handlers: Array<{channel:string, handler:Function}>, cleanup: Function }}
  */
@@ -372,6 +450,18 @@ function createTagHandlers() {
 						error: error.message,
 					};
 				}
+			},
+		},
+		{
+			channel: CHANNELS.GET_TAGS_FROM_FILE,
+			handler: async (event, filePath) => {
+				return await getTagsFromFile(filePath);
+			},
+		},
+		{
+			channel: CHANNELS.UPDATE_TAGS_TO_FILE,
+			handler: async (event, { filePath, tags }) => {
+				return await updateTagsToFile(filePath, tags);
 			},
 		},
 	];

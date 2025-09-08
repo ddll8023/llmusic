@@ -3,16 +3,7 @@
     <!-- 头部导航 -->
     <div class="discover-header">
       <h2 class="page-title">发现音乐</h2>
-      <div class="header-actions">
-        <CustomButton 
-          type="primary" 
-          size="medium" 
-          icon="search" 
-          @click="openSearchModal"
-        >
-          搜索音乐
-        </CustomButton>
-      </div>
+      <!-- 搜索功能已移除 -->
     </div>
 
     <!-- 推荐内容 -->
@@ -20,13 +11,8 @@
       <div class="section">
         <div class="section-header">
           <h3>推荐歌曲</h3>
-          <CustomButton 
-            type="secondary" 
-            size="small" 
-            icon="refresh" 
-            :loading="discoverStore.loading"
-            @click="discoverStore.refreshRecommendations"
-          >
+          <CustomButton type="secondary" size="small" icon="refresh" :loading="discoverStore.loading"
+            @click="discoverStore.refreshRecommendations">
             刷新
           </CustomButton>
         </div>
@@ -86,10 +72,7 @@ import CustomButton from '../custom/CustomButton.vue';
 const discoverStore = useDiscoverStore();
 const uiStore = useUiStore();
 
-// 打开搜索弹窗
-const openSearchModal = () => {
-  uiStore.openSearchModal();
-};
+// 搜索功能已移除
 
 // 播放歌曲（模拟）
 const playSong = (song) => {
@@ -99,7 +82,6 @@ const playSong = (song) => {
 </script>
 
 <style lang="scss" scoped>
-
 .discover-music {
   height: 100%;
   display: flex;

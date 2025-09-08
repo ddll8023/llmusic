@@ -57,6 +57,8 @@ const API = {
 	cover: {
 		get: (songId) => ipcRenderer.invoke("get-song-cover", songId),
 		forceExtract: (songId) => ipcRenderer.invoke("force-extract-cover", songId),
+		getFromFile: (filePath) =>
+			ipcRenderer.invoke("get-cover-from-file", filePath),
 	},
 
 	// 歌词处理
@@ -138,6 +140,10 @@ const API = {
 			ipcRenderer.invoke("update-song-tags", { songId, tags }),
 		validateTagChanges: (tags) =>
 			ipcRenderer.invoke("validate-tag-changes", tags),
+		getFromFile: (filePath) =>
+			ipcRenderer.invoke("get-tags-from-file", filePath),
+		updateToFile: (filePath, tags) =>
+			ipcRenderer.invoke("update-tags-to-file", { filePath, tags }),
 	},
 
 	// 在线搜索相关
@@ -174,6 +180,7 @@ const compatAPI = {
 	// 封面处理
 	getSongCover: API.cover.get,
 	forceExtractCover: API.cover.forceExtract,
+	getCoverFromFile: API.cover.getFromFile,
 
 	// 歌词处理
 	getLyrics: API.lyrics.get,
@@ -223,6 +230,8 @@ const compatAPI = {
 	getSongTags: API.tags.getSongTags,
 	updateSongTags: API.tags.updateSongTags,
 	validateTagChanges: API.tags.validateTagChanges,
+	getTagsFromFile: API.tags.getFromFile,
+	updateTagsToFile: API.tags.updateToFile,
 
 	// 音乐导入
 	importMusicFiles: API.songs.import,

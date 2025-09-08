@@ -50,15 +50,7 @@
                         </div>
                     </div>
 
-                    <CustomButton
-                        v-if="!playerStore.isAutoScrolling"
-                        type="primary"
-                        size="small"
-                        class="lyric-page__resume-scroll-btn"
-                        @click.stop="resumeAutoScroll"
-                    >
-                        回到当前
-                    </CustomButton>
+
                 </div>
 
                 <div class="lyric-page__controls">
@@ -66,54 +58,24 @@
                         <span>{{ formattedCurrentTime }}</span>
                     </div>
                     <div class="lyric-page__font-size-controls">
-                        <CustomButton
-                            type="secondary"
-                            size="small"
-                            @click="decreaseFontSize"
-                            title="减小字体"
-                        >
+                        <CustomButton type="secondary" size="small" @click="decreaseFontSize" title="减小字体">
                             A-
                         </CustomButton>
-                        <CustomButton
-                            type="secondary"
-                            size="small"
-                            @click="resetFontSize"
-                            title="重置字体"
-                        >
+                        <CustomButton type="secondary" size="small" @click="resetFontSize" title="重置字体">
                             A
                         </CustomButton>
-                        <CustomButton
-                            type="secondary"
-                            size="small"
-                            @click="increaseFontSize"
-                            title="增大字体"
-                        >
+                        <CustomButton type="secondary" size="small" @click="increaseFontSize" title="增大字体">
                             A+
                         </CustomButton>
                     </div>
                     <div class="lyric-page__sync-controls">
-                        <CustomButton
-                            type="secondary"
-                            size="small"
-                            @click="adjustSync(-500)"
-                            title="歌词提前 0.5 秒"
-                        >
+                        <CustomButton type="secondary" size="small" @click="adjustSync(-500)" title="歌词提前 0.5 秒">
                             -0.5s
                         </CustomButton>
-                        <CustomButton
-                            type="secondary"
-                            size="small"
-                            @click="adjustSync(0)"
-                            title="重置同步"
-                        >
+                        <CustomButton type="secondary" size="small" @click="adjustSync(0)" title="重置同步">
                             重置
                         </CustomButton>
-                        <CustomButton
-                            type="secondary"
-                            size="small"
-                            @click="adjustSync(500)"
-                            title="歌词延后 0.5 秒"
-                        >
+                        <CustomButton type="secondary" size="small" @click="adjustSync(500)" title="歌词延后 0.5 秒">
                             +0.5s
                         </CustomButton>
                     </div>
@@ -122,14 +84,8 @@
         </div>
 
         <!-- 返回按钮，放在最左上角 -->
-        <CustomButton
-            type="icon-only"
-            size="medium"
-            icon="arrow-left"
-            class="lyric-page__back-btn"
-            @click="closeLyrics"
-            title="返回"
-        />
+        <CustomButton type="icon-only" size="medium" icon="arrow-left" class="lyric-page__back-btn" @click="closeLyrics"
+            title="返回" />
     </div>
 </template>
 
@@ -332,7 +288,6 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss" scoped>
-
 .lyric-page {
     background-color: $bg-primary;
     color: $text-primary;
@@ -644,14 +599,7 @@ text-align: center;
     background-clip: content-box;
 }
 
-/* 恢复自动滚动按钮 */
-.lyric-page__resume-scroll-btn {
-    position: absolute;
-    bottom: ($content-padding * 1.875);
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 10;
-}
+
 
 /* 字体大小调整 */
 .lyric-page__lyrics.small .lyric-page__lyric-line {
