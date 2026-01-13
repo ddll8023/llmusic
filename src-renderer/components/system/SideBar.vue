@@ -193,43 +193,6 @@ const handleSetLibrary = (libraryId) => {
     line-height: $line-height-base;
 }
 
-// 收缩/展开按钮
-.sidebar__collapse-btn {
-    background: none;
-    border: none;
-    color: $text-secondary;
-    font-size: $font-size-base;
-    font-family: $font-family-base;
-    cursor: pointer;
-    padding: ($content-padding * 0.25);
-    border-radius: 50%;
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all $transition-base;
-
-    &:hover {
-        color: $text-primary;
-        background-color: $overlay-light;
-        transform: scale(1.05);
-    }
-
-    &:active {
-        transform: scale(0.95);
-    }
-
-    &:focus {
-        outline: 2px solid $accent-green;
-        outline-offset: 2px;
-    }
-
-    @include respond-to("sm") {
-        display: flex;
-    }
-}
-
 // 菜单分区
 .sidebar__section {
     margin-bottom: ($content-padding * 1.5);
@@ -367,41 +330,6 @@ const handleSetLibrary = (libraryId) => {
     margin-top: ($content-padding * 0.5);
 }
 
-// 添加歌单按钮
-.sidebar__add-btn {
-    background: none;
-    border: none;
-    color: $text-secondary;
-    font-size: $font-size-base;
-    font-family: $font-family-base;
-    cursor: pointer;
-    padding: 0;
-    width: 20px;
-    height: 20px;
-    line-height: 18px;
-    text-align: center;
-    border-radius: 50%;
-    transition: all $transition-base;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    &:hover {
-        background-color: $bg-tertiary;
-        color: $text-primary;
-        transform: scale(1.1);
-    }
-
-    &:active {
-        transform: scale(0.95);
-    }
-
-    &:focus {
-        outline: 2px solid $accent-green;
-        outline-offset: 2px;
-    }
-}
-
 // 歌单项目样式
 .sidebar__playlist-item {
     position: relative;
@@ -427,36 +355,6 @@ const handleSetLibrary = (libraryId) => {
 
 .sidebar__playlist-item:hover .sidebar__playlist-actions {
     display: flex;
-}
-
-.sidebar__action-btn {
-    background: none;
-    border: none;
-    color: $text-disabled;
-    padding: ($content-padding * 0.125);
-    cursor: pointer;
-    border-radius: 50%;
-    width: 20px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all $transition-base;
-
-    &:hover {
-        background-color: $overlay-light;
-        color: $text-primary;
-        transform: scale(1.1);
-    }
-
-    &:active {
-        transform: scale(0.9);
-    }
-
-    &:focus {
-        outline: 2px solid $accent-green;
-        outline-offset: 2px;
-    }
 }
 
 // 加载中和无歌单提示

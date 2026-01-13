@@ -183,39 +183,6 @@ border-bottom: 1px solid $bg-tertiary;
     }
 }
 
-.close-btn {
-    background: none;
-    border: none;
-    color: $text-secondary;
-    cursor: pointer;
-    padding: ($content-padding * 0.375);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: $border-radius;
-    transition: all $transition-base;
-    min-width: 32px;
-    min-height: 32px;
-
-    &:hover {
-        color: $text-primary;
-        background-color: $overlay-light;
-        transform: scale(1.05);
-    }
-
-    &:active {
-        transform: scale(0.95);
-    }
-
-    @include respond-to("sm") {
-        min-width: 28px;
-        min-height: 28px;
-        padding: ($content-padding * 0.25);
-    }
-}
-
-
-
 .modal-body {
     padding: ($content-padding * 1.25);
 
@@ -349,67 +316,6 @@ border-bottom: 1px solid $bg-tertiary;
     @include respond-to("sm") {
         gap: ($content-padding * 0.5);
         margin-top: $content-padding;
-    }
-}
-
-.btn {
-    padding: ($content-padding * 0.5) ($content-padding * 1.25);
-    border-radius: $border-radius;
-    cursor: pointer;
-    font-size: $font-size-base;
-    border: none;
-    font-weight: $font-weight-medium;
-    transition: all $transition-base;
-    min-width: 80px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    &:active {
-        transform: translateY(1px);
-    }
-
-    @include respond-to("sm") {
-        padding: ($content-padding * 0.375) $content-padding;
-        font-size: $font-size-sm;
-        min-width: 70px;
-    }
-}
-
-.btn--secondary {
-    background-color: transparent;
-    color: $text-secondary;
-    border: 1px solid $bg-tertiary;
-
-    &:hover:not(:disabled) {
-        background-color: $overlay-light;
-        color: $text-primary;
-        border-color: color.adjust($bg-tertiary, $lightness: 10%);
-    }
-}
-
-.btn--primary {
-    background-color: $accent-green;
-    color: $text-primary;
-
-    &:hover:not(:disabled) {
-        background-color: $accent-hover;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba($accent-green, 0.3);
-    }
-
-    &:disabled {
-        background-color: $bg-tertiary;
-        color: $text-disabled;
-        cursor: not-allowed;
-        transform: none;
-        box-shadow: none;
-
-        &:hover {
-            background-color: $bg-tertiary;
-            transform: none;
-            box-shadow: none;
-        }
     }
 }
 

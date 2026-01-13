@@ -236,65 +236,6 @@ watch(() => props.show, (newShow) => {
   justify-content: flex-end;
 }
 
-.cancel-btn,
-.delete-btn {
-  padding: 10px 20px;
-  border-radius: $border-radius;
-  border: none;
-  font-size: $font-size-base;
-  font-weight: $font-weight-medium;
-  cursor: pointer;
-  transition: all $transition-base;
-  min-width: 80px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
-.cancel-btn {
-  background-color: $bg-tertiary;
-  color: $text-primary;
-}
-
-.cancel-btn:hover:not(:disabled) {
-  background-color: $bg-tertiary-hover;
-}
-
-.delete-btn {
-  background-color: $danger;
-  color: white;
-}
-
-.delete-btn:hover:not(:disabled) {
-  background-color: $danger-hover;
-}
-
-.cancel-btn:disabled,
-.delete-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.loading-spinner {
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top: 2px solid white;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
 .error-message {
   margin: 0 $section-padding $section-padding;
   padding: $item-padding;

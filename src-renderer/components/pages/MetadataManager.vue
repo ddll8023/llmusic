@@ -412,8 +412,8 @@ onMounted(async () => {
                     :class="{ 'loading-icon': importStatus === 'importing' }" />
                 <span>{{ importResultMessage || (importStatus === 'importing' ? '正在导入音乐文件...' : '') }}</span>
             </div>
-            <button v-if="importStatus !== 'importing'" class="close-status-btn"
-                @click="importStatus = 'idle'">×</button>
+            <CustomButton v-if="importStatus !== 'importing'" type="icon-only" size="small" icon="times"
+                @click="importStatus = 'idle'" title="关闭" />
         </div>
 
         <div class="metadata-content">
@@ -429,8 +429,8 @@ onMounted(async () => {
             <div class="online-search-panel" v-if="onlineSearchStatus !== 'idle'">
                 <div class="panel-header">
                     <h3>在线元数据搜索结果</h3>
-                    <button class="close-btn"
-                        @click="onlineSearchStatus = 'idle'; currentSearchingSong = null">×</button>
+                    <CustomButton type="icon-only" size="small" icon="times"
+                        @click="onlineSearchStatus = 'idle'; currentSearchingSong = null" title="关闭" />
                 </div>
                 <div class="panel-content">
                     <div v-if="onlineSearchStatus === 'loading'" class="loading-state">
@@ -620,20 +620,6 @@ onMounted(async () => {
     animation: spin 1.5s infinite linear;
 }
 
-.close-status-btn {
-    background: none;
-    border: none;
-    color: $text-primary;
-    font-size: $font-size-lg;
-    cursor: pointer;
-    opacity: 0.7;
-    transition: opacity $transition-fast;
-}
-
-.close-status-btn:hover {
-    opacity: 1;
-}
-
 .metadata-content {
     flex: 1;
     display: flex;
@@ -741,19 +727,6 @@ onMounted(async () => {
 .panel-header h3 {
     margin: 0;
     font-size: $font-size-base;
-}
-
-.close-btn {
-    background: none;
-    border: none;
-    color: $text-secondary;
-    font-size: $font-size-xl;
-    cursor: pointer;
-    transition: color $transition-fast;
-}
-
-.close-btn:hover {
-    color: $text-primary;
 }
 
 .panel-content {
