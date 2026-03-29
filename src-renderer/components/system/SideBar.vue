@@ -131,6 +131,40 @@ const handleSetLibrary = (libraryId) => {
 <style lang="scss" scoped>
 // 样式变量已通过 Vite 自动注入
 
+// ========== 动画关键帧 ==========
+
+// 简化入场动画（仅 opacity，无 transform 避免重排）
+@keyframes sidebarFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+// 活跃指示器滑入动画
+@keyframes activeIndicatorSlide {
+    from {
+        transform: translateY(-50%) scaleX(0);
+    }
+    to {
+        transform: translateY(-50%) scaleX(1);
+    }
+}
+
+// Logo 淡入动画
+@keyframes logoFadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
 .sidebar {
     width: var(--sidebar-width, 250px);
     background-color: $bg-secondary;
@@ -153,7 +187,7 @@ const handleSetLibrary = (libraryId) => {
     }
 }
 
-// 收缩状态下的文字隐藏和过渡效果
+// 文字过渡效果（仅 opacity）
 .sidebar {
 
     .sidebar__text,
@@ -191,6 +225,12 @@ const handleSetLibrary = (libraryId) => {
     font-family: $font-family-base;
     margin: 0;
     line-height: $line-height-base;
+    animation: logoFadeIn 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+
+    .sidebar--collapsed & {
+        animation: none;
+        opacity: 0;
+    }
 }
 
 // 菜单分区
@@ -232,6 +272,32 @@ const handleSetLibrary = (libraryId) => {
     }
 }
 
+// 菜单区域入场动画（简化为淡入）
+.sidebar__section {
+    &:nth-child(2) .sidebar__menu-item {
+        animation: sidebarFadeIn 0.2s ease-out backwards;
+    }
+    &:nth-child(3) .sidebar__menu-item {
+        animation: sidebarFadeIn 0.2s ease-out backwards;
+        animation-delay: 0.03s;
+    }
+    &:nth-child(4) .sidebar__menu-item {
+        animation: sidebarFadeIn 0.2s ease-out backwards;
+        animation-delay: 0.06s;
+    }
+}
+
+// 底部菜单项入场动画
+.sidebar__bottom-item {
+    animation: sidebarFadeIn 0.2s ease-out backwards;
+    animation-delay: 0.09s;
+}
+
+// 歌单项入场（交错淡入）
+.sidebar__playlist-item {
+    animation: sidebarFadeIn 0.2s ease-out backwards;
+}
+
 // 菜单项基础样式
 .sidebar__menu-item {
     display: flex;
@@ -239,7 +305,8 @@ const handleSetLibrary = (libraryId) => {
     padding: ($content-padding * 0.625) ($content-padding * 0.5);
     border-radius: $border-radius;
     cursor: pointer;
-    transition: all $transition-base;
+    // 优化：只过渡必要的属性，避免 box-shadow 触发重排
+    transition: background-color $transition-fast, color $transition-fast, transform 0.15s ease-out;
     white-space: nowrap;
     overflow: hidden;
     font-size: $font-size-base;
@@ -253,28 +320,35 @@ const handleSetLibrary = (libraryId) => {
         padding: ($content-padding * 0.625) ($content-padding * 0.25);
     }
 
-    // FAIcon 样式
+    // FAIcon 样式 - 图标过渡优化
     .fa {
         margin-right: $content-padding;
         flex-shrink: 0;
+        // 只过渡 transform 和 color，避免其他属性触发重排
+        transition: transform 0.15s ease-out, color $transition-fast;
 
         .sidebar--collapsed & {
             margin-right: 0;
         }
     }
 
-    // 交互状态
+    // 交互状态 - 简化 hover 效果
     &:hover {
         background-color: $bg-tertiary;
         color: $text-primary;
-        box-shadow: $box-shadow-hover;
-        transform: translateY(-1px);
+
+        .fa {
+            transform: scale(1.08);
+        }
     }
 
     &:active {
-        transform: scale(0.98) translateY(0);
-        box-shadow: none;
+        transform: scale(0.98);
         background-color: $bg-tertiary-hover;
+
+        .fa {
+            transform: scale(0.96);
+        }
     }
 
     &:focus {
@@ -286,16 +360,21 @@ const handleSetLibrary = (libraryId) => {
         background-color: $bg-tertiary;
         color: $text-primary;
 
+        // 活跃状态图标平滑过渡到绿色
+        .fa {
+            color: $accent-green;
+        }
+
         &::before {
             content: '';
             position: absolute;
             left: 0;
             top: 50%;
-            transform: translateY(-50%);
             width: 3px;
             height: 60%;
             background-color: $accent-green;
             border-radius: 0 $border-radius $border-radius 0;
+            animation: activeIndicatorSlide 0.2s ease-out forwards;
         }
     }
 
@@ -306,8 +385,11 @@ const handleSetLibrary = (libraryId) => {
         &:hover {
             background-color: transparent;
             transform: none;
-            box-shadow: none;
             color: $text-secondary;
+
+            .fa {
+                transform: none;
+            }
         }
     }
 }
@@ -334,6 +416,12 @@ const handleSetLibrary = (libraryId) => {
 .sidebar__playlist-item {
     position: relative;
     padding-right: ($content-padding * 1.875);
+
+    // 悬停显示操作按钮
+    &:hover .sidebar__playlist-actions {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
 .sidebar__playlist-name {
@@ -348,13 +436,12 @@ const handleSetLibrary = (libraryId) => {
 .sidebar__playlist-actions {
     position: absolute;
     right: ($content-padding * 0.5);
-    display: none;
+    display: flex;
     gap: ($content-padding * 0.25);
     align-items: center;
-}
-
-.sidebar__playlist-item:hover .sidebar__playlist-actions {
-    display: flex;
+    opacity: 0;
+    transform: translateX(4px);
+    transition: opacity $transition-fast, transform $transition-fast;
 }
 
 // 加载中和无歌单提示
@@ -469,8 +556,11 @@ const handleSetLibrary = (libraryId) => {
     .sidebar__text,
     .sidebar__logo-title,
     .sidebar__section-title,
-    .sidebar__playlist-name {
+    .sidebar__playlist-name,
+    .sidebar__playlist-item,
+    .sidebar__bottom-item {
         transition: none !important;
+        animation: none !important;
     }
 
     .sidebar__menu-item:hover,
@@ -480,7 +570,8 @@ const handleSetLibrary = (libraryId) => {
         transform: none !important;
     }
 
-    .fa.icon--clickable:active {
+    .fa.icon--clickable:active,
+    .sidebar__menu-item .fa {
         transform: none !important;
     }
 }

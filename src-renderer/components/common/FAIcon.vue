@@ -14,7 +14,7 @@ const props = defineProps({
     color: {
         type: String,
         default: 'primary',
-        validator: (value) => ['primary', 'secondary', 'accent', 'danger'].includes(value)
+        validator: (value) => ['primary', 'secondary', 'accent', 'danger', 'disabled'].includes(value)
     },
     clickable: {
         type: Boolean,
@@ -85,6 +85,10 @@ const iconClasses = computed(() => {
 
 .icon--danger {
     color: $danger;
+}
+
+.icon--disabled {
+    color: $text-disabled;
 }
 
 // 可点击图标样式

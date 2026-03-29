@@ -38,8 +38,8 @@ const props = defineProps({
     // 操作列内容类型
     actionColumnType: {
         type: String,
-        default: 'none', // 'edit', 'metadata', 'none'
-        validator: (value) => ['edit', 'metadata', 'none'].includes(value)
+        default: 'none', // 'edit', 'metadata', 'remove', 'none'
+        validator: (value) => ['edit', 'metadata', 'remove', 'none'].includes(value)
     },
     // 是否显示选择框
     showSelection: {

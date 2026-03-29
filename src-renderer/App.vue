@@ -212,6 +212,12 @@ onUnmounted(() => {
     flex-shrink: 0;
     width: var(--sidebar-width, 250px);
     height: 100%;
+    transition: width 0.25s ease-out, opacity 0.2s ease-out;
+
+    .sidebar-hidden & {
+        width: 0;
+        opacity: 0;
+    }
 }
 
 .content-wrapper {
@@ -263,5 +269,20 @@ onUnmounted(() => {
 .player-bar {
     flex-shrink: 0;
     z-index: $z-player;
+}
+
+// 减少动画模式支持
+@media (prefers-reduced-motion: reduce) {
+    .sidebar-container {
+        transition: none !important;
+
+        .sidebar-hidden & {
+            transform: none !important;
+        }
+    }
+
+    .playlist-container {
+        transition: none !important;
+    }
 }
 </style>
