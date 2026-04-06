@@ -1,0 +1,10 @@
+node_modules
+
+dist
+.idea
+.claude
+CLAUDE.md
+
+python/.conda
+
+src-renderer/dist

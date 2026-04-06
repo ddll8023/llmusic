@@ -3,8 +3,9 @@ import { useMediaStore } from '../../store/media';
 import { usePlayerStore } from '../../store/player';
 import { useUiStore } from '../../store/ui';
 import { ref, onMounted } from 'vue';
-import FAIcon from '../common/FAIcon.vue'; // 修改为FAIcon组件
+import FAIcon from '../common/FAIcon.vue';
 import CustomButton from '../custom/CustomButton.vue';
+import CustomSelect from '../custom/CustomSelect.vue';
 
 const mediaStore = useMediaStore();
 const playerStore = usePlayerStore();
@@ -161,10 +162,15 @@ const setCloseBehavior = async (behavior) => {
       <div class="settings-item">
         <span>歌词页面动画效果</span>
         <div class="select-container">
-          <select :value="uiStore.lyricsAnimationStyle" @change="e => setLyricsAnimation(e.target.value)">
-            <option value="fade">淡入淡出</option>
-            <option value="slide">上滑动画</option>
-          </select>
+          <CustomSelect
+            :model-value="uiStore.lyricsAnimationStyle"
+            :options="[
+              { value: 'fade', label: '淡入淡出' },
+              { value: 'slide', label: '上滑动画' }
+            ]"
+            @change="setLyricsAnimation"
+            @update:model-value="setLyricsAnimation"
+          />
         </div>
       </div>
       <div class="settings-item-description">
@@ -174,10 +180,15 @@ const setCloseBehavior = async (behavior) => {
       <div class="settings-item">
         <span>窗口关闭行为</span>
         <div class="select-container">
-          <select :value="uiStore.closeBehavior" @change="e => setCloseBehavior(e.target.value)">
-            <option value="exit">退出应用</option>
-            <option value="minimize">最小化到托盘</option>
-          </select>
+          <CustomSelect
+            :model-value="uiStore.closeBehavior"
+            :options="[
+              { value: 'exit', label: '退出应用' },
+              { value: 'minimize', label: '最小化到托盘' }
+            ]"
+            @change="setCloseBehavior"
+            @update:model-value="setCloseBehavior"
+          />
         </div>
       </div>
       <div class="settings-item-description">

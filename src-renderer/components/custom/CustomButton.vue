@@ -1,16 +1,27 @@
 <script setup>
-import { computed } from 'vue';
-import FAIcon from '../common/FAIcon.vue';
+/**
+ * CustomButton - 通用按钮组件
+ * 功能描述：支持多种类型(primary/secondary/danger/icon-only)、尺寸(small/medium/large)、
+ *          状态(禁用/加载/圆形)及图标的自定义按钮
+ * 依赖组件：FAIcon
+ * Source: Vue 3 官方文档
+ */
+
+// 1. Vue 官方 API
+import { computed } from 'vue'
+
+// 2. 子组件导入
+import FAIcon from '../common/FAIcon.vue'
 
 // Props定义
 const props = defineProps({
-  // 按钮类型
+  // 按钮类型：primary(主要)/secondary(次要)/danger(危险)/icon-only(仅图标)
   type: {
     type: String,
     default: 'secondary',
     validator: (value) => ['primary', 'secondary', 'danger', 'icon-only'].includes(value)
   },
-  // 按钮尺寸
+  // 按钮尺寸：small(小)/medium(中)/large(大)
   size: {
     type: String,
     default: 'medium',
@@ -21,7 +32,7 @@ const props = defineProps({
     type: String,
     default: ''
   },
-  // 图标尺寸
+  // 图标尺寸：small(小)/medium(中)/large(大)
   iconSize: {
     type: String,
     default: 'medium',
@@ -52,7 +63,7 @@ const props = defineProps({
     type: String,
     default: ''
   }
-});
+})
 
 // 定义事件
 const emit = defineEmits(['click']);
