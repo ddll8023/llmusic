@@ -1,10 +1,21 @@
+*.pyc
+__pycache__/
+
+
 node_modules
+
 
 dist
 .idea
 .claude
 CLAUDE.md
 
-python/.conda
+backend/.conda
+backend/.venv
+backend/app/credential/credential.json
 
-src-renderer/dist
+sys_vue/node_modules
+sys_vue/dist
+sys_electron/node_modules
+sys_electron/dist
+sys_electron/release

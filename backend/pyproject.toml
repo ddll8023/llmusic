@@ -1,0 +1,12 @@
+[project]
+name = "llmusic-backend"
+version = "1.0.0"
+description = "LLMusic backend service"
+requires-python = ">=3.11"
+dependencies = [
+    "flask",
+    "flask-cors",
+    "qqmusic-api-python",
+    "httpx",
+    "asyncio",
+]
