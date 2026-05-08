@@ -810,55 +810,59 @@ const showLyrics = async () => {
 </script>
 
 <template>
-    <div class="player-bar-container" :class="{
-        'has-error': playbackError,
-        'no-song': !playerStore.currentSong
-    }" v-if="playerStore.currentSong">
-        <!-- Song Info -->
-        <div class="song-info">
-            <img :src="coverImage || defaultCoverImage" class="song-cover" :class="{ 'loading': isLoadingCover }"
-                alt="cover" @click="showLyrics" @error="onCoverImageError" title="点击查看歌词" />
-            <div class="song-details">
-                <span class="song-title">{{ playerStore.currentSong.title }}</span>
-                <span class="song-artist">{{ playerStore.currentSong.artist }}</span>
-            </div>
-            <CustomButton type="icon-only" icon="heart" icon-size="medium" :custom-class="'favorite-button'"
-                title="收藏歌曲" />
-        </div>
-
-        <!-- Main Controls -->
-        <div class="main-controls">
-            <div class="top-controls">
-                <CustomButton type="icon-only" :icon="playModeIconName" icon-size="medium" :title="playModeText"
-                    :custom-class="playerStore.playMode !== 'sequence' ? 'is-active' : ''" @click="togglePlayMode" />
-                <CustomButton type="icon-only" icon="step-backward" icon-size="large" title="上一首"
-                    @click="playerStore.playPrevious" />
-                <CustomButton type="icon-only" :icon="playerStore.playing ? 'pause' : 'play'" icon-size="large"
-                    :title="playerStore.playing ? '暂停' : '播放'" :circle="true" custom-class="play-pause-button"
-                    @click="togglePlayPause" />
-                <CustomButton type="icon-only" icon="step-forward" icon-size="large" title="下一首"
-                    @click="playerStore.playNext()" />
-                <CustomButton type="icon-only" icon="list" icon-size="medium" title="播放列表"
-                    :custom-class="uiStore.showPlaylist ? 'is-active' : ''" @click="uiStore.togglePlaylist()" />
-            </div>
-            <div class="progress-section">
-                <span class="time-display">{{ formatTime(playerStore.currentTime) }}</span>
-                <div class="progress-bar-wrapper" @click="setPlayTime" ref="timelineRef">
-                    <div class="progress-bar-fill" :style="{ width: progressPercentage }"></div>
+    <div class="player-bar-container" :class="{ 'has-error': playbackError }">
+        <!-- 有歌曲：正常三栏布局 -->
+        <template v-if="playerStore.currentSong">
+            <div class="song-info">
+                <img :src="coverImage || defaultCoverImage" class="song-cover" :class="{ 'loading': isLoadingCover }"
+                    alt="cover" @click="showLyrics" @error="onCoverImageError" title="点击查看歌词" />
+                <div class="song-details">
+                    <span class="song-title">{{ playerStore.currentSong.title }}</span>
+                    <span class="song-artist">{{ playerStore.currentSong.artist }}</span>
                 </div>
-                <span class="time-display">{{ formatTime(playerStore.currentSong.duration) }}</span>
+                <CustomButton type="icon-only" icon="heart" icon-size="medium" :custom-class="'favorite-button'"
+                    title="收藏歌曲" />
             </div>
-        </div>
 
-        <!-- Volume Control -->
-        <div class="volume-controls">
-            <CustomButton type="icon-only"
-                :icon="(playerStore.muted || playerStore.volume === 0) ? 'volume-off' : 'volume-up'" icon-size="medium"
-                :title="playerStore.muted ? '取消静音' : '静音'" :custom-class="playerStore.muted ? 'is-active' : ''"
-                @click="toggleMute" />
-            <div class="volume-bar-wrapper" ref="volumeRef" @mousedown="startVolumeChange" title="调节音量">
-                <div class="volume-bar-fill" :style="{ width: volumePercentage }"></div>
+            <!-- Main Controls -->
+            <div class="main-controls">
+                <div class="top-controls">
+                    <CustomButton type="icon-only" :icon="playModeIconName" icon-size="medium" :title="playModeText"
+                        :custom-class="playerStore.playMode !== 'sequence' ? 'is-active' : ''" @click="togglePlayMode" />
+                    <CustomButton type="icon-only" icon="step-backward" icon-size="large" title="上一首"
+                        @click="playerStore.playPrevious" />
+                    <CustomButton type="icon-only" :icon="playerStore.playing ? 'pause' : 'play'" icon-size="large"
+                        :title="playerStore.playing ? '暂停' : '播放'" :circle="true" custom-class="play-pause-button"
+                        @click="togglePlayPause" />
+                    <CustomButton type="icon-only" icon="step-forward" icon-size="large" title="下一首"
+                        @click="playerStore.playNext()" />
+                    <CustomButton type="icon-only" icon="list" icon-size="medium" title="播放列表"
+                        :custom-class="uiStore.showPlaylist ? 'is-active' : ''" @click="uiStore.togglePlaylist()" />
+                </div>
+                <div class="progress-section">
+                    <span class="time-display">{{ formatTime(playerStore.currentTime) }}</span>
+                    <div class="progress-bar-wrapper" @click="setPlayTime" ref="timelineRef">
+                        <div class="progress-bar-fill" :style="{ width: progressPercentage }"></div>
+                    </div>
+                    <span class="time-display">{{ formatTime(playerStore.currentSong.duration) }}</span>
+                </div>
             </div>
+
+            <!-- Volume Control -->
+            <div class="volume-controls">
+                <CustomButton type="icon-only"
+                    :icon="(playerStore.muted || playerStore.volume === 0) ? 'volume-off' : 'volume-up'" icon-size="medium"
+                    :title="playerStore.muted ? '取消静音' : '静音'" :custom-class="playerStore.muted ? 'is-active' : ''"
+                    @click="toggleMute" />
+                <div class="volume-bar-wrapper" ref="volumeRef" @mousedown="startVolumeChange" title="调节音量">
+                    <div class="volume-bar-fill" :style="{ width: volumePercentage }"></div>
+                </div>
+            </div>
+        </template>
+
+        <!-- 无歌曲：空状态 -->
+        <div v-else class="empty-state">
+            <span class="empty-state-text">LLMusic</span>
         </div>
     </div>
 </template>
@@ -1191,9 +1195,21 @@ const showLyrics = async () => {
     }
 }
 
-/* 无歌曲状态 */
-.player-bar-container.no-song {
-    opacity: 0.6;
-    pointer-events: none;
+/* 无歌曲空状态 */
+.empty-state {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+.empty-state-text {
+    font-size: $font-size-lg;
+    font-weight: $font-weight-medium;
+    color: $text-secondary;
+    opacity: 0.3;
+    letter-spacing: 4px;
+    user-select: none;
 }
 </style>
