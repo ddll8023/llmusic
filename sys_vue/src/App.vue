@@ -11,6 +11,7 @@ import PlaylistManage from './components/pages/PlaylistManage.vue';
 import TitleBar from './components/system/TitleBar.vue';
 import GlobalScanProgress from './components/system/GlobalScanProgress.vue';
 import LyricPage from './components/pages/LyricPage.vue';
+import DiscoverMusic from './components/pages/DiscoverMusic.vue';
 import { useUiStore } from './store/ui';
 import { usePlaylistStore } from './store/playlist';
 import { usePlayerStore } from './store/player';
@@ -165,6 +166,7 @@ onUnmounted(() => {
             </div>
             <div class="content-wrapper">
                 <MusicLibrary v-if="uiStore.currentView === 'main'" />
+                <DiscoverMusic v-else-if="uiStore.currentView === 'discover'" />
                 <MetadataManager v-else-if="uiStore.currentView === 'metadata'" />
                 <Settings v-else-if="uiStore.currentView === 'settings'" />
                 <PlaylistContent v-else-if="uiStore.currentView === 'playlist'"

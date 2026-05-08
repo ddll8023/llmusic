@@ -77,6 +77,9 @@ const CHANNELS = {
 	// --- 在线搜索 ---
 	SEARCH_ONLINE_METADATA: "search-online-metadata",
 
+	// --- 下载 ---
+	DOWNLOAD_FILE: "download-file",
+
 	// --- 文件路径获取 ---
 	GET_PATH_FOR_FILE: "get-path-for-file",
 

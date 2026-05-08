@@ -1,236 +1,175 @@
 import { defineStore } from "pinia";
-import { ref, computed } from "vue";
-import { mockDiscoverData, mockSearch } from "../utils/mockDiscoverData.js";
+import { ref } from "vue";
+import { searchSongs, getAlbumImages, getSongUrls } from "../api/song.js";
 
 export const useDiscoverStore = defineStore("discover", () => {
-	// 状态
+	// 搜索状态
+	const searchUrl = ref("");
+	const urlType = ref("song");
+	const searchResults = ref([]);
+	const total = ref(0);
+	const page = ref(1);
+	const pageSize = ref(10);
+	const requestId = ref("0");
 	const loading = ref(false);
-	const searchTerm = ref("");
-	const searchResults = ref({
-		songs: [],
-		artists: [],
-		playlists: [],
-	});
-	const searchHistory = ref([]);
-	const currentTab = ref("recommend"); // recommend, search, link-analysis
-	const linkAnalysisResult = ref(null);
-	const linkAnalysisLoading = ref(false);
-	const linkInput = ref("");
+	const errorMsg = ref("");
 
-	// 推荐数据
-	const recommendedSongs = ref(mockDiscoverData.recommendedSongs);
-	const hotPlaylists = ref(mockDiscoverData.hotPlaylists);
-	const hotArtists = ref(mockDiscoverData.hotArtists);
-	const categories = ref(mockDiscoverData.categories);
+	// 下载状态
+	const downloadingIds = ref(new Set());
 
-	// 计算属性
-	const hasSearchResults = computed(() => {
-		return (
-			searchResults.value.songs.length > 0 ||
-			searchResults.value.artists.length > 0 ||
-			searchResults.value.playlists.length > 0
-		);
-	});
+	// 搜索进度（三步串行）
+	const searchStep = ref(""); // "" | "searching" | "covers" | "urls" | "done"
 
-	const isSearching = computed(() => {
-		return searchTerm.value.length > 0;
-	});
-
-	const canAnalyzeLink = computed(() => {
-		// 链接分析功能已被移除
-		return false;
-	});
-
-	// 搜索功能
-	const search = async (keyword, type = "all") => {
-		if (!keyword.trim()) {
-			clearSearch();
-			return;
-		}
+	/**
+	 * 三步串行搜索：搜索 → 封面 → 下载链接
+	 */
+	async function handleSearch() {
+		if (!searchUrl.value.trim()) return;
 
 		loading.value = true;
-		searchTerm.value = keyword;
+		errorMsg.value = "";
+		searchResults.value = [];
+		total.value = 0;
+		const currentRequestId = String(Date.now());
+		requestId.value = currentRequestId;
 
 		try {
-			// 模拟搜索延迟
-			await new Promise((resolve) => setTimeout(resolve, 300));
+			// 步骤 1：搜索歌曲基本信息
+			searchStep.value = "searching";
+			const searchRes = await searchSongs({
+				requestId: currentRequestId,
+				urlType: urlType.value,
+				searchUrl: searchUrl.value.trim(),
+				page: page.value,
+				pageSize: pageSize.value,
+			});
 
-			const results = mockSearch(keyword, type);
-			searchResults.value = results;
+			const songs = searchRes.data.result || [];
+			total.value = searchRes.data.total || 0;
 
-			// 添加到搜索历史
-			addToSearchHistory(keyword);
-		} catch (error) {
-			console.error("搜索失败:", error);
+			if (songs.length === 0) {
+				searchStep.value = "done";
+				return;
+			}
+
+			// 步骤 2：获取专辑封面
+			searchStep.value = "covers";
+			const albumMids = songs
+				.map((s) => s.album?.albumMid)
+				.filter(Boolean);
+			if (albumMids.length > 0) {
+				try {
+					const coverRes = await getAlbumImages(currentRequestId, albumMids);
+					const coverUrls = coverRes.data.result || [];
+					songs.forEach((song, idx) => {
+						if (song.album?.albumMid && coverUrls[idx]) {
+							song.album.albumCoverUrl = coverUrls[idx];
+						}
+					});
+				} catch {
+					// 封面获取失败不阻塞流程
+				}
+			}
+
+			// 步骤 3：获取下载链接
+			searchStep.value = "urls";
+			const songMids = songs.map((s) => s.songMid).filter(Boolean);
+			if (songMids.length > 0) {
+				try {
+					const urlRes = await getSongUrls(currentRequestId, songMids);
+					const urlList = urlRes.data.result || [];
+					songs.forEach((song, idx) => {
+						if (urlList[idx]) {
+							song.songUrl = urlList[idx];
+						}
+					});
+				} catch {
+					// 下载链接获取失败不阻塞流程
+				}
+			}
+
+			searchResults.value = songs;
+			searchStep.value = "done";
+		} catch (e) {
+			errorMsg.value = e.message || "搜索失败";
+			searchStep.value = "";
 		} finally {
 			loading.value = false;
 		}
-	};
+	}
 
-	// 清空搜索
-	const clearSearch = () => {
-		searchTerm.value = "";
-		searchResults.value = {
-			songs: [],
-			artists: [],
-			playlists: [],
+	/**
+	 * 下载单曲
+	 */
+	async function downloadSong(song) {
+		if (!song.songUrl?.url) return;
+		const id = song.songMid || song.songId;
+		downloadingIds.value.add(id);
+
+		try {
+			const ext = song.songUrl.urlType || "mp3";
+			const filename = `${song.songName} - ${song.singer}.${ext}`;
+			const result = await window.electronAPI.downloadFile({
+				url: song.songUrl.url,
+				filename,
+			});
+			return result;
+		} finally {
+			downloadingIds.value.delete(id);
+		}
+	}
+
+	/**
+	 * 批量下载选中的歌曲
+	 */
+	async function batchDownload(songs) {
+		for (const song of songs) {
+			if (song.songUrl?.url) {
+				await downloadSong(song);
+			}
+		}
+	}
+
+	/**
+	 * 切换页码（歌单模式）
+	 */
+	function setPage(n) {
+		page.value = n;
+		handleSearch();
+	}
+
+	/**
+	 * 在线试听 — 返回歌曲信息供 playerStore 使用
+	 */
+	function playOnline(song) {
+		return {
+			songName: song.songName,
+			singer: song.singer,
+			coverUrl: song.album?.albumCoverUrl || "",
+			url: song.songUrl?.url || "",
+			urlType: song.songUrl?.urlType || "mp3",
 		};
-	};
+	}
 
-	// 添加到搜索历史
-	const addToSearchHistory = (keyword) => {
-		const trimmedKeyword = keyword.trim();
-		if (!trimmedKeyword) return;
-
-		// 移除重复项
-		const index = searchHistory.value.indexOf(trimmedKeyword);
-		if (index > -1) {
-			searchHistory.value.splice(index, 1);
-		}
-
-		// 添加到开头
-		searchHistory.value.unshift(trimmedKeyword);
-
-		// 限制历史记录数量
-		if (searchHistory.value.length > 10) {
-			searchHistory.value = searchHistory.value.slice(0, 10);
-		}
-
-		// 保存到本地存储
-		try {
-			localStorage.setItem(
-				"discover_search_history",
-				JSON.stringify(searchHistory.value)
-			);
-		} catch (error) {
-			console.error("保存搜索历史失败:", error);
-		}
-	};
-
-	// 清空搜索历史
-	const clearSearchHistory = () => {
-		searchHistory.value = [];
-		try {
-			localStorage.removeItem("discover_search_history");
-		} catch (error) {
-			console.error("清空搜索历史失败:", error);
-		}
-	};
-
-	// 从搜索历史中删除项目
-	const removeFromSearchHistory = (keyword) => {
-		const index = searchHistory.value.indexOf(keyword);
-		if (index > -1) {
-			searchHistory.value.splice(index, 1);
-			try {
-				localStorage.setItem(
-					"discover_search_history",
-					JSON.stringify(searchHistory.value)
-				);
-			} catch (error) {
-				console.error("更新搜索历史失败:", error);
-			}
-		}
-	};
-
-	// 链接分析功能已被移除
-	const analyzeLink = async (url) => {
-		console.warn("链接分析功能已被移除");
-		return;
-	};
-
-	// 清空链接分析结果
-	const clearLinkAnalysis = () => {
-		linkAnalysisResult.value = null;
-		linkInput.value = "";
-	};
-
-	// 切换标签页
-	const setCurrentTab = (tab) => {
-		currentTab.value = tab;
-
-		// 切换标签时清空相关状态
-		if (tab !== "search") {
-			clearSearch();
-		}
-		if (tab !== "link-analysis") {
-			clearLinkAnalysis();
-		}
-	};
-
-	// 获取推荐歌曲（按分类）
-	const getRecommendedSongsByCategory = (categoryId) => {
-		// 这里可以根据分类过滤歌曲，目前返回所有推荐歌曲
-		return recommendedSongs.value;
-	};
-
-	// 刷新推荐内容
-	const refreshRecommendations = async () => {
-		loading.value = true;
-		try {
-			// 模拟刷新延迟
-			await new Promise((resolve) => setTimeout(resolve, 1000));
-
-			// 这里可以重新获取推荐数据
-			// 目前使用静态数据，可以打乱顺序模拟刷新
-			recommendedSongs.value = [...mockDiscoverData.recommendedSongs].sort(
-				() => Math.random() - 0.5
-			);
-			hotPlaylists.value = [...mockDiscoverData.hotPlaylists].sort(
-				() => Math.random() - 0.5
-			);
-		} catch (error) {
-			console.error("刷新推荐内容失败:", error);
-		} finally {
-			loading.value = false;
-		}
-	};
-
-	// 初始化
-	const init = () => {
-		// 从本地存储加载搜索历史
-		try {
-			const savedHistory = localStorage.getItem("discover_search_history");
-			if (savedHistory) {
-				searchHistory.value = JSON.parse(savedHistory);
-			}
-		} catch (error) {
-			console.error("加载搜索历史失败:", error);
-		}
-	};
-
-	// 返回状态和方法
 	return {
 		// 状态
-		loading,
-		searchTerm,
+		searchUrl,
+		urlType,
 		searchResults,
-		searchHistory,
-		currentTab,
-		linkAnalysisResult,
-		linkAnalysisLoading,
-		linkInput,
-		recommendedSongs,
-		hotPlaylists,
-		hotArtists,
-		categories,
-
-		// 计算属性
-		hasSearchResults,
-		isSearching,
-		canAnalyzeLink,
+		total,
+		page,
+		pageSize,
+		requestId,
+		loading,
+		errorMsg,
+		downloadingIds,
+		searchStep,
 
 		// 方法
-		search,
-		clearSearch,
-		addToSearchHistory,
-		clearSearchHistory,
-		removeFromSearchHistory,
-		analyzeLink,
-		clearLinkAnalysis,
-		setCurrentTab,
-		getRecommendedSongsByCategory,
-		refreshRecommendations,
-		init,
+		handleSearch,
+		downloadSong,
+		batchDownload,
+		setPage,
+		playOnline,
 	};
 });

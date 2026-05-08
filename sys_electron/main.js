@@ -147,7 +147,8 @@ function setupContentSecurityPolicy() {
 			"style-src 'self' 'unsafe-inline' https://rsms.me",
 			"font-src 'self' data: https://rsms.me",
 			"connect-src 'self' http://localhost:* ws://localhost:*",
-			"img-src 'self' data: blob:",
+			"img-src 'self' data: blob: https:",
+			"media-src 'self' https:",
 		].join("; ");
 
 		// 移除已有的CSP头并添加新的

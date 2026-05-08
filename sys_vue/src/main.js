@@ -6,7 +6,10 @@ import "element-plus/dist/index.css";
 // 导入 Font Awesome CSS
 import "font-awesome/css/font-awesome.min.css";
 
-// 导入主样式文件
+// 导入 Tailwind CSS（纯 CSS 入口，由 @tailwindcss/vite 处理）
+import "./styles/tailwind-entry.css";
+
+// 导入主样式文件（SCSS）
 import "./styles/main.scss";
 
 import App from "./App.vue";

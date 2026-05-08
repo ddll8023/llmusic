@@ -1,5 +1,5 @@
-flask_cors
-flask
+fastapi
+uvicorn[standard]
+pydantic-settings
 qqmusic-api-python
 httpx
-asyncio

@@ -5,6 +5,7 @@
 @use "../variables/_typography" as *;
 @use "../variables/_layout" as *;
 
+@layer base {
 // CSS 重置和基础样式
 * {
     margin: 0;
@@ -126,8 +127,6 @@ legend {
     --title-bar-height: #{$title-bar-height};
 }
 
-
-
 // 自定义滚动条
 ::-webkit-scrollbar {
     width: 8px;
@@ -159,4 +158,5 @@ button,
 .song-item,
 .interactive {
     transition: all $transition-base;
+}
 }

@@ -39,8 +39,10 @@ const handleSetLibrary = (libraryId) => {
 
         <div class="sidebar__section">
             <div class="sidebar__section-title"><span class="sidebar__text">在线音乐</span></div>
-            <div class="sidebar__menu-item sidebar__menu-item--disabled">
-                <FAIcon name="compass" size="medium" color="secondary" />
+            <div class="sidebar__menu-item"
+                :class="{ 'is-active': uiStore.currentView === 'discover' }"
+                @click="uiStore.setView('discover')">
+                <FAIcon name="compass" size="medium" color="primary" :clickable="true" />
                 <span class="sidebar__text">发现音乐</span>
             </div>
             <div class="sidebar__menu-item sidebar__menu-item--disabled">

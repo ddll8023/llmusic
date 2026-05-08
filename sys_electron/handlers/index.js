@@ -17,6 +17,9 @@ const { createPlaylistHandlers } = require("./data/playlistHandlers");
 const { createLibraryHandlers } = require("./data/libraryHandlers");
 const { createTagHandlers } = require("./audio/tagHandlers");
 
+// 下载相关处理器
+const { createDownloadHandlers } = require("./download/downloadHandlers");
+
 /**
  * setupIpcHandlers(mainWindow)
  * 调用后注册所有 IPC 处理，并返回一个 disposer() 便于在应用退出时卸载
@@ -41,6 +44,9 @@ function setupIpcHandlers(mainWindow) {
 		createPlaylistHandlers(),
 		createLibraryHandlers(),
 		createTagHandlers(),
+
+		// 下载相关
+		createDownloadHandlers(mainWindow),
 	];
 
 	// 注册

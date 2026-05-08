@@ -2,6 +2,7 @@
 import { useMediaStore } from '../../store/media';
 import { usePlayerStore } from '../../store/player';
 import { useUiStore } from '../../store/ui';
+import { useAuthStore } from '../../store/auth';
 import { ref, onMounted } from 'vue';
 import FAIcon from '../common/FAIcon.vue';
 import CustomButton from '../custom/CustomButton.vue';
@@ -10,6 +11,7 @@ import CustomSelect from '../custom/CustomSelect.vue';
 const mediaStore = useMediaStore();
 const playerStore = usePlayerStore();
 const uiStore = useUiStore();
+const authStore = useAuthStore();
 
 // --- 音乐库管理 State ---
 const showEditLibraryModal = ref(false);
@@ -22,12 +24,16 @@ const confirmModalTitle = ref("");
 const confirmModalMessage = ref("");
 const confirmAction = ref(null);
 
+// --- 登录弹窗 State ---
+const showLoginModal = ref(false);
+
 const showInfoModal = ref(false);
 const infoModalTitle = ref("");
 const infoModalMessage = ref("");
 
 onMounted(() => {
   mediaStore.loadLibraries();
+  authStore.initAuth();
 });
 
 
@@ -116,6 +122,31 @@ const setCloseBehavior = async (behavior) => {
     showInfoModal.value = true;
   }
 };
+
+
+// --- 登录相关 Actions ---
+const handleOpenLoginModal = () => {
+  authStore.resetQRState();
+  showLoginModal.value = true;
+};
+
+const handleCloseLoginModal = () => {
+  authStore.resetQRState();
+  showLoginModal.value = false;
+};
+
+const handleLogin = (type) => {
+  authStore.startQRLogin(type);
+};
+
+const handleLogout = () => {
+  confirmModalTitle.value = "退出登录";
+  confirmModalMessage.value = "确定要退出 QQ 音乐账号吗？退出后将无法使用在线音乐功能。";
+  confirmAction.value = async () => {
+    await authStore.logout();
+  };
+  showConfirmModal.value = true;
+};
 </script>
 
 <template>
@@ -154,6 +185,37 @@ const setCloseBehavior = async (behavior) => {
           <FAIcon name="plus" size="xl" color="secondary" />
           <span>添加新库</span>
         </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h3>账号</h3>
+      <div v-if="authStore.isLoggedIn" class="settings-item">
+        <div class="user-info">
+          <FAIcon name="user" size="xl" color="secondary" />
+          <div class="user-detail">
+            <span class="user-name">QQ 音乐用户</span>
+            <span class="user-id">ID: {{ authStore.userInfo.encrypt_uin }}</span>
+          </div>
+          <span v-if="authStore.isExpired" class="credential-expired">凭证已过期</span>
+        </div>
+        <div class="user-actions">
+          <CustomButton v-if="authStore.isExpired" type="primary" size="medium" @click="handleOpenLoginModal">
+            重新登录
+          </CustomButton>
+          <CustomButton type="danger" size="medium" @click="handleLogout">
+            退出登录
+          </CustomButton>
+        </div>
+      </div>
+      <div v-else class="settings-item">
+        <span>未登录 QQ 音乐</span>
+        <CustomButton type="primary" size="medium" @click="handleOpenLoginModal">
+          登录
+        </CustomButton>
+      </div>
+      <div class="settings-item-description">
+        登录后可使用在线搜索、试听和下载功能。
       </div>
     </div>
 
@@ -233,6 +295,57 @@ const setCloseBehavior = async (behavior) => {
           <p class="final-message">{{ infoModalMessage }}</p>
           <div class="modal-buttons">
             <CustomButton type="primary" @click="closeInfoModal">确定</CustomButton>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 登录弹窗 -->
+    <div class="modal-overlay" v-if="showLoginModal">
+      <div class="modal">
+        <div class="modal-content login-modal">
+          <h3>QQ 音乐登录</h3>
+
+          <!-- 选择登录方式 -->
+          <div v-if="!authStore.qrCodeBase64 && authStore.qrStatus !== 'loading'" class="login-options">
+            <p class="login-hint">请选择登录方式</p>
+            <div class="login-buttons">
+              <CustomButton type="primary" @click="handleLogin('qq')">
+                QQ 登录
+              </CustomButton>
+              <CustomButton type="secondary" @click="handleLogin('wx')">
+                微信登录
+              </CustomButton>
+            </div>
+          </div>
+
+          <!-- 加载中 -->
+          <div v-else-if="authStore.qrStatus === 'loading'" class="qr-loading">
+            <i class="fa fa-spinner fa-spin"></i>
+            <p>正在获取二维码...</p>
+          </div>
+
+          <!-- 显示二维码 -->
+          <div v-else class="qr-container">
+            <img :src="'data:image/png;base64,' + authStore.qrCodeBase64" class="qr-image" />
+            <p class="qr-hint">
+              <span v-if="authStore.qrStatus === 'waiting'">请使用{{ authStore.loginType === 'qq' ? 'QQ' : '微信' }}扫描二维码</span>
+              <span v-else-if="authStore.qrStatus === 'scanned'" class="qr-success">扫描成功，请在手机上确认</span>
+              <span v-else-if="authStore.qrStatus === 'confirmed'" class="qr-success">已确认，正在登录...</span>
+              <span v-else-if="authStore.qrStatus === 'done'" class="qr-success">登录成功！</span>
+              <span v-else-if="authStore.qrStatus === 'expired'" class="qr-fail">
+                二维码已过期
+                <a class="qr-action" @click="handleLogin(authStore.loginType)">点击刷新</a>
+              </span>
+              <span v-else-if="authStore.qrStatus === 'error'" class="qr-fail">
+                {{ authStore.qrMessage || '登录失败' }}
+                <a class="qr-action" @click="handleLogin(authStore.loginType)">重试</a>
+              </span>
+            </p>
+          </div>
+
+          <div class="modal-buttons">
+            <CustomButton type="secondary" @click="handleCloseLoginModal">关闭</CustomButton>
           </div>
         </div>
       </div>
@@ -693,5 +806,108 @@ const setCloseBehavior = async (behavior) => {
   .add-library-card:hover {
     transform: none;
   }
+}
+
+// 登录相关样式
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: ($content-padding * 0.75);
+
+  .user-detail {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .user-name {
+    font-size: $font-size-sm;
+    color: $text-primary;
+    font-weight: $font-weight-medium;
+  }
+
+  .user-id {
+    font-size: $font-size-xs;
+    color: $text-secondary;
+  }
+
+  .credential-expired {
+    font-size: $font-size-xs;
+    color: $danger;
+    margin-left: ($content-padding * 0.5);
+  }
+}
+
+.user-actions {
+  display: flex;
+  gap: ($content-padding * 0.5);
+}
+
+.login-modal {
+  max-width: 380px !important;
+}
+
+.login-options {
+  text-align: center;
+  padding: $content-padding 0;
+
+  .login-hint {
+    color: $text-secondary;
+    margin-bottom: ($content-padding * 1.25);
+  }
+
+  .login-buttons {
+    display: flex;
+    gap: $content-padding;
+    justify-content: center;
+  }
+}
+
+.qr-loading {
+  text-align: center;
+  padding: ($content-padding * 2) 0;
+
+  i {
+    font-size: $font-size-xxl;
+    color: $text-secondary;
+  }
+
+  p {
+    margin-top: $content-padding;
+    color: $text-secondary;
+  }
+}
+
+.qr-container {
+  text-align: center;
+  padding: $content-padding 0;
+
+  .qr-image {
+    width: 200px;
+    height: 200px;
+    border-radius: $border-radius;
+    border: 1px solid $bg-tertiary;
+    background-color: #fff;
+  }
+
+  .qr-hint {
+    margin-top: ($content-padding * 1.25);
+    font-size: $font-size-sm;
+    color: $text-secondary;
+  }
+}
+
+.qr-success {
+  color: $accent-green;
+}
+
+.qr-fail {
+  color: $danger;
+}
+
+.qr-action {
+  color: $accent-green;
+  cursor: pointer;
+  text-decoration: underline;
+  margin-left: 4px;
 }
 </style>

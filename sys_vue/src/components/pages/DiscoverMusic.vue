@@ -1,467 +1,132 @@
 <template>
-  <div class="discover-music">
-    <!-- 头部导航 -->
-    <div class="discover-header">
-      <h2 class="page-title">发现音乐</h2>
-      <!-- 搜索功能已移除 -->
-    </div>
+		<div class="flex flex-col h-full bg-surface-base">
+			<!-- 搜索栏 -->
+			<header class="flex-shrink-0 bg-surface-elevated border-b border-line-base px-6 py-4">
+				<h1 class="text-xl font-semibold text-content-base mb-3">发现音乐</h1>
+				<div class="flex items-center gap-3">
+					<select v-model="discoverStore.urlType"
+						class="px-3 py-2 text-sm border border-line-light rounded-lg bg-surface-overlay text-content-secondary focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+						<option value="song">歌曲链接</option>
+						<option value="playlist">歌单链接</option>
+					</select>
+					<input v-model="discoverStore.searchUrl" type="text" placeholder="粘贴 QQ 音乐分享链接..."
+						class="flex-1 px-4 py-2 text-sm border border-line-light rounded-lg bg-surface-overlay text-content-base placeholder-content-disabled focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+						@keyup.enter="discoverStore.handleSearch" />
+					<button
+						class="px-5 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-surface-base"
+						:disabled="discoverStore.loading || !discoverStore.searchUrl.trim()"
+						@click="discoverStore.handleSearch">
+						<i v-if="discoverStore.loading" class="fa fa-spinner fa-spin mr-1" aria-hidden="true"></i>
+						<i v-else class="fa fa-search mr-1" aria-hidden="true"></i>
+						搜索
+					</button>
+				</div>
+			</header>
 
-    <!-- 推荐内容 -->
-    <div class="recommend-content">
-      <div class="section">
-        <div class="section-header">
-          <h3>推荐歌曲</h3>
-          <CustomButton type="secondary" size="small" icon="refresh" :loading="discoverStore.loading"
-            @click="discoverStore.refreshRecommendations">
-            刷新
-          </CustomButton>
-        </div>
-        <div class="song-grid">
-          <div v-for="song in discoverStore.recommendedSongs" :key="song.id"
-            class="song-card card interactive hover-lift" @click="playSong(song)">
-            <div class="song-cover">
-              <img :src="song.cover" :alt="song.title" />
-              <div class="play-overlay">
-                <FAIcon name="play" size="large" color="primary" />
-              </div>
-            </div>
-            <div class="song-info">
-              <div class="song-title">{{ song.title }}</div>
-              <div class="song-artist">{{ song.artist }}</div>
-              <div class="song-meta">
-                <span class="platform">{{ song.platform }}</span>
-                <span class="play-count">{{ formatPlayCount(song.playCount) }}次播放</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+			<!-- 搜索进度 / 错误提示 -->
+			<div v-if="discoverStore.loading || discoverStore.errorMsg" class="flex-shrink-0 px-6 py-2">
+				<!-- 进度提示 -->
+				<div v-if="discoverStore.loading && !discoverStore.errorMsg"
+					class="flex items-center gap-2 text-sm text-primary-400">
+					<i class="fa fa-spinner fa-spin" aria-hidden="true"></i>
+					<span>{{ stepText }}</span>
+				</div>
+				<!-- 错误提示 -->
+				<div v-if="discoverStore.errorMsg"
+					class="flex items-center gap-2 text-sm text-accent-danger bg-accent-danger/10 border border-accent-danger/30 rounded-lg px-3 py-2">
+					<i class="fa fa-exclamation-circle" aria-hidden="true"></i>
+					<span>{{ discoverStore.errorMsg }}</span>
+				</div>
+			</div>
 
-      <div class="section">
-        <h3>热门歌单</h3>
-        <div class="playlist-grid">
-          <div v-for="playlist in discoverStore.hotPlaylists" :key="playlist.id"
-            class="playlist-card card interactive hover-lift">
-            <div class="playlist-cover">
-              <img :src="playlist.cover" :alt="playlist.name" />
-              <div class="playlist-info-overlay">
-                <FAIcon name="list" size="small" color="primary" />
-                <span>{{ playlist.songCount }}首</span>
-              </div>
-            </div>
-            <div class="playlist-info">
-              <div class="playlist-name">{{ playlist.name }}</div>
-              <div class="playlist-creator">by {{ playlist.creator }}</div>
-              <div class="playlist-play-count">{{ formatPlayCount(playlist.playCount) }}次播放</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
+			<!-- 搜索结果表格 -->
+			<main class="flex-1 overflow-hidden flex flex-col">
+				<OnlineSongTable :songs="discoverStore.searchResults"
+					:start-index="(discoverStore.page - 1) * discoverStore.pageSize + 1"
+					:downloading-ids="discoverStore.downloadingIds"
+					@play="handlePlay"
+					@download="handleDownload"
+					@batch-download="handleBatchDownload" />
+			</main>
+
+			<!-- 分页控件 -->
+			<footer v-if="discoverStore.total > discoverStore.pageSize"
+				class="flex-shrink-0 flex items-center justify-center gap-2 px-6 py-3 bg-surface-elevated border-t border-line-base">
+				<button
+					class="px-3 py-1.5 text-sm border border-line-light rounded hover:bg-surface-overlay transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-content-secondary"
+					:disabled="discoverStore.page <= 1"
+					@click="discoverStore.setPage(discoverStore.page - 1)">
+					<i class="fa fa-chevron-left" aria-hidden="true"></i>
+				</button>
+				<button v-for="p in visiblePages" :key="p"
+					class="px-3 py-1.5 text-sm rounded transition-colors"
+					:class="p === discoverStore.page
+						? 'bg-primary-600 text-white'
+						: 'border border-line-light text-content-secondary hover:bg-surface-overlay'"
+					@click="discoverStore.setPage(p)">
+					{{ p }}
+				</button>
+				<button
+					class="px-3 py-1.5 text-sm border border-line-light rounded hover:bg-surface-overlay transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-content-secondary"
+					:disabled="discoverStore.page >= totalPages"
+					@click="discoverStore.setPage(discoverStore.page + 1)">
+					<i class="fa fa-chevron-right" aria-hidden="true"></i>
+				</button>
+				<span class="text-xs text-content-disabled ml-2">共 {{ discoverStore.total }} 首</span>
+			</footer>
+		</div>
+	</template>
 
 <script setup>
-import { ref } from 'vue';
-import { useDiscoverStore } from '../../store/discover.js';
-import { useUiStore } from '../../store/ui.js';
-import { formatPlayCount } from '../../utils/mockDiscoverData.js';
-import FAIcon from '../common/FAIcon.vue';
-import CustomButton from '../custom/CustomButton.vue';
+/**
+ * DiscoverMusic
+ * 搜索下载主页面
+ * 依赖组件：OnlineSongTable
+ */
+import { computed } from 'vue'
+import { useDiscoverStore } from '../../store/discover.js'
+import { usePlayerStore } from '../../store/player.js'
+import OnlineSongTable from '../business/OnlineSongTable.vue'
 
-const discoverStore = useDiscoverStore();
-const uiStore = useUiStore();
+const discoverStore = useDiscoverStore()
+const playerStore = usePlayerStore()
 
-// 搜索功能已移除
+const stepTextMap = {
+	searching: '正在搜索歌曲...',
+	covers: '正在加载封面...',
+	urls: '正在获取下载链接...',
+	done: '搜索完成',
+}
 
-// 播放歌曲（模拟）
-const playSong = (song) => {
-  console.log('播放歌曲:', song);
-  alert(`模拟播放: ${song.title} - ${song.artist}`);
-};
+const stepText = computed(() => stepTextMap[discoverStore.searchStep] || '')
+
+const totalPages = computed(() => Math.ceil(discoverStore.total / discoverStore.pageSize))
+
+const visiblePages = computed(() => {
+	const total = totalPages.value
+	const current = discoverStore.page
+	if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+	const pages = []
+	pages.push(1)
+	const start = Math.max(2, current - 1)
+	const end = Math.min(total - 1, current + 1)
+	if (start > 2) pages.push('...')
+	for (let i = start; i <= end; i++) pages.push(i)
+	if (end < total - 1) pages.push('...')
+	pages.push(total)
+	return pages
+})
+
+function handlePlay(song) {
+	const info = discoverStore.playOnline(song)
+	playerStore.playOnlineSong(info)
+}
+
+async function handleDownload(song) {
+	await discoverStore.downloadSong(song)
+}
+
+async function handleBatchDownload(songs) {
+	await discoverStore.batchDownload(songs)
+}
 </script>
-
-<style lang="scss" scoped>
-.discover-music {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  background-color: $bg-primary;
-  color: $text-primary;
-}
-
-.discover-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: $content-padding;
-  border-bottom: 1px solid $bg-tertiary;
-
-  @include respond-to("sm") {
-    padding: $content-padding / 2;
-    flex-direction: column;
-    gap: $item-padding;
-    align-items: stretch;
-  }
-}
-
-.page-title {
-  font-size: $font-size-xl;
-  font-weight: $font-weight-medium;
-  margin: 0;
-  color: $text-primary;
-
-  @include respond-to("sm") {
-    font-size: $font-size-lg;
-    text-align: center;
-  }
-}
-
-.header-actions {
-  display: flex;
-  gap: $item-padding;
-
-  @include respond-to("sm") {
-    justify-content: center;
-  }
-}
-
-
-/* 推荐内容样式 */
-.recommend-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: $content-padding;
-
-  @include respond-to("sm") {
-    padding: $content-padding / 2;
-  }
-}
-
-.section {
-  margin-bottom: $content-padding * 2;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
-
-  @include respond-to("sm") {
-    margin-bottom: $content-padding;
-  }
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: $content-padding;
-
-  @include respond-to("sm") {
-    flex-direction: column;
-    gap: $item-padding;
-    align-items: stretch;
-  }
-}
-
-.section h3 {
-  font-size: $font-size-lg;
-  font-weight: $font-weight-medium;
-  margin: 0;
-  color: $text-primary;
-
-  @include respond-to("sm") {
-    font-size: $font-size-base;
-    text-align: center;
-  }
-}
-
-
-
-.song-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: $content-padding;
-
-  @include respond-to("sm") {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: $item-padding;
-  }
-}
-
-.song-card {
-  background-color: $bg-secondary;
-  border-radius: $border-radius;
-  padding: $content-padding;
-  cursor: pointer;
-  transition: all $transition-base;
-  border: 1px solid transparent;
-
-  &:hover {
-    background-color: $bg-tertiary;
-    border-color: $overlay-light;
-    box-shadow: $box-shadow-hover;
-  }
-
-  &:active {
-    transform: scale(0.98);
-  }
-
-  @include respond-to("sm") {
-    padding: $item-padding;
-  }
-}
-
-.song-cover {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 1;
-  border-radius: $border-radius;
-  overflow: hidden;
-  margin-bottom: $item-padding;
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform $transition-base;
-  }
-}
-
-.play-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: $overlay-dark;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity $transition-base;
-
-  :deep(svg) {
-    width: 32px;
-    height: 32px;
-    fill: $text-primary;
-
-    @include respond-to("sm") {
-      width: 24px;
-      height: 24px;
-    }
-  }
-}
-
-.song-card:hover {
-  .play-overlay {
-    opacity: 1;
-  }
-
-  .song-cover img {
-    transform: scale(1.05);
-  }
-}
-
-.song-info {
-  text-align: left;
-}
-
-.song-title {
-  font-weight: $font-weight-medium;
-  font-size: $font-size-base;
-  color: $text-primary;
-  margin-bottom: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-
-  @include respond-to("sm") {
-    font-size: $font-size-sm;
-  }
-}
-
-.song-artist {
-  color: $text-secondary;
-  font-size: $font-size-sm;
-  margin-bottom: 8px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-
-  @include respond-to("sm") {
-    font-size: $font-size-xs;
-    margin-bottom: 6px;
-  }
-}
-
-.song-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: $font-size-xs;
-  color: $text-disabled;
-
-  @include respond-to("sm") {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
-  }
-}
-
-.platform {
-  background-color: $accent-green;
-  color: $text-primary;
-  padding: 2px 6px;
-  border-radius: 10px;
-  font-size: 10px;
-  font-weight: $font-weight-medium;
-}
-
-.playlist-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: $content-padding;
-
-  @include respond-to("sm") {
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: $item-padding;
-  }
-}
-
-.playlist-card {
-  background-color: $bg-secondary;
-  border-radius: $border-radius;
-  padding: $content-padding;
-  cursor: pointer;
-  transition: all $transition-base;
-  border: 1px solid transparent;
-
-  &:hover {
-    background-color: $bg-tertiary;
-    border-color: $overlay-light;
-    box-shadow: $box-shadow-hover;
-  }
-
-  &:active {
-    transform: scale(0.98);
-  }
-
-  @include respond-to("sm") {
-    padding: $item-padding;
-  }
-}
-
-.playlist-cover {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 1;
-  border-radius: $border-radius;
-  overflow: hidden;
-  margin-bottom: $item-padding;
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform $transition-base;
-  }
-}
-
-.playlist-info-overlay {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
-  background-color: $overlay-dark;
-  color: $text-primary;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: $font-size-xs;
-  font-weight: $font-weight-medium;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-
-  :deep(svg) {
-    width: 12px;
-    height: 12px;
-    fill: currentColor;
-  }
-}
-
-.playlist-card:hover .playlist-cover img {
-  transform: scale(1.05);
-}
-
-.playlist-info {
-  text-align: left;
-}
-
-.playlist-name {
-  font-weight: $font-weight-medium;
-  font-size: $font-size-base;
-  color: $text-primary;
-  margin-bottom: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-
-  @include respond-to("sm") {
-    font-size: $font-size-sm;
-  }
-}
-
-.playlist-creator {
-  color: $text-secondary;
-  font-size: $font-size-sm;
-  margin-bottom: 4px;
-
-  @include respond-to("sm") {
-    font-size: $font-size-xs;
-  }
-}
-
-.playlist-play-count {
-  color: $text-disabled;
-  font-size: $font-size-xs;
-}
-
-/* 加载状态优化 */
-@keyframes pulse {
-
-  0%,
-  100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.5;
-  }
-}
-
-.loading-shimmer {
-  animation: pulse 1.5s ease-in-out infinite;
-}
-
-/* 空状态样式 */
-.empty-state {
-  text-align: center;
-  padding: $content-padding * 2;
-  color: $text-secondary;
-
-  .empty-icon {
-    font-size: 48px;
-    margin-bottom: $content-padding;
-    color: $text-disabled;
-  }
-
-  .empty-text {
-    font-size: $font-size-lg;
-    margin-bottom: $item-padding;
-  }
-
-  .empty-subtitle {
-    font-size: $font-size-sm;
-    color: $text-disabled;
-  }
-}
-</style>

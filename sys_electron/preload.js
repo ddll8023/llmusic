@@ -151,6 +151,11 @@ const API = {
 		searchMetadata: (searchParams) =>
 			ipcRenderer.invoke("search-online-metadata", searchParams),
 	},
+
+	// 下载相关
+	download: {
+		saveFile: (options) => ipcRenderer.invoke("download-file", options),
+	},
 };
 
 // 创建扁平化API结构以保持向后兼容性
@@ -241,6 +246,9 @@ const compatAPI = {
 
 	// 在线搜索
 	searchOnlineMetadata: API.online.searchMetadata,
+
+	// 文件下载
+	downloadFile: API.download.saveFile,
 };
 
 // 安全地暴露主进程的API给渲染进程

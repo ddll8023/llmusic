@@ -348,7 +348,7 @@ const togglePlayPause = async () => {
         playerStore.setPlaying(false);
         return;
     }
-    initAudioContext();
+    if (!playerStore.isOnlineSong) initAudioContext();
     const targetState = !playerStore.playing;
     playerStore.setPlaying(targetState);
 };
@@ -455,8 +455,14 @@ watch(
         if (newSong && newSong.id !== (oldSong ? oldSong.id : null)) {
             playbackError.value = null;
             resetAudioPlayer();
-            loadSongCover(newSong.id);
-            window.electronAPI.playerPlay({ filePath: newSong.filePath });
+
+            // 在线试听：设置封面 URL，跳过本地播放
+            if (playerStore.isOnlineSong) {
+                coverImage.value = window._onlineCoverUrl || null;
+            } else {
+                loadSongCover(newSong.id);
+                window.electronAPI.playerPlay({ filePath: newSong.filePath });
+            }
 
             // 更新媒体会话元数据
             updateMediaSessionMetadata();
@@ -477,6 +483,9 @@ watch(
             resetAudioPlayer();
             return;
         }
+
+        // 在线歌曲由 HTML5 Audio 控制，跳过 Web Audio 操作
+        if (playerStore.isOnlineSong) return;
 
         if (isPlaying) {
             initAudioContext();

@@ -1,22 +1,46 @@
-from flask import Flask
-from flask_cors import CORS
-from app.api.song import song_bp
+"""FastAPI 应用入口"""
+import uvicorn
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from app.api.auth import router as auth_router
+from app.api.song import router as song_router
+from app.core.config import settings
+from app.schemas.common import ErrorCode
+from app.schemas.response import error
+
+app = FastAPI(title="LLMusic API", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.APP_CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(song_router, prefix="/api/v1/song")
+app.include_router(auth_router, prefix="/api/v1/auth")
 
 
-app = Flask(__name__)
-# 跨域配置
-CORS(
-    app,
-    origins=["http://localhost:9753"],  # 明确允许 Vite 开发服务器
-    supports_credentials=True,  # 允许携带凭证
-    allow_headers=["Content-Type", "Authorization", "token"],  # 允许的请求头
-    methods=["GET", "POST", "OPTIONS"],  # 明确允许OPTIONS预检请求
-    expose_headers=["Content-Type", "Access-Control-Allow-Origin"],
-)  # 预检请求缓存时间，减少OPTIONS请求次数
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 
-app.register_blueprint(song_bp)
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content=error(code=ErrorCode.INTERNAL_ERROR, message="系统内部错误"),
+    )
 
 
 if __name__ == "__main__":
-    app.run(port=8080, debug=True)
+    uvicorn.run(
+        "app.main:app",
+        host=settings.APP_HOST,
+        port=settings.APP_PORT,
+        reload=True,
+    )

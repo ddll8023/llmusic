@@ -43,6 +43,8 @@ export const usePlayerStore = defineStore("player", {
 		// 播放次数统计相关
 		accumulatedPlayTime: 0, // 当前歌曲已累积播放时间（秒）
 		hasBeenCounted: false, // 当前歌曲是否已完成播放计数
+		// 在线试听相关
+		isOnlineSong: false, // 是否是在线歌曲
 	}),
 
 	getters: {
@@ -159,6 +161,11 @@ export const usePlayerStore = defineStore("player", {
 		playSong(song) {
 			if (!song) return;
 
+
+			// 停止在线试听（如果正在播放）
+			this._stopOnlineAudio();
+			this.isOnlineSong = false;
+
 			this.currentTime = 0; // 重置播放时间
 			this.accumulatedPlayTime = 0; // 重置累积播放时间
 			this.hasBeenCounted = false; // 重置计数标记
@@ -202,6 +209,15 @@ export const usePlayerStore = defineStore("player", {
 		setPlaying(isPlaying) {
 			this.playing = isPlaying;
 
+			// 在线歌曲：控制 HTML5 Audio
+			if (this.isOnlineSong && window._onlineAudio) {
+				if (isPlaying) {
+					window._onlineAudio.play().catch(() => {});
+				} else {
+					window._onlineAudio.pause();
+				}
+			}
+
 			// 更新媒体会话播放状态
 			if ("mediaSession" in navigator) {
 				navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
@@ -212,12 +228,23 @@ export const usePlayerStore = defineStore("player", {
 		togglePlay() {
 			if (this.currentSong) {
 				this.playing = !this.playing;
+				// 在线歌曲：控制 HTML5 Audio
+				if (this.isOnlineSong && window._onlineAudio) {
+					if (this.playing) {
+						window._onlineAudio.play().catch(() => {});
+					} else {
+						window._onlineAudio.pause();
+					}
+				}
 			}
 		},
 
 		// 暂停播放
 		pause() {
 			this.playing = false;
+			if (this.isOnlineSong && window._onlineAudio) {
+				window._onlineAudio.pause();
+			}
 		},
 
 		// 增加当前歌曲的播放次数
@@ -651,17 +678,26 @@ export const usePlayerStore = defineStore("player", {
 		// 设置音量
 		setVolume(volume) {
 			this.volume = Math.max(0, Math.min(1, volume));
+			if (window._onlineAudio) {
+				window._onlineAudio.volume = this.muted ? 0 : this.volume;
+			}
 			this.savePlayerState(); // 保存状态变更
 		},
 
 		// 切换静音
 		toggleMute() {
 			this.muted = !this.muted;
+			if (window._onlineAudio) {
+				window._onlineAudio.volume = this.muted ? 0 : this.volume;
+			}
 		},
 
 		// 设置静音状态
 		setMuted(muted) {
 			this.muted = muted;
+			if (window._onlineAudio) {
+				window._onlineAudio.volume = this.muted ? 0 : this.volume;
+			}
 			this.savePlayerState(); // 保存状态变更
 		},
 
@@ -1163,6 +1199,92 @@ export const usePlayerStore = defineStore("player", {
 			this.isAutoScrolling = isAuto;
 		},
 
+		// 在线试听：播放在线歌曲（HTML5 Audio API）
+		playOnlineSong({ songName, singer, coverUrl, url, urlType }) {
+			if (!url) return;
+
+			// 停止本地播放
+			if (window.sourceNode) {
+				try {
+					window.sourceNode.onended = null;
+					if (window.isAudioPlaying) {
+						window.sourceNode.stop();
+					}
+				} catch (e) {}
+				window.sourceNode = null;
+				window.isAudioPlaying = false;
+			}
+			try { window.electronAPI.playerStop(); } catch (e) {}
+
+			// 停止之前的在线音频
+			this._stopOnlineAudio();
+
+			// 创建新的 HTML5 Audio
+			const audio = new Audio(url);
+			audio.volume = this.muted ? 0 : this.volume;
+			window._onlineAudio = audio;
+
+			// 设置 currentSong（使用兼容 PlayerBar 显示的字段）
+			this.currentSong = {
+				id: "online-" + Date.now(),
+				title: songName || "未知歌曲",
+				artist: singer || "未知艺术家",
+				album: "",
+				duration: 0,
+				filePath: "",
+			};
+			this.isOnlineSong = true;
+			this.playing = true;
+			this.currentTime = 0;
+			this.resetLyrics();
+			this.playlist = [];
+			this.currentIndex = -1;
+
+			// timeupdate 事件更新 currentTime 和 duration
+			audio.addEventListener("timeupdate", () => {
+				this.currentTime = audio.currentTime;
+			});
+			audio.addEventListener("loadedmetadata", () => {
+				if (this.currentSong && this.isOnlineSong) {
+					this.currentSong.duration = audio.duration;
+				}
+			});
+			audio.addEventListener("ended", () => {
+				this.playing = false;
+			});
+
+			// 播放
+			audio.play().catch((e) => {
+				console.error("在线播放失败:", e);
+				this.playing = false;
+			});
+
+			// 更新媒体会话
+			if ("mediaSession" in navigator) {
+				try {
+					navigator.mediaSession.metadata = new MediaMetadata({
+					title: songName || "未知歌曲",
+					artist: singer || "未知艺术家",
+					});
+					navigator.mediaSession.playbackState = "playing";
+				} catch (e) {}
+			}
+
+			// 封面 URL 存到 window 上供 PlayerBar 读取
+			window._onlineCoverUrl = coverUrl || "";
+		},
+
+		// 停止在线试听音频
+		_stopOnlineAudio() {
+			if (window._onlineAudio) {
+				window._onlineAudio.pause();
+				window._onlineAudio.src = "";
+				window._onlineAudio = null;
+				window._onlineCoverUrl = "";
+			}
+			this.isOnlineSong = false;
+		},
+
 		// 重置播放器状态
 		resetPlayerState() {
 			this.currentSong = null;
@@ -1171,7 +1293,10 @@ export const usePlayerStore = defineStore("player", {
 			this.playlist = [];
 			this.currentIndex = -1;
 			this.resetLyrics(); // 调用已有的歌词重置方法
+			this.isOnlineSong = false;
 			this.savePlayerState(); // 保存重置后的状态
+			// 停止在线试听
+			this._stopOnlineAudio();
 
 			// 停止当前音频播放
 			if (window.sourceNode) {
