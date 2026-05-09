@@ -38,7 +38,6 @@ if errorlevel 1 (
 )
 
 echo Starting Electron...
-cd /d "%ROOT%sys_electron"
-"%ELECTRON_BIN%" .
+"%ELECTRON_BIN%" "%ROOT%sys_electron"
 
 endlocal
