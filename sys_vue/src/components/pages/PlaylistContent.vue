@@ -255,59 +255,58 @@ onMounted(() => {
     flex-direction: column;
     overflow: hidden;
     position: relative;
-    background-color: $bg-primary;
-    color: $text-primary;
+    background-color: #121212;
+    color: #ffffff;
 }
-
-// 删除确认对话框
+/* comment */
 .delete-confirm-dialog {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: $overlay-dark;
+    background-color: rgba(0,0,0,0.3);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: $z-modal;
-    animation: fadeIn $transition-fast ease-out;
+    z-index: 100;
+    animation: fadeIn 0.15s cubic-bezier(0.4, 0, 0.2, 1) ease-out;
 }
 
 .dialog-content {
-    background-color: $bg-secondary;
-    border-radius: ($border-radius * 2);
-    padding: ($content-padding * 1.5);
+    background-color: #181818;
+    border-radius: (4px * 2);
+    padding: (16px * 1.5);
     width: 400px;
     max-width: 90%;
-    box-shadow: $box-shadow-hover;
-    border: 1px solid $bg-tertiary;
-    animation: slideUp $transition-base ease-out;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15)-hover;
+    border: 1px solid #282828;
+    animation: slideUp 0.25s cubic-bezier(0.4, 0, 0.2, 1) ease-out;
 
     h3 {
         margin-top: 0;
-        margin-bottom: $content-padding;
-        color: $text-primary;
-        font-size: $font-size-lg;
-        font-weight: $font-weight-semibold;
+        margin-bottom: 16px;
+        color: #ffffff;
+        font-size: 18px;
+        font-weight: 550;
     }
 
     p {
-        margin-bottom: ($content-padding * 1.5);
-        color: $text-secondary;
-        font-size: $font-size-base;
+        margin-bottom: (16px * 1.5);
+        color: #b3b3b3;
+        font-size: 14px;
         line-height: 1.5;
     }
 
-    @include respond-to("sm") {
-        padding: $content-padding;
+    @media (max-width: 768px) {
+        padding: 16px;
 
         h3 {
-            font-size: $font-size-base;
+            font-size: 14px;
         }
 
         p {
-            font-size: $font-size-sm;
+            font-size: 12px;
         }
     }
 }
@@ -327,51 +326,51 @@ onMounted(() => {
 .dialog-buttons {
     display: flex;
     justify-content: flex-end;
-    gap: ($content-padding * 0.75);
+    gap: (16px * 0.75);
 
-    @include respond-to("sm") {
-        gap: ($content-padding * 0.5);
+    @media (max-width: 768px) {
+        gap: (16px * 0.5);
     }
 }
 
 .cancel-btn,
 .delete-btn {
-    padding: ($content-padding * 0.5) $content-padding;
-    border-radius: $border-radius;
-    font-size: $font-size-base;
-    font-weight: $font-weight-medium;
+    padding: (16px * 0.5) 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
     cursor: pointer;
     border: none;
-    transition: all $transition-base;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     min-width: 80px;
 
-    @include respond-to("sm") {
-        padding: ($content-padding * 0.375) ($content-padding * 0.75);
-        font-size: $font-size-sm;
+    @media (max-width: 768px) {
+        padding: (16px * 0.375) (16px * 0.75);
+        font-size: 12px;
         min-width: 70px;
     }
 }
 
 .cancel-btn {
     background-color: transparent;
-    color: $text-secondary;
-    border: 1px solid $bg-tertiary;
+    color: #b3b3b3;
+    border: 1px solid #282828;
 
     &:hover {
-        background-color: $overlay-light;
-        color: $text-primary;
-        border-color: $text-secondary;
+        background-color: rgba(255,255,255,0.1);
+        color: #ffffff;
+        border-color: #b3b3b3;
     }
 }
 
 .delete-btn {
-    background-color: $danger;
-    color: $text-primary;
+    background-color: #f44336;
+    color: #ffffff;
 
     &:hover {
-        background-color: color.adjust($danger, $lightness: -10%);
+        background-color: color.adjust(#f44336, $lightness: -10%);
         transform: translateY(-1px);
-        box-shadow: $box-shadow;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     }
 
     &:active {
@@ -388,11 +387,10 @@ onMounted(() => {
         opacity: 1;
     }
 }
-
-// 高对比度模式支持
+/* comment */
 @media (prefers-contrast: high) {
     .playlist-content {
-        border: 2px solid $text-primary;
+        border: 2px solid #ffffff;
     }
 
     .cancel-btn,
@@ -400,8 +398,7 @@ onMounted(() => {
         border: 2px solid currentColor;
     }
 }
-
-// 减少动画模式支持
+/* comment */
 @media (prefers-reduced-motion: reduce) {
 
     *,

@@ -9,8 +9,8 @@ import "font-awesome/css/font-awesome.min.css";
 // 导入 Tailwind CSS（纯 CSS 入口，由 @tailwindcss/vite 处理）
 import "./styles/tailwind-entry.css";
 
-// 导入主样式文件（SCSS）
-import "./styles/main.scss";
+// 导入全局基础样式（CSS Reset、动画、ElementPlus 变量覆盖等）
+import "./styles/base.css";
 
 import App from "./App.vue";
 

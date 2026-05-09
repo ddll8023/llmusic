@@ -1,23 +1,18 @@
 <template>
-  <div class="scan-progress-overlay" v-if="mediaStore.scanning">
-    <div class="progress-content">
-      <div class="progress-text">
+  <div v-if="mediaStore.scanning"
+    class="fixed inset-0 bg-overlay-dark flex justify-center items-center z-[100] text-content-base animate-[fadeIn_0.15s_ease-out]">
+    <div class="bg-surface-overlay px-10 py-5 rounded-2xl shadow-custom-hover w-[500px] max-w-[90vw] text-center border border-surface-elevated
+                max-md:w-[90vw] max-md:max-w-[400px] max-md:px-4 max-md:py-4">
+      <div class="mb-4 text-sm font-medium flex justify-between max-md:text-xs max-md:mb-3 max-md:flex-col max-md:gap-1 max-md:text-center">
         <span>{{ mediaStore.scanProgress.message }}</span>
         <span v-if="mediaStore.scanProgress.total > 0">
           {{ mediaStore.scanProgress.processed }} / {{ mediaStore.scanProgress.total }}
         </span>
       </div>
-      <div class="progress-bar-container">
-        <div class="progress-bar" :style="{ width: progressBarWidth }"></div>
+      <div class="bg-surface-elevated rounded overflow-hidden h-2 w-full mb-5 max-md:h-[6px] max-md:mb-4">
+        <div class="bg-accent-green h-full transition-all duration-200 rounded" :style="{ width: progressBarWidth }"></div>
       </div>
-      <CustomButton
-        type="danger"
-        size="medium"
-        icon="times"
-        @click="cancelScan"
-      >
-        取消扫描
-      </CustomButton>
+      <CustomButton type="danger" size="medium" icon="times" @click="cancelScan">取消扫描</CustomButton>
     </div>
   </div>
 </template>
@@ -25,105 +20,14 @@
 <script setup>
 import { computed } from 'vue';
 import { useMediaStore } from '../../store/media';
-import FAIcon from '../common/FAIcon.vue';
 import CustomButton from '../custom/CustomButton.vue';
 
 const mediaStore = useMediaStore();
 
 const progressBarWidth = computed(() => {
-  if (mediaStore.scanProgress.total === 0) {
-    return '0%';
-  }
-  const percentage = (mediaStore.scanProgress.processed / mediaStore.scanProgress.total) * 100;
-  return `${percentage}%`;
+  if (mediaStore.scanProgress.total === 0) return '0%';
+  return `${(mediaStore.scanProgress.processed / mediaStore.scanProgress.total) * 100}%`;
 });
 
-const cancelScan = () => {
-  mediaStore.cancelScan();
-};
+const cancelScan = () => { mediaStore.cancelScan(); };
 </script>
-
-<style lang="scss" scoped>
-
-.scan-progress-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: $overlay-dark;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: $z-modal;
-  color: $text-primary;
-  animation: fadeIn $transition-fast ease-out;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.progress-content {
-  background-color: $bg-tertiary;
-  padding: $content-padding * 1.25 $content-padding * 2.5;
-  border-radius: $border-radius * 2;
-  box-shadow: $box-shadow-hover;
-  width: 500px;
-  max-width: 90vw;
-  text-align: center;
-  border: 1px solid $bg-secondary;
-
-  @include respond-to("sm") {
-    width: 90vw;
-    max-width: 400px;
-    padding: $content-padding $content-padding * 1.5;
-  }
-}
-
-.progress-text {
-  margin-bottom: $content-padding;
-  font-size: $font-size-base;
-  display: flex;
-  justify-content: space-between;
-  font-weight: $font-weight-medium;
-
-  @include respond-to("sm") {
-    font-size: $font-size-sm;
-    margin-bottom: $content-padding * 0.75;
-    flex-direction: column;
-    gap: 4px;
-    text-align: center;
-  }
-}
-
-.progress-bar-container {
-  background-color: $bg-secondary;
-  border-radius: $border-radius;
-  overflow: hidden;
-  height: 8px;
-  width: 100%;
-  margin-bottom: $content-padding * 1.25;
-
-  @include respond-to("sm") {
-    height: 6px;
-    margin-bottom: $content-padding;
-  }
-}
-
-.progress-bar {
-  background-color: $accent-green;
-  height: 100%;
-  transition: width $transition-base;
-  border-radius: $border-radius;
-}
-
-</style>

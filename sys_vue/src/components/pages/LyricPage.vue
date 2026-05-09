@@ -287,16 +287,16 @@ onUnmounted(() => {
 });
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .lyric-page {
-    background-color: $bg-primary;
-    color: $text-primary;
+    background-color: #121212;
+    color: #ffffff;
     position: fixed;
     left: 0;
     right: 0;
-    top: $title-bar-height;
-    bottom: $player-bar-height;
-    z-index: $z-modal;
+    top: 32px;
+    bottom: 90px;
+    z-index: 100;
     pointer-events: none;
     overflow: hidden;
     visibility: hidden;
@@ -306,7 +306,7 @@ onUnmounted(() => {
 /* 淡入淡出动画 */
 .lyric-page--fade {
     opacity: 0;
-    transition: opacity $transition-base, visibility 0s $transition-base;
+    transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     /* 延迟visibility变化 */
 }
 
@@ -314,7 +314,7 @@ onUnmounted(() => {
     opacity: 1;
     visibility: visible;
     /* 显示时可见 */
-    transition: opacity $transition-base, visibility 0s;
+    transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s;
     /* 立即改变visibility */
     pointer-events: all;
 }
@@ -322,7 +322,7 @@ onUnmounted(() => {
 /* 上滑动画 */
 .lyric-page--slide {
     transform: translateY(100%);
-    transition: transform $transition-slow cubic-bezier(0.16, 1, 0.3, 1), visibility 0s $transition-slow;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) cubic-bezier(0.16, 1, 0.3, 1), visibility 0s 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     /* 延迟visibility变化 */
     opacity: 1;
 }
@@ -331,7 +331,7 @@ onUnmounted(() => {
     transform: translateY(0);
     visibility: visible;
     /* 显示时可见 */
-    transition: transform $transition-slow cubic-bezier(0.16, 1, 0.3, 1), visibility 0s;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) cubic-bezier(0.16, 1, 0.3, 1), visibility 0s;
     /* 立即改变visibility */
     pointer-events: all;
 }
@@ -340,9 +340,9 @@ onUnmounted(() => {
     display: flex;
     width: 100%;
     max-width: 1400px;
-    height: calc(100% - (#{$content-padding} * 2));
+    height: calc(100% - (#{16px} * 2));
     margin: 0 auto;
-    padding: 0 ($content-padding * 2);
+    padding: 0 (16px * 2);
     box-sizing: border-box;
     align-items: stretch;
 }
@@ -355,7 +355,7 @@ onUnmounted(() => {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: $content-padding ($content-padding * 1.5);
+    padding: 16px (16px * 1.5);
     box-sizing: border-box;
 }
 
@@ -363,10 +363,10 @@ onUnmounted(() => {
     width: 85%;
     max-width: 360px;
     aspect-ratio: 1/1;
-    border-radius: $border-radius * 2;
+    border-radius: 4px * 2;
     overflow: hidden;
-    box-shadow: $box-shadow-hover;
-    transition: transform $transition-base, box-shadow $transition-base;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15)-hover;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .lyric-page__album-cover-container:hover {
@@ -383,19 +383,19 @@ onUnmounted(() => {
 .lyric-page__album-cover-placeholder {
     width: 100%;
     height: 100%;
-    background: linear-gradient(45deg, $bg-tertiary, $bg-secondary);
+    background: linear-gradient(45deg, #282828, #181818);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: ($font-size-xl * 3);
-    color: $text-disabled;
+    font-size: (20px * 3);
+    color: #535353;
 }
 
 /* 返回按钮 */
 .lyric-page__back-btn {
     position: absolute;
-    top: $content-padding;
-    left: ($content-padding * 3.75);
+    top: 16px;
+    left: (16px * 3.75);
     /* 调整左边距，与容器边距保持一定距离 */
     z-index: 10;
 }
@@ -406,17 +406,17 @@ onUnmounted(() => {
     height: 100%;
     display: flex;
     flex-direction: column;
-    padding: 0 $content-padding 0 ($content-padding * 1.5);
+    padding: 0 16px 0 (16px * 1.5);
     box-sizing: border-box;
 }
 
 .lyric-page__header {
-    padding: ($content-padding * 1.25) 0;
+    padding: (16px * 1.25) 0;
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
-    margin-bottom: $content-padding;
+    margin-bottom: 16px;
 }
 
 .lyric-page__header::after {
@@ -427,7 +427,7 @@ onUnmounted(() => {
     transform: translateX(-50%);
     width: 60px;
     height: 2px;
-    background: linear-gradient(90deg, transparent, $accent-green, transparent);
+    background: linear-gradient(90deg, transparent, #4caf50, transparent);
 }
 
 .lyric-page__song-info {
@@ -435,16 +435,16 @@ onUnmounted(() => {
 }
 
 .lyric-page__song-title {
-    font-size: $font-size-xl;
+    font-size: 20px;
     margin: 0;
-    font-weight: $font-weight-medium;
-    margin-bottom: ($content-padding * 0.5);
+    font-weight: 500;
+    margin-bottom: (16px * 0.5);
 }
 
 .lyric-page__song-artist {
-    font-size: $font-size-base;
+    font-size: 14px;
     margin: 0;
-    color: $text-secondary;
+    color: #b3b3b3;
 }
 
 .lyric-page__content {
@@ -452,7 +452,7 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: $content-padding 0;
+    padding: 16px 0;
     position: relative;
     overflow: hidden;
 }
@@ -493,40 +493,40 @@ onUnmounted(() => {
 }
 
 .lyric-page__lyric-line {
-    font-size: $font-size-lg;
-    font-weight: $font-weight-medium;
-    padding: ($content-padding * 0.75) ($content-padding * 2);
-    border-radius: $border-radius;
-    transition: all $transition-base;
+    font-size: 18px;
+    font-weight: 500;
+    padding: (16px * 0.75) (16px * 2);
+    border-radius: 4px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     line-height: 1.6;
     cursor: pointer;
-    color: $text-disabled;
+    color: #535353;
     position: relative;
     text-align: center;
-    margin: ($content-padding * 0.25) 0;
+    margin: (16px * 0.25) 0;
 }
 
 .lyric-page__lyric-line:hover {
-    background-color: $overlay-light;
-    color: $text-secondary;
+    background-color: rgba(255,255,255,0.1);
+    color: #b3b3b3;
 }
 
 .lyric-page__lyric-line--active {
-    color: $accent-green;
+    color: #4caf50;
     transform: scale(1.08);
-    font-weight: $font-weight-bold;
-    text-shadow: 0 0 20px rgba($accent-green, 0.3);
+    font-weight: 600;
+    text-shadow: 0 0 20px rgba(#4caf50, 0.3);
 }
 
 .lyric-page__lyric-info {
     position: absolute;
-    left: $content-padding;
+    left: 16px;
     top: 50%;
     transform: translateY(-50%);
     display: flex;
     align-items: center;
     opacity: 0;
-    transition: opacity $transition-fast;
+    transition: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .lyric-page__lyric-line:hover .lyric-page__lyric-info {
@@ -535,20 +535,20 @@ onUnmounted(() => {
 
 .lyric-page__lyric-time {
     font-size: 0.8em;
-    color: $text-secondary;
+    color: #b3b3b3;
 }
 
 .lyric-page__play-icon {
-    margin-left: ($content-padding * 0.375);
+    margin-left: (16px * 0.375);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: $text-secondary;
+    color: #b3b3b3;
 }
 
 .lyric-page__lyric-line--active .lyric-page__lyric-time,
 .lyric-page__lyric-line--active .lyric-page__play-icon {
-    color: $accent-green;
+    color: #4caf50;
 }
 
 .lyric-page__lyric-text {
@@ -563,7 +563,7 @@ onUnmounted(() => {
     height: 100%;
     width: 100%;
     opacity: 0.8;
-    font-size: $font-size-lg;
+    font-size: 18px;
 }
 
 .lyric-page__no-lyrics-content {
@@ -575,12 +575,12 @@ onUnmounted(() => {
 }
 
 .lyric-page__controls {
-    padding: $content-padding 0;
+    padding: 16px 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
     position: relative;
-    margin-top: $content-padding;
+    margin-top: 16px;
 }
 
 .lyric-page__controls::before {
@@ -591,23 +591,23 @@ onUnmounted(() => {
     transform: translateX(-50%);
     width: 60px;
     height: 2px;
-    background: linear-gradient(90deg, transparent, rgba($accent-green, 0.5), transparent);
+    background: linear-gradient(90deg, transparent, rgba(#4caf50, 0.5), transparent);
 }
 
 .lyric-page__progress {
-    font-size: $font-size-base;
-    color: $text-secondary;
+    font-size: 14px;
+    color: #b3b3b3;
 }
 
 .lyric-page__font-size-controls {
     display: flex;
-    gap: ($content-padding * 0.625);
+    gap: (16px * 0.625);
 }
 
 
 .lyric-page__sync-controls {
     display: flex;
-    gap: ($content-padding * 0.625);
+    gap: (16px * 0.625);
 }
 
 
@@ -620,21 +620,21 @@ onUnmounted(() => {
 
 /* 字体大小调整 */
 .lyric-page__lyrics.small .lyric-page__lyric-line {
-    font-size: $font-size-base;
-    padding: ($content-padding * 0.5) ($content-padding * 1.5);
+    font-size: 14px;
+    padding: (16px * 0.5) (16px * 1.5);
 }
 
 .lyric-page__lyrics.large .lyric-page__lyric-line {
-    font-size: $font-size-xl;
-    padding: ($content-padding * 1) ($content-padding * 2);
+    font-size: 20px;
+    padding: (16px * 1) (16px * 2);
 }
 
 /* 响应式调整 */
-@include respond-to("sm") {
+@media (max-width: 768px) {
     .lyric-page__container {
         flex-direction: column;
-        padding: 0 $content-padding;
-        height: calc(100% - $content-padding);
+        padding: 0 16px;
+        height: calc(100% - 16px);
     }
 
     .lyric-page__album-section,
@@ -645,7 +645,7 @@ onUnmounted(() => {
     .lyric-page__album-section {
         height: auto;
         min-height: 200px;
-        padding: $content-padding;
+        padding: 16px;
     }
 
     .lyric-page__album-cover-container {
@@ -656,11 +656,11 @@ onUnmounted(() => {
         flex: 1;
         padding: 0;
         border-left: none;
-        border-top: 1px solid rgba($bg-tertiary, 0.5);
+        border-top: 1px solid rgba(#282828, 0.5);
     }
 
     .lyric-page__header {
-        padding: $content-padding 0;
+        padding: 16px 0;
     }
 
     .lyric-page__header::after {
@@ -669,16 +669,16 @@ onUnmounted(() => {
 
     .lyric-page__controls {
         flex-wrap: wrap;
-        gap: $content-padding;
-        padding: $content-padding 0;
+        gap: 16px;
+        padding: 16px 0;
     }
 
     .lyric-page__lyric-info {
-        left: $content-padding;
+        left: 16px;
     }
 
     .lyric-page__lyric-line {
-        padding: ($content-padding * 0.5) ($content-padding * 1.5);
+        padding: (16px * 0.5) (16px * 1.5);
     }
 }
 </style>

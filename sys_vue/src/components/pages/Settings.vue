@@ -353,163 +353,162 @@ const handleLogout = () => {
   </div>
 </template>
 
-<style lang="scss" scoped>
-@use "sass:color";
-
+<style scoped>
 .settings-page {
-  padding: ($content-padding * 1.5);
-  color: $text-primary;
+  padding: 24px;
+  color: #ffffff;
   height: 100%;
   overflow-y: auto;
+}
 
-  @include respond-to("sm") {
-    padding: $content-padding;
-  }
+@media (max-width: 768px) {
+  .settings-page { padding: 16px; }
+}
 
-  h2 {
-    font-size: $font-size-xl;
-    margin-bottom: ($content-padding * 1.5);
-    font-weight: $font-weight-bold;
+.settings-page h2 {
+  font-size: 20px;
+  margin-bottom: 24px;
+  font-weight: 700;
+}
 
-    @include respond-to("sm") {
-      font-size: $font-size-lg;
-      margin-bottom: $content-padding;
-    }
-  }
+@media (max-width: 768px) {
+  .settings-page h2 { font-size: 18px; margin-bottom: 16px; }
 }
 
 .settings-section {
-  margin-bottom: ($content-padding * 1.5);
+  margin-bottom: 24px;
+}
 
-  @include respond-to("sm") {
-    margin-bottom: $content-padding;
-  }
+@media (max-width: 768px) {
+  .settings-section { margin-bottom: 16px; }
+}
 
-  h3 {
-    font-size: $font-size-base;
-    color: $text-secondary;
-    margin-bottom: $content-padding;
-    border-bottom: 1px solid $bg-tertiary;
-    padding-bottom: ($content-padding * 0.5);
-    font-weight: $font-weight-medium;
+.settings-section h3 {
+  font-size: 14px;
+  color: #b3b3b3;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #282828;
+  padding-bottom: 8px;
+  font-weight: 500;
+}
 
-    @include respond-to("sm") {
-      font-size: $font-size-sm;
-    }
-  }
+@media (max-width: 768px) {
+  .settings-section h3 { font-size: 13px; }
 }
 
 .settings-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: ($content-padding * 0.75) 0;
+  padding: 12px 0;
+}
 
-  @include respond-to("sm") {
+@media (max-width: 768px) {
+  .settings-item {
     flex-direction: column;
     align-items: flex-start;
-    gap: ($content-padding * 0.5);
+    gap: 8px;
   }
+}
 
-  span {
-    font-size: $font-size-sm;
-    color: $text-primary;
+.settings-item span {
+  font-size: 12px;
+  color: #ffffff;
+}
 
-    @include respond-to("sm") {
-      font-size: $font-size-xs;
-    }
-  }
+@media (max-width: 768px) {
+  .settings-item span { font-size: 10px; }
 }
 
 .select-container {
   position: relative;
+}
 
-  &::after {
-    content: '▼';
-    position: absolute;
-    right: ($content-padding * 0.625);
-    top: 50%;
-    transform: translateY(-50%);
-    pointer-events: none;
-    font-size: $font-size-xs;
-    color: $text-secondary;
-  }
+.select-container::after {
+  content: '▼';
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  font-size: 10px;
+  color: #b3b3b3;
+}
 
-  select {
-    background-color: $bg-tertiary;
-    color: $text-primary;
-    border: 1px solid $bg-tertiary;
-    padding: ($content-padding * 0.5) $content-padding;
-    border-radius: $border-radius;
-    cursor: pointer;
-    transition: all $transition-base;
-    appearance: none;
-    padding-right: ($content-padding * 1.875);
-    font-size: $font-size-sm;
+.select-container select {
+  background-color: #282828;
+  color: #ffffff;
+  border: 1px solid #282828;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  appearance: none;
+  padding-right: 30px;
+  font-size: 12px;
+}
 
-    &:hover {
-      background-color: color.adjust($bg-tertiary, $lightness: 5%);
-      border-color: $overlay-light;
-    }
+.select-container select:hover {
+  background-color: #383838;
+  border-color: rgba(255, 255, 255, 0.1);
+}
 
-    &:focus {
-      outline: none;
-      border-color: $accent-green;
-    }
+.select-container select:focus {
+  outline: none;
+  border-color: #4caf50;
+}
 
-    @include respond-to("sm") {
-      width: 100%;
-      font-size: $font-size-xs;
-    }
-  }
+@media (max-width: 768px) {
+  .select-container select { width: 100%; font-size: 10px; }
 }
 
 .settings-item-description {
-  font-size: $font-size-xs;
-  color: $text-secondary;
-  margin-top: (-$content-padding * 0.5);
-  padding-bottom: $content-padding;
+  font-size: 10px;
+  color: #b3b3b3;
+  margin-top: -8px;
+  padding-bottom: 16px;
   line-height: 1.4;
+}
 
-  @include respond-to("sm") {
+@media (max-width: 768px) {
+  .settings-item-description {
     margin-top: 0;
-    padding-bottom: ($content-padding * 0.75);
+    padding-bottom: 12px;
   }
 }
 
 .library-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: ($content-padding * 1.25);
-  margin-top: $content-padding;
+  gap: 20px;
+  margin-top: 16px;
+}
 
-  @include respond-to("sm") {
-    grid-template-columns: 1fr;
-    gap: $content-padding;
-  }
+@media (max-width: 768px) {
+  .library-grid { grid-template-columns: 1fr; gap: 16px; }
 }
 
 .library-card {
-  background-color: $bg-tertiary;
-  border-radius: ($border-radius * 2);
-  padding: $content-padding;
+  background-color: #282828;
+  border-radius: 8px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   border: 1px solid transparent;
-  transition: all $transition-base;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   min-height: 160px;
-  animation: fadeIn $transition-base ease-out;
+  animation: fadeIn 0.25s cubic-bezier(0.4, 0, 0.2, 1) ease-out;
 
   &:hover {
-    border-color: $overlay-light;
+    border-color: rgba(255,255,255,0.1);
     transform: translateY(-2px);
-    box-shadow: $box-shadow-hover;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   }
 
-  @include respond-to("sm") {
+  @media (max-width: 768px) {
     min-height: 140px;
-    padding: ($content-padding * 0.75);
+    padding: (16px * 0.75);
   }
 }
 
@@ -520,11 +519,11 @@ const handleLogout = () => {
 }
 
 .card-icon {
-  color: $text-secondary;
-  margin-bottom: ($content-padding * 0.75);
+  color: #b3b3b3;
+  margin-bottom: (16px * 0.75);
 
-  @include respond-to("sm") {
-    margin-bottom: ($content-padding * 0.5);
+  @media (max-width: 768px) {
+    margin-bottom: (16px * 0.5);
   }
 }
 
@@ -532,25 +531,25 @@ const handleLogout = () => {
   flex: 1;
 
   .library-name {
-    font-size: $font-size-base;
-    font-weight: $font-weight-bold;
-    color: $text-primary;
+    font-size: 14px;
+    font-weight: 600;
+    color: #ffffff;
     display: block;
-    margin-bottom: ($content-padding * 0.25);
+    margin-bottom: (16px * 0.25);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 
-    @include respond-to("sm") {
-      font-size: $font-size-sm;
+    @media (max-width: 768px) {
+      font-size: 12px;
     }
   }
 
   .library-path {
-    font-size: $font-size-xs;
-    color: $text-secondary;
+    font-size: 10px;
+    color: #b3b3b3;
     word-break: break-all;
-    margin-bottom: ($content-padding * 0.5);
+    margin-bottom: (16px * 0.5);
     white-space: normal;
     line-height: 1.4;
     flex-grow: 1;
@@ -561,28 +560,28 @@ const handleLogout = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: ($content-padding * 0.75);
+  margin-top: (16px * 0.75);
 
-  @include respond-to("sm") {
-    margin-top: ($content-padding * 0.5);
+  @media (max-width: 768px) {
+    margin-top: (16px * 0.5);
   }
 }
 
 .card-stats {
   display: flex;
   align-items: center;
-  gap: ($content-padding * 0.375);
-  font-size: $font-size-xs;
-  color: $text-secondary;
+  gap: (16px * 0.375);
+  font-size: 10px;
+  color: #b3b3b3;
 }
 
 .library-actions {
   display: flex;
-  gap: ($content-padding * 0.5);
+  gap: (16px * 0.5);
   opacity: 0;
-  transition: opacity $transition-base;
+  transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 
-  @include respond-to("sm") {
+  @media (max-width: 768px) {
     opacity: 1;
   }
 }
@@ -592,9 +591,9 @@ const handleLogout = () => {
 }
 
 .btn-icon {
-  background: $bg-secondary;
-  border: 1px solid $overlay-light;
-  color: $text-primary;
+  background: #181818;
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #ffffff;
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -602,10 +601,10 @@ const handleLogout = () => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all $transition-base;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 
   &:hover {
-    background: $overlay-light;
+    background: rgba(255,255,255,0.1);
     transform: scale(1.05);
   }
 
@@ -614,50 +613,50 @@ const handleLogout = () => {
   }
 
   &.btn-danger:hover {
-    background: $danger;
-    border-color: $danger;
+    background: #f44336;
+    border-color: #f44336;
   }
 
-  @include respond-to("sm") {
+  @media (max-width: 768px) {
     width: 28px;
     height: 28px;
   }
 }
 
 .add-library-card {
-  border: 2px dashed $overlay-light;
+  border: 2px dashed rgba(255,255,255,0.1);
   background-color: transparent;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: $text-secondary;
-  gap: ($content-padding * 0.75);
+  color: #b3b3b3;
+  gap: (16px * 0.75);
 
   &:hover {
-    background-color: $bg-tertiary;
-    border-color: $accent-green;
-    color: $text-primary;
+    background-color: #282828;
+    border-color: #4caf50;
+    color: #ffffff;
     transform: translateY(-2px);
   }
 }
 
-// Modal styles
+/* Modal styles */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: $overlay-dark;
+  background-color: rgba(0,0,0,0.3);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: $z-modal;
-  animation: fadeIn $transition-fast ease-out;
+  z-index: 100;
+  animation: fadeIn 0.15s cubic-bezier(0.4, 0, 0.2, 1) ease-out;
 }
 
 .modal {
-  animation: modalSlideIn $transition-base ease-out;
+  animation: modalSlideIn 0.25s cubic-bezier(0.4, 0, 0.2, 1) ease-out;
 }
 
 @keyframes fadeIn {
@@ -683,42 +682,42 @@ const handleLogout = () => {
 }
 
 .modal-content {
-  background-color: $bg-secondary;
-  color: $text-primary;
-  padding: ($content-padding * 1.875);
-  border-radius: ($border-radius * 3);
-  box-shadow: $box-shadow-hover;
+  background-color: #181818;
+  color: #ffffff;
+  padding: (16px * 1.875);
+  border-radius: (4px * 3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   width: 90%;
   max-width: 450px;
   text-align: center;
-  border: 1px solid $bg-tertiary;
+  border: 1px solid #282828;
 
-  @include respond-to("sm") {
-    padding: ($content-padding * 1.25);
+  @media (max-width: 768px) {
+    padding: (16px * 1.25);
     max-width: 320px;
   }
 
   h3 {
     margin-top: 0;
-    font-size: $font-size-lg;
-    margin-bottom: ($content-padding * 1.25);
-    font-weight: $font-weight-bold;
+    font-size: 18px;
+    margin-bottom: (16px * 1.25);
+    font-weight: 600;
 
-    @include respond-to("sm") {
-      font-size: $font-size-base;
-      margin-bottom: $content-padding;
+    @media (max-width: 768px) {
+      font-size: 14px;
+      margin-bottom: 16px;
     }
   }
 
   p {
-    color: $text-secondary;
-    margin-bottom: ($content-padding * 1.25);
-    font-size: $font-size-sm;
+    color: #b3b3b3;
+    margin-bottom: (16px * 1.25);
+    font-size: 12px;
     line-height: 1.5;
 
-    @include respond-to("sm") {
-      font-size: $font-size-xs;
-      margin-bottom: $content-padding;
+    @media (max-width: 768px) {
+      font-size: 10px;
+      margin-bottom: 16px;
     }
   }
 }
@@ -726,60 +725,60 @@ const handleLogout = () => {
 .modal-buttons {
   display: flex;
   justify-content: center;
-  gap: ($content-padding * 1.25);
-  margin-top: ($content-padding * 1.5625);
+  gap: (16px * 1.25);
+  margin-top: (16px * 1.5625);
 
-  @include respond-to("sm") {
-    gap: $content-padding;
-    margin-top: ($content-padding * 1.25);
+  @media (max-width: 768px) {
+    gap: 16px;
+    margin-top: (16px * 1.25);
   }
 }
 
 .final-message {
-  font-size: $font-size-base;
-  margin: ($content-padding * 1.25) 0;
+  font-size: 14px;
+  margin: (16px * 1.25) 0;
   min-height: 22px;
 
-  @include respond-to("sm") {
-    font-size: $font-size-sm;
-    margin: $content-padding 0;
+  @media (max-width: 768px) {
+    font-size: 12px;
+    margin: 16px 0;
   }
 }
 
 .modal-input {
   width: 100%;
-  padding: ($content-padding * 0.625);
-  margin: $content-padding 0;
-  background-color: $bg-tertiary;
-  border: 1px solid $overlay-light;
-  color: $text-primary;
-  border-radius: $border-radius;
-  font-size: $font-size-sm;
-  transition: border-color $transition-base;
+  padding: (16px * 0.625);
+  margin: 16px 0;
+  background-color: #282828;
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #ffffff;
+  border-radius: 4px;
+  font-size: 12px;
+  transition: border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   box-sizing: border-box;
 
   &:focus {
     outline: none;
-    border-color: $accent-green;
+    border-color: #4caf50;
   }
 
   &::placeholder {
-    color: $text-disabled;
+    color: #535353;
   }
 
-  @include respond-to("sm") {
-    font-size: $font-size-xs;
-    padding: ($content-padding * 0.5);
+  @media (max-width: 768px) {
+    font-size: 10px;
+    padding: (16px * 0.5);
   }
 }
 
-// 高对比度模式支持
+/* High contrast */
 @media (prefers-contrast: high) {
 
   .library-card,
   .modal-content {
     border-width: 2px;
-    border-color: $text-primary;
+    border-color: #ffffff;
   }
 
   .modal-input,
@@ -788,7 +787,7 @@ const handleLogout = () => {
   }
 }
 
-// 减少动画模式支持
+/* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
 
   .library-card,
@@ -808,38 +807,38 @@ const handleLogout = () => {
   }
 }
 
-// 登录相关样式
+/* Login styles */
 .user-info {
   display: flex;
   align-items: center;
-  gap: ($content-padding * 0.75);
+  gap: 12px;
+}
 
-  .user-detail {
-    display: flex;
-    flex-direction: column;
-  }
+.user-info .user-detail {
+  display: flex;
+  flex-direction: column;
+}
 
-  .user-name {
-    font-size: $font-size-sm;
-    color: $text-primary;
-    font-weight: $font-weight-medium;
-  }
+.user-info .user-name {
+  font-size: 12px;
+  color: #ffffff;
+  font-weight: 500;
+}
 
-  .user-id {
-    font-size: $font-size-xs;
-    color: $text-secondary;
-  }
+.user-info .user-id {
+  font-size: 10px;
+  color: #b3b3b3;
+}
 
-  .credential-expired {
-    font-size: $font-size-xs;
-    color: $danger;
-    margin-left: ($content-padding * 0.5);
-  }
+.user-info .credential-expired {
+  font-size: 10px;
+  color: #f44336;
+  margin-left: 8px;
 }
 
 .user-actions {
   display: flex;
-  gap: ($content-padding * 0.5);
+  gap: 8px;
 }
 
 .login-modal {
@@ -848,66 +847,55 @@ const handleLogout = () => {
 
 .login-options {
   text-align: center;
-  padding: $content-padding 0;
+  padding: 16px 0;
+}
 
-  .login-hint {
-    color: $text-secondary;
-    margin-bottom: ($content-padding * 1.25);
-  }
+.login-options .login-hint {
+  color: #b3b3b3;
+  margin-bottom: 20px;
+}
 
-  .login-buttons {
-    display: flex;
-    gap: $content-padding;
-    justify-content: center;
-  }
+.login-options .login-buttons {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
 }
 
 .qr-loading {
   text-align: center;
-  padding: ($content-padding * 2) 0;
+  padding: 32px 0;
+}
 
-  i {
-    font-size: $font-size-xxl;
-    color: $text-secondary;
-  }
+.qr-loading i {
+  font-size: 36px;
+  color: #b3b3b3;
+}
 
-  p {
-    margin-top: $content-padding;
-    color: $text-secondary;
-  }
+.qr-loading p {
+  margin-top: 16px;
+  color: #b3b3b3;
 }
 
 .qr-container {
   text-align: center;
-  padding: $content-padding 0;
-
-  .qr-image {
-    width: 200px;
-    height: 200px;
-    border-radius: $border-radius;
-    border: 1px solid $bg-tertiary;
-    background-color: #fff;
-  }
-
-  .qr-hint {
-    margin-top: ($content-padding * 1.25);
-    font-size: $font-size-sm;
-    color: $text-secondary;
-  }
+  padding: 16px 0;
 }
 
-.qr-success {
-  color: $accent-green;
+.qr-container .qr-image {
+  width: 200px;
+  height: 200px;
+  border-radius: 4px;
+  border: 1px solid #282828;
+  background-color: #fff;
 }
 
-.qr-fail {
-  color: $danger;
+.qr-container .qr-hint {
+  margin-top: 20px;
+  font-size: 12px;
+  color: #b3b3b3;
 }
 
-.qr-action {
-  color: $accent-green;
-  cursor: pointer;
-  text-decoration: underline;
-  margin-left: 4px;
-}
+.qr-success { color: #4caf50; }
+.qr-fail { color: #f44336; }
+.qr-action { color: #4caf50; cursor: pointer; text-decoration: underline; margin-left: 4px; }
 </style>

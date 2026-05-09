@@ -1,0 +1,347 @@
+/*
+ * LLMusic 全局基础样式
+ * 包含：CSS Reset、滚动条、@keyframes 动画、Vue 过渡类、Element Plus 变量覆盖
+ * 原 SCSS 文件：_global.scss / _transitions.scss / main.scss (ElementPlus部分)
+ */
+
+/* ========== 1. CSS Reset & 基础样式 ========== */
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    height: 100%;
+    font-size: 100%;
+    line-height: 1.15;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+      Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+    color: #ffffff;
+    background-color: #121212;
+    overflow: hidden;
+    cursor: default;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  button:focus,
+  input:focus,
+  textarea:focus,
+  select:focus {
+    outline: none;
+  }
+
+  input,
+  textarea,
+  button,
+  select {
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    border: none;
+    background: none;
+    color: inherit;
+  }
+
+  button {
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  ul,
+  ol {
+    list-style: none;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+    vertical-align: middle;
+  }
+
+  table {
+    border-collapse: collapse;
+    border-spacing: 0;
+  }
+
+  fieldset {
+    border: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  legend {
+    padding: 0;
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+
+  /* 应用容器 */
+  #app {
+    height: 100vh;
+    width: 100vw;
+  }
+
+  #app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    background-color: #121212;
+    --player-bar-height: 90px;
+    --title-bar-height: 32px;
+  }
+
+  /* 自定义滚动条 */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 2px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /* 通用过渡效果 */
+  button,
+  .menu-item,
+  .song-item,
+  .interactive {
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+/* ========== 2. Vue 过渡动画类 ========== */
+
+/* 淡入淡出 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* 滑动淡入淡出 */
+.slide-fade-enter-active,
+.slide-fade-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  transform: translateY(20px);
+  opacity: 0;
+}
+
+/* ========== 3. @keyframes 动画 ========== */
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.pulse {
+  animation: pulse 0.3s infinite;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.slide-in {
+  animation: slideIn 0.25s ease-out;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes playingPulse {
+  0% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+.playing-pulse {
+  animation: playingPulse 0.3s infinite alternate;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.fade-in {
+  animation: fadeIn 0.25s ease-out;
+}
+
+@keyframes modalFadeIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+    filter: blur(2px);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(0.95) translateY(-10px);
+    filter: blur(1px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
+}
+
+.modal-fade-in {
+  animation: modalFadeIn 0.3s ease-out;
+}
+
+/* ========== 4. 悬停效果工具类 ========== */
+
+.hover-lift {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.hover-glow {
+  transition: box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hover-glow:hover {
+  box-shadow: 0 0 20px rgba(76, 175, 80, 0.3);
+}
+
+/* ========== 5. Element Plus 主题变量覆盖 ========== */
+
+:root {
+  /* 主色调 */
+  --el-color-primary: #4caf50;
+  --el-color-primary-light-3: #81c784;
+  --el-color-primary-light-5: #a5d6a7;
+  --el-color-primary-light-7: #c8e6c9;
+  --el-color-primary-light-8: #dcedc8;
+  --el-color-primary-light-9: #e8f5e9;
+  --el-color-primary-dark-2: #388e3c;
+
+  /* 功能色 */
+  --el-color-success: #4caf50;
+  --el-color-warning: #ff9800;
+  --el-color-danger: #f44336;
+  --el-color-error: #f44336;
+  --el-color-info: #2196f3;
+
+  /* 背景色 */
+  --el-bg-color: #121212;
+  --el-bg-color-page: #121212;
+  --el-bg-color-overlay: #181818;
+
+  /* 文本色 */
+  --el-text-color-primary: #ffffff;
+  --el-text-color-regular: #b3b3b3;
+  --el-text-color-secondary: #535353;
+  --el-text-color-placeholder: #535353;
+  --el-text-color-disabled: #535353;
+
+  /* 边框色 */
+  --el-border-color: #282828;
+  --el-border-color-light: #383838;
+  --el-border-color-lighter: #4a4a4a;
+  --el-border-color-extra-light: #5a5a5a;
+  --el-border-color-dark: #1e1e1e;
+  --el-border-color-darker: #141414;
+
+  /* 填充色 */
+  --el-fill-color: #181818;
+  --el-fill-color-light: #242424;
+  --el-fill-color-lighter: #303030;
+  --el-fill-color-extra-light: #3c3c3c;
+  --el-fill-color-dark: #121212;
+  --el-fill-color-darker: #0a0a0a;
+  --el-fill-color-blank: transparent;
+
+  /* 遮罩层 */
+  --el-overlay-color: rgba(0, 0, 0, 0.8);
+  --el-overlay-color-light: rgba(0, 0, 0, 0.7);
+  --el-overlay-color-lighter: rgba(0, 0, 0, 0.5);
+
+  /* 圆角 */
+  --el-border-radius-base: 4px;
+  --el-border-radius-small: 2px;
+  --el-border-radius-round: 20px;
+  --el-border-radius-circle: 100%;
+}
+
+/* ========== 6. 无障碍 - 减少动画 ========== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

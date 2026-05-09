@@ -566,83 +566,79 @@ defineExpose({
     </div>
 </template>
 
-<style lang="scss" scoped>
+<style scoped>
 .song-table {
     flex: 1;
     display: flex;
     flex-direction: column;
     overflow: hidden;
     position: relative;
-    background-color: $bg-primary;
-    color: $text-primary;
+    background-color: #121212;
+    color: #ffffff;
 }
-
-// 加载状态
+/* comment */
 .loading-state {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     flex: 1;
-    color: $text-secondary;
-    padding: ($content-padding * 2);
+    color: #b3b3b3;
+    padding: (16px * 2);
 
-    @include respond-to("sm") {
-        padding: $content-padding;
+    @media (max-width: 768px) {
+        padding: 16px;
     }
 }
 
 .loader {
     width: 40px;
     height: 40px;
-    border: 3px solid $bg-tertiary;
+    border: 3px solid #282828;
     border-radius: 50%;
-    border-top-color: $accent-green;
+    border-top-color: #4caf50;
     animation: spin 1s linear infinite;
-    margin-bottom: $content-padding;
+    margin-bottom: 16px;
 
-    @include respond-to("sm") {
+    @media (max-width: 768px) {
         width: 32px;
         height: 32px;
         border-width: 2px;
-        margin-bottom: ($content-padding * 0.75);
+        margin-bottom: (16px * 0.75);
     }
 }
-
-
-// 空状态
+/* comment */
 .empty-state {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     flex: 1;
-    color: $text-secondary;
-    padding: ($content-padding * 2);
+    color: #b3b3b3;
+    padding: (16px * 2);
 
     .icon-wrapper {
-        color: $text-disabled;
-        margin-bottom: $content-padding;
+        color: #535353;
+        margin-bottom: 16px;
         opacity: 0.6;
     }
 
     p {
-        font-size: $font-size-lg;
-        margin-bottom: ($content-padding * 1.5);
-        font-weight: $font-weight-medium;
+        font-size: 18px;
+        margin-bottom: (16px * 1.5);
+        font-weight: 500;
 
-        @include respond-to("sm") {
-            font-size: $font-size-base;
-            margin-bottom: $content-padding;
+        @media (max-width: 768px) {
+            font-size: 14px;
+            margin-bottom: 16px;
         }
     }
 
-    @include respond-to("sm") {
-        padding: $content-padding;
+    @media (max-width: 768px) {
+        padding: 16px;
     }
 }
-
-// 表格容器
+/* comment */
 .table-container {
     flex: 1;
     display: flex;
@@ -656,26 +652,26 @@ defineExpose({
 .song-list-header {
     display: flex;
     align-items: center;
-    background-color: $bg-secondary;
-    color: $text-secondary;
-    padding: 0 ($content-padding * 0.625);
+    background-color: #181818;
+    color: #b3b3b3;
+    padding: 0 (16px * 0.625);
     height: 40px;
-    border-bottom: 1px solid $bg-tertiary;
+    border-bottom: 1px solid #282828;
     flex-shrink: 0;
     position: sticky;
     top: 0;
-    z-index: $z-base;
+    z-index: 1;
 
-    @include respond-to("sm") {
+    @media (max-width: 768px) {
         height: 36px;
-        padding: 0 ($content-padding * 0.5);
+        padding: 0 (16px * 0.5);
     }
 }
 
 .header-col {
-    padding: ($content-padding * 0.5);
-    font-weight: $font-weight-semibold;
-    font-size: $font-size-base;
+    padding: (16px * 0.5);
+    font-weight: 550;
+    font-size: 14px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -684,35 +680,34 @@ defineExpose({
 
     &.sortable {
         cursor: pointer;
-        transition: color $transition-base;
+        transition: color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 
         &:hover {
-            color: $text-primary;
+            color: #ffffff;
         }
     }
 
-    @include respond-to("sm") {
-        font-size: $font-size-sm;
-        padding: ($content-padding * 0.375);
+    @media (max-width: 768px) {
+        font-size: 12px;
+        padding: (16px * 0.375);
     }
 }
 
 .header-col-fixed {
     flex-shrink: 0;
-    padding: 0 ($content-padding * 0.5);
+    padding: 0 (16px * 0.5);
     display: flex;
     align-items: center;
 
-    @include respond-to("sm") {
-        padding: 0 ($content-padding * 0.375);
+    @media (max-width: 768px) {
+        padding: 0 (16px * 0.375);
     }
 }
 
 .sort-icon {
-    margin-left: ($content-padding * 0.3125);
+    margin-left: (16px * 0.3125);
 }
-
-// 虚拟滚动器
+/* comment */
 .song-scroller {
     flex: 1;
     min-height: 0;
@@ -724,38 +719,37 @@ defineExpose({
     }
 
     &::-webkit-scrollbar-track {
-        background: $bg-primary;
+        background: #121212;
     }
 
     &::-webkit-scrollbar-thumb {
-        background: $overlay-medium;
-        border-radius: ($border-radius);
-        transition: background-color $transition-base;
+        background: rgba(255,255,255,0.2);
+        border-radius: (4px);
+        transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 
         &:hover {
-            background: $overlay-light;
+            background: rgba(255,255,255,0.1);
         }
     }
 
-    @include respond-to("sm") {
+    @media (max-width: 768px) {
         &::-webkit-scrollbar {
             width: 6px;
         }
     }
 }
-
-// 歌曲行
+/* comment */
 .song-row {
     display: flex;
     align-items: center;
     height: 60px;
-    padding: 0 ($content-padding * 0.625);
-    border-bottom: 1px solid $bg-primary;
-    transition: all $transition-base;
+    padding: 0 (16px * 0.625);
+    border-bottom: 1px solid #121212;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
 
     &:hover {
-        background-color: $overlay-light;
+        background-color: rgba(255,255,255,0.1);
 
         .song-cover {
             transform: scale(1.1);
@@ -763,19 +757,19 @@ defineExpose({
     }
 
     &:active {
-        background-color: $overlay-medium;
+        background-color: rgba(255,255,255,0.2);
         transform: scale(0.98);
     }
 
     &.playing {
-        color: $accent-green;
-        background-color: rgba($accent-green, 0.1);
-        border-left: 3px solid $accent-green;
-        padding-left: calc(#{$content-padding * 0.625} - 3px);
+        color: #4caf50;
+        background-color: rgba(#4caf50, 0.1);
+        border-left: 3px solid #4caf50;
+        padding-left: calc(#{16px * 0.625} - 3px);
 
         .song-index {
-            color: $accent-green;
-            font-weight: $font-weight-semibold;
+            color: #4caf50;
+            font-weight: 550;
         }
 
         &.highlighted {
@@ -783,51 +777,50 @@ defineExpose({
         }
     }
 
-    @include respond-to("sm") {
+    @media (max-width: 768px) {
         height: 52px;
-        padding: 0 ($content-padding * 0.5);
+        padding: 0 (16px * 0.5);
 
         &.playing {
-            padding-left: calc(#{$content-padding * 0.5} - 3px);
+            padding-left: calc(#{16px * 0.5} - 3px);
         }
     }
 }
 
 
 .song-col {
-    padding: ($content-padding * 0.5);
+    padding: (16px * 0.5);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     display: flex;
     align-items: center;
 
-    @include respond-to("sm") {
-        padding: ($content-padding * 0.375);
+    @media (max-width: 768px) {
+        padding: (16px * 0.375);
     }
 }
 
 .song-index {
     justify-content: center;
-    font-weight: $font-weight-medium;
-    color: $text-secondary;
-    font-size: $font-size-sm;
+    font-weight: 500;
+    color: #b3b3b3;
+    font-size: 12px;
 
-    @include respond-to("sm") {
-        font-size: $font-size-xs;
+    @media (max-width: 768px) {
+        font-size: 10px;
     }
 }
-
-// 歌曲封面
+/* comment */
 .song-cover-container {
     position: relative;
     width: 48px;
     height: 48px;
-    border-radius: $border-radius;
+    border-radius: 4px;
     overflow: hidden;
     flex-shrink: 0;
 
-    @include respond-to("sm") {
+    @media (max-width: 768px) {
         width: 40px;
         height: 40px;
     }
@@ -837,10 +830,10 @@ defineExpose({
     width: 100%;
     height: 100%;
     object-fit: cover;
-    border-radius: $border-radius;
-    background-color: $bg-tertiary;
-    box-shadow: $box-shadow;
-    transition: transform $transition-base;
+    border-radius: 4px;
+    background-color: #282828;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .play-icon-overlay {
@@ -849,38 +842,36 @@ defineExpose({
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: $overlay-dark;
+    background-color: rgba(0,0,0,0.3);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    border-radius: $border-radius;
+    border-radius: 4px;
 }
 
 .play-icon {
-    fill: $text-primary;
+    fill: #ffffff;
     width: 20px;
     height: 20px;
     filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
 
-    @include respond-to("sm") {
+    @media (max-width: 768px) {
         width: 16px;
         height: 16px;
     }
 }
-
-// 操作按钮
+/* comment */
 .action-column {
     flex-shrink: 0;
     justify-content: center;
     gap: 2px;
 
-    @include respond-to("sm") {
+    @media (max-width: 768px) {
         gap: 1px;
     }
 }
-
-// 选择相关样式
+/* comment */
 .selection-col {
     justify-content: center;
 }
@@ -889,46 +880,44 @@ defineExpose({
     width: 16px;
     height: 16px;
     border-radius: 3px;
-    border: 2px solid $text-secondary;
+    border: 2px solid #b3b3b3;
     background-color: transparent;
     cursor: pointer;
-    transition: all $transition-base;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 
     &:checked {
-        background-color: $accent-green;
-        border-color: $accent-green;
+        background-color: #4caf50;
+        border-color: #4caf50;
     }
 
     &:hover {
-        border-color: $accent-green;
+        border-color: #4caf50;
     }
 }
-
-// 选中行样式
+/* comment */
 .song-row.selected {
-    background-color: rgba($accent-green, 0.05);
-    border-left: 2px solid $accent-green;
-    padding-left: calc(#{$content-padding * 0.625} - 2px);
+    background-color: rgba(#4caf50, 0.05);
+    border-left: 2px solid #4caf50;
+    padding-left: calc(#{16px * 0.625} - 2px);
 
-    @include respond-to("sm") {
-        padding-left: calc(#{$content-padding * 0.5} - 2px);
+    @media (max-width: 768px) {
+        padding-left: calc(#{16px * 0.5} - 2px);
     }
 }
-
-// 固定按钮
+/* comment */
 .fixed-buttons {
     position: fixed;
-    right: ($content-padding * 1.25);
+    right: (16px * 1.25);
     bottom: 110px;
     display: flex;
     flex-direction: column;
-    gap: ($content-padding * 0.625);
-    z-index: $z-modal;
+    gap: (16px * 0.625);
+    z-index: 100;
 
-    @include respond-to("sm") {
-        right: $content-padding;
+    @media (max-width: 768px) {
+        right: 16px;
         bottom: 100px;
-        gap: ($content-padding * 0.5);
+        gap: (16px * 0.5);
     }
 }
 
@@ -936,20 +925,20 @@ defineExpose({
 .fixed-button {
     width: 44px;
     height: 44px;
-    border-radius: $border-radius;
-    background-color: $bg-tertiary;
+    border-radius: 4px;
+    background-color: #282828;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: $box-shadow-hover;
-    transition: all $transition-base;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15)-hover;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     user-select: none;
-    border: 1px solid $bg-tertiary;
+    border: 1px solid #282828;
 
     &:hover {
         transform: scale(1.05);
-        background-color: $bg-tertiary-hover;
+        background-color: #282828-hover;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     }
 
@@ -961,7 +950,7 @@ defineExpose({
         filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
     }
 
-    @include respond-to("sm") {
+    @media (max-width: 768px) {
         width: 40px;
         height: 40px;
 
@@ -971,27 +960,26 @@ defineExpose({
         }
     }
 }
-
-// 歌曲信息对话框
+/* comment */
 .song-info-dialog {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: $overlay-dark;
+    background-color: rgba(0,0,0,0.3);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: $z-tooltip;
+    z-index: 300;
 
     .dialog-content {
-        background-color: $bg-secondary;
-        padding: ($content-padding * 1.5);
-        border-radius: ($border-radius * 2);
+        background-color: #181818;
+        padding: (16px * 1.5);
+        border-radius: (4px * 2);
         width: 90%;
         max-width: 500px;
-        border: 1px solid $bg-tertiary;
+        border: 1px solid #282828;
         box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
         max-height: 80vh;
         overflow-y: auto;
@@ -1001,53 +989,53 @@ defineExpose({
         }
 
         &::-webkit-scrollbar-track {
-            background: $bg-primary;
+            background: #121212;
         }
 
         &::-webkit-scrollbar-thumb {
-            background: $overlay-medium;
-            border-radius: ($border-radius * 0.5);
+            background: rgba(255,255,255,0.2);
+            border-radius: (4px * 0.5);
         }
 
-        @include respond-to("sm") {
-            padding: $content-padding;
+        @media (max-width: 768px) {
+            padding: 16px;
             max-height: 90vh;
         }
     }
 
     h2 {
         margin-top: 0;
-        margin-bottom: ($content-padding * 1.25);
-        color: $accent-green;
-        border-bottom: 1px solid $bg-tertiary;
-        padding-bottom: ($content-padding * 0.625);
-        font-size: $font-size-lg;
-        font-weight: $font-weight-semibold;
+        margin-bottom: (16px * 1.25);
+        color: #4caf50;
+        border-bottom: 1px solid #282828;
+        padding-bottom: (16px * 0.625);
+        font-size: 18px;
+        font-weight: 550;
 
-        @include respond-to("sm") {
-            font-size: $font-size-base;
-            margin-bottom: $content-padding;
+        @media (max-width: 768px) {
+            font-size: 14px;
+            margin-bottom: 16px;
         }
     }
 
     h3 {
-        font-size: $font-size-base;
-        margin: ($content-padding * 0.625) 0;
-        color: $text-secondary;
-        font-weight: $font-weight-medium;
+        font-size: 14px;
+        margin: (16px * 0.625) 0;
+        color: #b3b3b3;
+        font-weight: 500;
 
-        @include respond-to("sm") {
-            font-size: $font-size-sm;
-            margin: ($content-padding * 0.5) 0;
+        @media (max-width: 768px) {
+            font-size: 12px;
+            margin: (16px * 0.5) 0;
         }
     }
 
     .custom-button {
-        margin-top: ($content-padding * 1.25);
+        margin-top: (16px * 1.25);
         width: 100%;
 
-        @include respond-to("sm") {
-            margin-top: $content-padding;
+        @media (max-width: 768px) {
+            margin-top: 16px;
         }
     }
 }
@@ -1055,94 +1043,94 @@ defineExpose({
 .info-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: ($content-padding * 0.625);
-    margin-bottom: $content-padding;
+    gap: (16px * 0.625);
+    margin-bottom: 16px;
 
-    @include respond-to("sm") {
+    @media (max-width: 768px) {
         grid-template-columns: 1fr;
-        gap: ($content-padding * 0.5);
+        gap: (16px * 0.5);
     }
 }
 
 .info-section {
-    padding: ($content-padding * 0.625);
-    background-color: $bg-primary;
-    border-radius: $border-radius;
-    border: 1px solid $bg-tertiary;
+    padding: (16px * 0.625);
+    background-color: #121212;
+    border-radius: 4px;
+    border: 1px solid #282828;
 
-    @include respond-to("sm") {
-        padding: ($content-padding * 0.5);
+    @media (max-width: 768px) {
+        padding: (16px * 0.5);
     }
 }
 
 .info-item {
-    margin: ($content-padding * 0.5) 0;
+    margin: (16px * 0.5) 0;
     display: flex;
     align-items: flex-start;
-    gap: ($content-padding * 0.5);
+    gap: (16px * 0.5);
 
-    @include respond-to("sm") {
-        margin: ($content-padding * 0.375) 0;
-        gap: ($content-padding * 0.375);
+    @media (max-width: 768px) {
+        margin: (16px * 0.375) 0;
+        gap: (16px * 0.375);
     }
 }
 
 .info-label {
-    color: $text-secondary;
+    color: #b3b3b3;
     width: 70px;
     flex-shrink: 0;
-    font-weight: $font-weight-medium;
-    font-size: $font-size-sm;
+    font-weight: 500;
+    font-size: 12px;
 
-    @include respond-to("sm") {
+    @media (max-width: 768px) {
         width: 60px;
-        font-size: $font-size-xs;
+        font-size: 10px;
     }
 }
 
 .info-value {
-    color: $text-primary;
+    color: #ffffff;
     word-break: break-word;
-    font-size: $font-size-sm;
+    font-size: 12px;
     line-height: 1.4;
 
     &.path {
         font-family: 'Courier New', monospace;
-        font-size: ($font-size-sm * 0.9);
-        background-color: $bg-tertiary;
-        padding: ($content-padding * 0.25) ($content-padding * 0.5);
-        border-radius: ($border-radius * 0.5);
+        font-size: (12px * 0.9);
+        background-color: #282828;
+        padding: (16px * 0.25) (16px * 0.5);
+        border-radius: (4px * 0.5);
         overflow-wrap: break-word;
         word-break: break-all;
     }
 
-    @include respond-to("sm") {
-        font-size: $font-size-xs;
+    @media (max-width: 768px) {
+        font-size: 10px;
 
         &.path {
-            font-size: ($font-size-xs * 0.9);
-            padding: ($content-padding * 0.125) ($content-padding * 0.25);
+            font-size: (10px * 0.9);
+            padding: (16px * 0.125) (16px * 0.25);
         }
     }
 }
 
 .info-path {
-    margin-top: $content-padding;
-    padding: ($content-padding * 0.625);
-    background-color: $bg-primary;
-    border-radius: $border-radius;
+    margin-top: 16px;
+    padding: (16px * 0.625);
+    background-color: #121212;
+    border-radius: 4px;
     display: flex;
-    gap: ($content-padding * 0.5);
-    border: 1px solid $bg-tertiary;
+    gap: (16px * 0.5);
+    border: 1px solid #282828;
 
     .info-label {
         width: 70px;
         flex-shrink: 0;
     }
 
-    @include respond-to("sm") {
-        padding: ($content-padding * 0.5);
-        gap: ($content-padding * 0.375);
+    @media (max-width: 768px) {
+        padding: (16px * 0.5);
+        gap: (16px * 0.375);
 
         .info-label {
             width: 60px;

@@ -22,12 +22,5 @@ export default defineConfig({
 		outDir: resolve(__dirname, "dist"),
 		emptyOutDir: true,
 	},
-	css: {
-		preprocessorOptions: {
-			scss: {
-				// 向Vue组件自动注入变量（使用@use语法）
-				additionalData: `@use "@/styles/variables.scss" as *;`,
-			},
-		},
-	},
+	// SCSS 配置已移除 — 项目已从 SCSS 迁移到 Tailwind CSS
 });

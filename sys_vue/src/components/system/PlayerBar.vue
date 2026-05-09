@@ -810,406 +810,87 @@ const showLyrics = async () => {
 </script>
 
 <template>
-    <div class="player-bar-container" :class="{ 'has-error': playbackError }">
+    <div :class="[
+        'grid grid-cols-[1fr_2fr_1fr] items-center bg-surface-elevated p-4 h-[90px] border-t border-line-base text-content-base z-[200] relative transition-all duration-200',
+        'max-lg:grid-cols-[1fr_1.5fr_1fr] max-lg:p-3',
+        'max-sm:grid-cols-1 max-sm:grid-rows-[auto_auto] max-sm:gap-2 max-sm:h-auto max-sm:min-h-[90px] max-sm:p-3',
+        playbackError ? 'border-t-accent-danger' : ''
+    ]">
         <!-- 有歌曲：正常三栏布局 -->
         <template v-if="playerStore.currentSong">
-            <div class="song-info">
-                <img :src="coverImage || defaultCoverImage" class="song-cover" :class="{ 'loading': isLoadingCover }"
+            <div class="flex items-center gap-4 min-w-0 max-sm:justify-center max-sm:order-1">
+                <img :src="coverImage || defaultCoverImage"
+                    :class="[
+                        'w-14 h-14 rounded object-cover cursor-pointer transition-all duration-200 shadow-custom shrink-0',
+                        'hover:scale-105 hover:shadow-custom-hover',
+                        'max-sm:w-12 max-sm:h-12',
+                        isLoadingCover ? 'animate-pulse' : ''
+                    ]"
                     alt="cover" @click="showLyrics" @error="onCoverImageError" title="点击查看歌词" />
-                <div class="song-details">
-                    <span class="song-title">{{ playerStore.currentSong.title }}</span>
-                    <span class="song-artist">{{ playerStore.currentSong.artist }}</span>
+                <div class="flex flex-col min-w-0 flex-1">
+                    <span class="text-sm font-medium text-content-base truncate mb-0.5 max-sm:text-xs max-sm:text-center">{{ playerStore.currentSong.title }}</span>
+                    <span class="text-xs text-content-secondary truncate max-sm:text-2xs max-sm:text-center">{{ playerStore.currentSong.artist }}</span>
                 </div>
-                <CustomButton type="icon-only" icon="heart" icon-size="medium" :custom-class="'favorite-button'"
+                <CustomButton type="icon-only" icon="heart" icon-size="medium" customClass="max-sm:hidden! text-accent-green"
                     title="收藏歌曲" />
             </div>
 
             <!-- Main Controls -->
-            <div class="main-controls">
-                <div class="top-controls">
+            <div class="flex flex-col items-center gap-2 w-full max-sm:order-2 max-sm:gap-1.5">
+                <div class="flex items-center gap-4 justify-center max-sm:gap-3">
                     <CustomButton type="icon-only" :icon="playModeIconName" icon-size="medium" :title="playModeText"
-                        :custom-class="playerStore.playMode !== 'sequence' ? 'is-active' : ''" @click="togglePlayMode" />
-                    <CustomButton type="icon-only" icon="step-backward" icon-size="large" title="上一首"
-                        @click="playerStore.playPrevious" />
+                        :customClass="playerStore.playMode !== 'sequence' ? 'text-accent-green!' : ''" @click="togglePlayMode" />
+                    <CustomButton type="icon-only" icon="step-backward" icon-size="large" title="上一首" @click="playerStore.playPrevious" />
                     <CustomButton type="icon-only" :icon="playerStore.playing ? 'pause' : 'play'" icon-size="large"
-                        :title="playerStore.playing ? '暂停' : '播放'" :circle="true" custom-class="play-pause-button"
+                        :title="playerStore.playing ? '暂停' : '播放'" :circle="true"
+                        customClass="border-2! border-content-secondary! hover:border-accent-green!"
                         @click="togglePlayPause" />
-                    <CustomButton type="icon-only" icon="step-forward" icon-size="large" title="下一首"
-                        @click="playerStore.playNext()" />
+                    <CustomButton type="icon-only" icon="step-forward" icon-size="large" title="下一首" @click="playerStore.playNext()" />
                     <CustomButton type="icon-only" icon="list" icon-size="medium" title="播放列表"
-                        :custom-class="uiStore.showPlaylist ? 'is-active' : ''" @click="uiStore.togglePlaylist()" />
+                        :customClass="uiStore.showPlaylist ? 'text-accent-green!' : ''" @click="uiStore.togglePlaylist()" />
                 </div>
-                <div class="progress-section">
-                    <span class="time-display">{{ formatTime(playerStore.currentTime) }}</span>
-                    <div class="progress-bar-wrapper" @click="setPlayTime" ref="timelineRef">
-                        <div class="progress-bar-fill" :style="{ width: progressPercentage }"></div>
+                <div class="w-full flex items-center gap-3 max-sm:gap-2">
+                    <span class="text-2xs text-content-secondary min-w-[40px] text-center font-medium max-sm:min-w-[35px]">{{ formatTime(playerStore.currentTime) }}</span>
+                    <div ref="timelineRef"
+                        class="flex-1 h-2 flex items-center cursor-pointer bg-overlay-medium rounded-full transition-all duration-200 relative overflow-hidden hover:h-2.5 hover:bg-overlay-light max-sm:h-[6px] max-sm:hover:h-2"
+                        @click="setPlayTime">
+                        <div class="h-full bg-content-base rounded-full transition-all duration-200 relative"
+                            :style="{ width: progressPercentage }">
+                            <span class="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-content-base rounded-full opacity-0 transition-opacity duration-200
+                                group-hover/hover:opacity-100 max-sm:w-2.5 max-sm:h-2.5"></span>
+                        </div>
                     </div>
-                    <span class="time-display">{{ formatTime(playerStore.currentSong.duration) }}</span>
+                    <span class="text-2xs text-content-secondary min-w-[40px] text-center font-medium max-sm:min-w-[35px]">{{ formatTime(playerStore.currentSong.duration) }}</span>
                 </div>
             </div>
 
             <!-- Volume Control -->
-            <div class="volume-controls">
+            <div class="flex justify-end items-center gap-3 max-sm:hidden">
                 <CustomButton type="icon-only"
                     :icon="(playerStore.muted || playerStore.volume === 0) ? 'volume-off' : 'volume-up'" icon-size="medium"
-                    :title="playerStore.muted ? '取消静音' : '静音'" :custom-class="playerStore.muted ? 'is-active' : ''"
-                    @click="toggleMute" />
-                <div class="volume-bar-wrapper" ref="volumeRef" @mousedown="startVolumeChange" title="调节音量">
-                    <div class="volume-bar-fill" :style="{ width: volumePercentage }"></div>
+                    :title="playerStore.muted ? '取消静音' : '静音'"
+                    :customClass="playerStore.muted ? 'text-accent-green!' : ''" @click="toggleMute" />
+                <div ref="volumeRef"
+                    class="w-[100px] h-[6px] flex items-center cursor-pointer bg-overlay-medium rounded-full transition-all duration-200 relative overflow-hidden hover:h-2 hover:bg-overlay-light max-lg:w-[80px]"
+                    @mousedown="startVolumeChange" title="调节音量">
+                    <div class="h-full bg-content-base rounded-full transition-all duration-200 relative"
+                        :style="{ width: volumePercentage }">
+                        <span class="absolute right-0 top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-content-base rounded-full opacity-0 transition-opacity duration-200"></span>
+                    </div>
                 </div>
             </div>
         </template>
 
         <!-- 无歌曲：空状态 -->
-        <div v-else class="empty-state">
-            <span class="empty-state-text">LLMusic</span>
+        <div v-else class="col-span-full flex items-center justify-center h-full">
+            <span class="text-lg font-medium text-content-secondary opacity-30 tracking-[4px] select-none">LLMusic</span>
         </div>
     </div>
 </template>
 
-<style lang="scss" scoped>
-.player-bar-container {
-    display: grid;
-    grid-template-columns: 1fr 2fr 1fr;
-    align-items: center;
-    background-color: $bg-secondary;
-    padding: $content-padding;
-    height: $player-bar-height;
-    border-top: 1px solid $bg-tertiary;
-    color: $text-primary;
-    z-index: $z-player;
-    position: relative;
-    transition: all $transition-base;
-
-    @include respond-to("md") {
-        grid-template-columns: 1fr 1.5fr 1fr;
-        padding: ($content-padding * 0.75);
-    }
-
-    @include respond-to("sm") {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto auto;
-        gap: ($content-padding * 0.5);
-        height: auto;
-        min-height: $player-bar-height;
-        padding: ($content-padding * 0.75);
-    }
-}
-
-/* Song Info Section */
-.song-info {
-    display: flex;
-    align-items: center;
-    gap: $content-padding;
-    min-width: 0; // 防止flex项目溢出
-
-    @include respond-to("sm") {
-        justify-content: center;
-        order: 1;
-    }
-}
-
-.song-cover {
-    width: 56px;
-    height: 56px;
-    border-radius: $border-radius;
-    object-fit: cover;
-    cursor: pointer;
-    transition: all $transition-base;
-    box-shadow: $box-shadow;
-    flex-shrink: 0;
-
-    &:hover {
-        transform: scale(1.05);
-        box-shadow: $box-shadow-hover;
-    }
-
-    @include respond-to("sm") {
-        width: 48px;
-        height: 48px;
-    }
-}
-
-.song-details {
-    display: flex;
-    flex-direction: column;
-    min-width: 0; // 防止文本溢出
-    flex: 1;
-}
-
-.song-title {
-    font-size: $font-size-base;
-    font-weight: $font-weight-medium;
-    color: $text-primary;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-bottom: 2px;
-
-    @include respond-to("sm") {
-        font-size: $font-size-sm;
-        text-align: center;
-    }
-}
-
-.song-artist {
-    font-size: $font-size-sm;
-    color: $text-secondary;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-
-    @include respond-to("sm") {
-        font-size: $font-size-xs;
-        text-align: center;
-    }
-}
-
-// 收藏按钮特殊样式
-.favorite-button {
-    &.is-favorite {
-        color: $accent-green !important;
-    }
-
-    @include respond-to("sm") {
-        display: none; // 在小屏幕上隐藏
-    }
-}
-
-/* Main Controls Section */
-.main-controls {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: ($content-padding * 0.5);
-    width: 100%;
-
-    @include respond-to("sm") {
-        order: 2;
-        gap: ($content-padding * 0.375);
-    }
-}
-
-.top-controls {
-    display: flex;
-    align-items: center;
-    gap: $content-padding;
-    justify-content: center;
-
-    @include respond-to("sm") {
-        gap: ($content-padding * 0.75);
-    }
-}
-
-// CustomButton 组件已处理基础按钮样式
-// 保留特殊状态样式
-.is-active {
-    color: $accent-green !important;
-}
-
-// 播放/暂停按钮特殊样式（圆形边框）
-.play-pause-button {
-    border: 2px solid $text-secondary !important;
-
-    &:hover {
-        border-color: $accent-green !important;
-    }
-}
-
-/* Progress Section */
-.progress-section {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: ($content-padding * 0.75);
-
-    @include respond-to("sm") {
-        gap: ($content-padding * 0.5);
-    }
-}
-
-.time-display {
-    font-size: $font-size-xs;
-    color: $text-secondary;
-    min-width: 40px;
-    text-align: center;
-    font-weight: $font-weight-medium;
-    font-variant-numeric: tabular-nums; // 等宽数字
-
-    @include respond-to("sm") {
-        min-width: 35px;
-        font-size: $font-size-xs;
-    }
-}
-
-.progress-bar-wrapper {
-    flex: 1;
-    height: 8px;
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    background-color: $overlay-medium;
-    border-radius: ($border-radius * 2);
-    transition: all $transition-base;
-    position: relative;
-    overflow: hidden;
-
-    &:hover {
-        height: 10px;
-        background-color: $overlay-light;
-
-        .progress-bar-fill {
-            background-color: $accent-green;
-        }
-    }
-
-    @include respond-to("sm") {
-        height: 6px;
-
-        &:hover {
-            height: 8px;
-        }
-    }
-}
-
-.progress-bar-fill {
-    height: 100%;
-    background-color: $text-primary;
-    border-radius: ($border-radius * 2);
-    transition: all $transition-base;
-    position: relative;
-
-    &::after {
-        content: '';
-        position: absolute;
-        right: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 12px;
-        height: 12px;
-        background-color: $text-primary;
-        border-radius: 50%;
-        opacity: 0;
-        transition: opacity $transition-base;
-
-        @include respond-to("sm") {
-            width: 10px;
-            height: 10px;
-        }
-    }
-
-    .progress-bar-wrapper:hover &::after {
-        opacity: 1;
-    }
-}
-
-/* Volume Controls Section */
-.volume-controls {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: ($content-padding * 0.75);
-
-    @include respond-to("sm") {
-        display: none; // 在小屏幕上隐藏音量控制
-    }
-}
-
-.volume-bar-wrapper {
-    width: 100px;
-    height: 6px;
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    background-color: $overlay-medium;
-    border-radius: ($border-radius * 2);
-    transition: all $transition-base;
-    position: relative;
-    overflow: hidden;
-
-    &:hover {
-        height: 8px;
-        background-color: $overlay-light;
-
-        .volume-bar-fill {
-            background-color: $accent-green;
-        }
-    }
-
-    @include respond-to("md") {
-        width: 80px;
-    }
-}
-
-.volume-bar-fill {
-    height: 100%;
-    background-color: $text-primary;
-    border-radius: ($border-radius * 2);
-    transition: all $transition-base;
-    position: relative;
-
-    &::after {
-        content: '';
-        position: absolute;
-        right: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 10px;
-        height: 10px;
-        background-color: $text-primary;
-        border-radius: 50%;
-        opacity: 0;
-        transition: opacity $transition-base;
-    }
-
-    .volume-bar-wrapper:hover &::after {
-        opacity: 1;
-    }
-}
-
-/* 播放模式激活状态已由 .is-active 统一处理 */
-
-/* 加载动画 */
-.song-cover.loading {
-    animation: pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes pulse {
-
-    0%,
-    100% {
-        opacity: 1;
-    }
-
-    50% {
-        opacity: 0.5;
-    }
-}
-
-/* 错误状态 */
-.player-bar-container.has-error {
-    border-top-color: $danger;
-
-    .progress-bar-fill {
-        background-color: $danger;
-    }
-}
-
-/* 无歌曲空状态 */
-.empty-state {
-    grid-column: 1 / -1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-}
-
-.empty-state-text {
-    font-size: $font-size-lg;
-    font-weight: $font-weight-medium;
-    color: $text-secondary;
-    opacity: 0.3;
-    letter-spacing: 4px;
-    user-select: none;
+<style scoped>
+/* 进度条和音量条悬停时的圆点显示 */
+div:hover > div > span {
+  opacity: 1;
 }
 </style>

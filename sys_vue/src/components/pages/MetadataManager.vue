@@ -506,7 +506,7 @@ onMounted(async () => {
 </template>
 
 <style lang="scss" scoped>
-// 导入样式变量
+/* comment */
 @use "sass:color";
 
 .metadata-manager {
@@ -514,14 +514,14 @@ onMounted(async () => {
     height: 100%;
     display: flex;
     flex-direction: column;
-    padding: $content-padding;
-    color: $text-primary;
+    padding: 16px;
+    color: #ffffff;
     overflow: hidden;
     position: relative;
 }
 
 .metadata-manager.dragging {
-    border: 3px dashed $accent-green;
+    border: 3px dashed #4caf50;
     background-color: rgba(76, 175, 80, 0.05);
 }
 
@@ -529,12 +529,12 @@ onMounted(async () => {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: $content-padding;
+    margin-bottom: 16px;
 }
 
 .metadata-header h1 {
-    font-size: $font-size-xl;
-    font-weight: $font-weight-medium;
+    font-size: 20px;
+    font-weight: 500;
 }
 
 .search-box {
@@ -543,43 +543,43 @@ onMounted(async () => {
 
 .metadata-toolbar {
     display: flex;
-    gap: ($content-padding * 0.625);
-    margin-bottom: $content-padding;
+    gap: (16px * 0.625);
+    margin-bottom: 16px;
 }
 
 .import-btn,
 .select-all-btn,
 .clear-all-btn {
-    background: $bg-secondary;
-    color: $text-primary;
+    background: #181818;
+    color: #ffffff;
     border: none;
-    padding: ($content-padding * 0.5) $content-padding;
-    border-radius: $border-radius;
+    padding: (16px * 0.5) 16px;
+    border-radius: 4px;
     cursor: pointer;
-    font-size: $font-size-sm;
-    transition: all $transition-base;
+    font-size: 12px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     align-items: center;
-    gap: ($content-padding * 0.375);
+    gap: (16px * 0.375);
 }
 
 .import-btn {
-    background: $accent-green;
+    background: #4caf50;
 
     &:hover {
-        background: $accent-hover;
+        background: #66bb6a;
     }
 }
 
 .select-all-btn:hover {
-    background: color.adjust($bg-secondary, $lightness: 10%);
+    background: color.adjust(#181818, $lightness: 10%);
 }
 
 .clear-all-btn {
-    background: $text-disabled;
+    background: #535353;
 
     &:hover {
-        background: color.adjust($text-disabled, $lightness: 10%);
+        background: color.adjust(#535353, $lightness: 10%);
     }
 }
 
@@ -590,9 +590,9 @@ onMounted(async () => {
 }
 
 .import-status-bar {
-    padding: ($content-padding * 0.75) $content-padding;
-    margin-bottom: ($content-padding * 0.9375);
-    border-radius: $border-radius;
+    padding: (16px * 0.75) 16px;
+    margin-bottom: (16px * 0.9375);
+    border-radius: 4px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -603,17 +603,17 @@ onMounted(async () => {
 }
 
 .import-status-bar.success {
-    background-color: $accent-green;
+    background-color: #4caf50;
 }
 
 .import-status-bar.error {
-    background-color: $danger;
+    background-color: #f44336;
 }
 
 .import-status-message {
     display: flex;
     align-items: center;
-    gap: ($content-padding * 0.5);
+    gap: (16px * 0.5);
 }
 
 .loading-icon {
@@ -639,7 +639,7 @@ onMounted(async () => {
 
 .song-table th,
 .song-table td {
-    padding: ($content-padding * 0.75);
+    padding: (16px * 0.75);
     text-align: left;
     white-space: nowrap;
     overflow: hidden;
@@ -647,18 +647,18 @@ onMounted(async () => {
 }
 
 .song-table th {
-    background: $bg-secondary;
+    background: #181818;
     position: sticky;
     top: 0;
-    z-index: $z-base;
+    z-index: 1;
 }
 
 .song-row {
-    transition: background-color $transition-fast;
+    transition: background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .song-row:hover {
-    background: $overlay-light;
+    background: rgba(255,255,255,0.1);
 }
 
 .checkbox-column {
@@ -683,23 +683,23 @@ onMounted(async () => {
 .search-btn {
     background: none;
     border: none;
-    color: $text-secondary;
+    color: #b3b3b3;
     cursor: pointer;
-    padding: ($content-padding * 0.25);
-    transition: all $transition-base;
-    margin: 0 ($content-padding * 0.25);
+    padding: (16px * 0.25);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    margin: 0 (16px * 0.25);
 }
 
 .edit-btn:hover,
 .search-btn:hover {
-    color: $text-primary;
+    color: #ffffff;
     transform: scale(1.1);
 }
 
 .empty-row td {
     text-align: center;
-    padding: ($content-padding * 2.5);
-    color: $text-secondary;
+    padding: (16px * 2.5);
+    color: #b3b3b3;
 }
 
 .online-search-panel {
@@ -708,31 +708,31 @@ onMounted(async () => {
     top: 0;
     bottom: 0;
     width: 350px;
-    background: $bg-secondary;
-    border-radius: ($border-radius * 2);
-    box-shadow: $box-shadow-hover;
+    background: #181818;
+    border-radius: (4px * 2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15)-hover;
     display: flex;
     flex-direction: column;
-    z-index: $z-modal;
+    z-index: 100;
 }
 
 .panel-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: ($content-padding * 0.9375);
-    border-bottom: 1px solid $bg-tertiary;
+    padding: (16px * 0.9375);
+    border-bottom: 1px solid #282828;
 }
 
 .panel-header h3 {
     margin: 0;
-    font-size: $font-size-base;
+    font-size: 14px;
 }
 
 .panel-content {
     flex: 1;
     overflow: auto;
-    padding: ($content-padding * 0.9375);
+    padding: (16px * 0.9375);
 }
 
 .loading-state,
@@ -742,14 +742,14 @@ onMounted(async () => {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: ($content-padding * 2.5) 0;
-    color: $text-secondary;
+    padding: (16px * 2.5) 0;
+    color: #b3b3b3;
     text-align: center;
 }
 
 .loading-icon {
     animation: spin 1.5s infinite linear;
-    margin-bottom: ($content-padding * 0.625);
+    margin-bottom: (16px * 0.625);
 }
 
 @keyframes spin {
@@ -765,59 +765,59 @@ onMounted(async () => {
 .result-list {
     display: flex;
     flex-direction: column;
-    gap: ($content-padding * 0.625);
+    gap: (16px * 0.625);
 }
 
 .result-item {
-    padding: ($content-padding * 0.625);
-    border-radius: ($border-radius * 1.5);
+    padding: (16px * 0.625);
+    border-radius: (4px * 1.5);
     cursor: pointer;
-    transition: all $transition-base;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     border: 1px solid transparent;
 }
 
 .result-item:hover {
-    background: $bg-tertiary;
+    background: #282828;
 }
 
 .result-item.selected {
-    background: $bg-tertiary;
-    border-color: $accent-green;
+    background: #282828;
+    border-color: #4caf50;
 }
 
 .result-title {
-    font-weight: $font-weight-medium;
-    font-size: $font-size-sm;
-    margin-bottom: ($content-padding * 0.25);
+    font-weight: 500;
+    font-size: 12px;
+    margin-bottom: (16px * 0.25);
 }
 
 .result-info {
-    font-size: $font-size-xs;
-    color: $text-secondary;
+    font-size: 10px;
+    color: #b3b3b3;
 }
 
 .result-divider {
-    margin: 0 ($content-padding * 0.25);
+    margin: 0 (16px * 0.25);
 }
 
 .apply-actions {
-    margin-top: $content-padding;
+    margin-top: 16px;
     display: flex;
     justify-content: center;
 }
 
 .apply-btn {
-    background: $accent-green;
-    color: $text-primary;
+    background: #4caf50;
+    color: #ffffff;
     border: none;
-    padding: ($content-padding * 0.5) $content-padding;
-    border-radius: ($border-radius * 5);
+    padding: (16px * 0.5) 16px;
+    border-radius: (4px * 5);
     cursor: pointer;
-    transition: all $transition-base;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .apply-btn:hover {
-    background: $accent-hover;
+    background: #66bb6a;
     transform: translateY(-2px);
 }
 
@@ -833,32 +833,32 @@ onMounted(async () => {
     left: 0;
     width: 100%;
     height: 100%;
-    background: $overlay-dark;
+    background: rgba(0,0,0,0.3);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: $z-tooltip;
-    border-radius: ($border-radius * 2);
+    z-index: 300;
+    border-radius: (4px * 2);
 }
 
 .drag-message {
     text-align: center;
-    color: $text-primary;
+    color: #ffffff;
     background: rgba(76, 175, 80, 0.2);
-    padding: ($content-padding * 2.5);
-    border-radius: ($border-radius * 3);
-    border: 2px dashed $accent-green;
+    padding: (16px * 2.5);
+    border-radius: (4px * 3);
+    border: 2px dashed #4caf50;
 }
 
 .drag-message h2 {
-    margin: ($content-padding * 0.9375) 0 ($content-padding * 0.5);
-    font-size: $font-size-xxl;
+    margin: (16px * 0.9375) 0 (16px * 0.5);
+    font-size: 36px;
 }
 
 .drag-message p {
-    font-size: $font-size-sm;
-    color: $text-secondary;
-    margin: ($content-padding * 0.3125) 0 0;
+    font-size: 12px;
+    color: #b3b3b3;
+    margin: (16px * 0.3125) 0 0;
 }
 
 /* 确认对话框样式 */
@@ -868,112 +868,112 @@ onMounted(async () => {
     left: 0;
     width: 100%;
     height: 100%;
-    background: $overlay-dark;
+    background: rgba(0,0,0,0.3);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: $z-modal;
+    z-index: 100;
 }
 
 .confirm-dialog {
-    background: $bg-secondary;
-    border-radius: ($border-radius * 2);
-    padding: ($content-padding * 1.5);
+    background: #181818;
+    border-radius: (4px * 2);
+    padding: (16px * 1.5);
     max-width: 480px;
     width: 90%;
-    box-shadow: $box-shadow-hover;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15)-hover;
 }
 
 .confirm-header {
     display: flex;
     align-items: center;
-    gap: ($content-padding * 0.75);
-    margin-bottom: $content-padding;
-    color: $accent-green;
+    gap: (16px * 0.75);
+    margin-bottom: 16px;
+    color: #4caf50;
 }
 
 .confirm-header h3 {
     margin: 0;
-    font-size: $font-size-lg;
-    font-weight: $font-weight-medium;
+    font-size: 18px;
+    font-weight: 500;
 }
 
 .confirm-content {
-    margin-bottom: ($content-padding * 1.5);
+    margin-bottom: (16px * 1.5);
     line-height: 1.5;
 }
 
 .confirm-content p {
-    margin: 0 0 ($content-padding * 0.75);
-    color: $text-primary;
+    margin: 0 0 (16px * 0.75);
+    color: #ffffff;
 }
 
 .info-text {
     background: rgba(76, 175, 80, 0.1);
     border: 1px solid rgba(76, 175, 80, 0.3);
-    border-radius: $border-radius;
-    padding: ($content-padding * 0.5) ($content-padding * 0.75);
-    font-size: $font-size-xs;
+    border-radius: 4px;
+    padding: (16px * 0.5) (16px * 0.75);
+    font-size: 10px;
 }
 
 .song-count {
-    background: $overlay-light;
-    border-radius: $border-radius;
-    padding: ($content-padding * 0.5) ($content-padding * 0.75);
-    margin-top: ($content-padding * 0.75);
-    font-size: $font-size-sm;
-    color: $text-primary;
+    background: rgba(255,255,255,0.1);
+    border-radius: 4px;
+    padding: (16px * 0.5) (16px * 0.75);
+    margin-top: (16px * 0.75);
+    font-size: 12px;
+    color: #ffffff;
 }
 
 .confirm-actions {
     display: flex;
-    gap: ($content-padding * 0.75);
+    gap: (16px * 0.75);
     justify-content: flex-end;
 }
 
 .cancel-btn,
 .confirm-btn {
-    padding: ($content-padding * 0.5) $content-padding;
+    padding: (16px * 0.5) 16px;
     border: none;
-    border-radius: $border-radius;
+    border-radius: 4px;
     cursor: pointer;
-    font-size: $font-size-sm;
-    transition: all $transition-base;
+    font-size: 12px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     align-items: center;
-    gap: ($content-padding * 0.375);
+    gap: (16px * 0.375);
 }
 
 .cancel-btn {
-    background: $text-disabled;
-    color: $text-primary;
+    background: #535353;
+    color: #ffffff;
 }
 
 .cancel-btn:hover {
-    background: color.adjust($text-disabled, $lightness: 10%);
+    background: color.adjust(#535353, $lightness: 10%);
 }
 
 .confirm-btn {
-    background: $accent-green;
-    color: $text-primary;
+    background: #4caf50;
+    color: #ffffff;
 }
 
 .confirm-btn:hover {
-    background: $accent-hover;
+    background: #66bb6a;
     transform: translateY(-1px);
 }
 
 /* 响应式适配 */
-@include respond-to("sm") {
+@media (max-width: 768px) {
     .metadata-manager {
-        padding: ($content-padding * 0.75);
+        padding: (16px * 0.75);
     }
 
     .metadata-header {
         flex-direction: column;
         align-items: flex-start;
-        gap: ($content-padding * 0.75);
-        margin-bottom: ($content-padding * 0.75);
+        gap: (16px * 0.75);
+        margin-bottom: (16px * 0.75);
     }
 
     .search-box {
@@ -983,20 +983,20 @@ onMounted(async () => {
 
     .metadata-toolbar {
         flex-wrap: wrap;
-        gap: ($content-padding * 0.5);
+        gap: (16px * 0.5);
     }
 
     .import-btn,
     .select-all-btn,
     .clear-all-btn {
-        font-size: $font-size-xs;
-        padding: ($content-padding * 0.375) ($content-padding * 0.75);
+        font-size: 10px;
+        padding: (16px * 0.375) (16px * 0.75);
     }
 
     .song-table th,
     .song-table td {
-        padding: ($content-padding * 0.5);
-        font-size: $font-size-sm;
+        padding: (16px * 0.5);
+        font-size: 12px;
     }
 
     .online-search-panel {
@@ -1011,15 +1011,15 @@ onMounted(async () => {
 
     .confirm-dialog {
         width: 95%;
-        padding: $content-padding;
+        padding: 16px;
     }
 
     .drag-message {
-        padding: $content-padding;
+        padding: 16px;
     }
 
     .drag-message h2 {
-        font-size: $font-size-xl;
+        font-size: 20px;
     }
 }
 </style>

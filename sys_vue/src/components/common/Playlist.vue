@@ -13,484 +13,112 @@ const songs = ref([]);
 const isLoading = ref(false);
 
 async function fetchSongsDetails(ids) {
-    if (!ids || ids.length === 0) {
-        songs.value = [];
-        return;
-    }
+    if (!ids || ids.length === 0) { songs.value = []; return; }
     isLoading.value = true;
     try {
         const songDetails = [];
         for (const id of ids) {
             const result = await window.electronAPI.getSongById(id);
-            if (result.success && result.song) {
-                songDetails.push(result.song);
-            }
+            if (result.success && result.song) songDetails.push(result.song);
         }
         songs.value = songDetails;
     } catch (error) {
-        console.error("Error fetching playlist songs individually:", error.message || error);
+        console.error("Error fetching playlist songs:", error.message || error);
         songs.value = [];
     } finally {
         isLoading.value = false;
-        // 获取/更新歌曲后，尝试滚动到当前歌曲
         await nextTick();
         scrollToCurrentSong();
     }
 }
 
-function playSong(song) {
-    playerStore.playSong(song);
-}
-
+function playSong(song) { playerStore.playSong(song); }
 function removeFromPlaylist(songId) {
     const index = playerStore.playlist.indexOf(songId);
-    if (index > -1) {
-        playerStore.removeFromPlaylist(index);
-    }
+    if (index > -1) playerStore.removeFromPlaylist(index);
 }
 
 async function scrollToCurrentSong() {
-    // 等待DOM更新
     await nextTick();
-
-    if (!uiStore.isPlaylistVisible || !playerStore.currentSong || !songListRef.value) {
-        return;
-    }
-
-    const songId = playerStore.currentSong.id;
-    // li元素是ul(songListRef)的直接子元素
-    const songElement = songListRef.value.querySelector(`[data-song-id="${songId}"]`);
-
-    if (songElement) {
-        songElement.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center',
-        });
-    }
+    if (!uiStore.isPlaylistVisible || !playerStore.currentSong || !songListRef.value) return;
+    const songEl = songListRef.value.querySelector(`[data-song-id="${playerStore.currentSong.id}"]`);
+    if (songEl) songEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-onMounted(() => {
-    fetchSongsDetails(playerStore.playlist);
-});
+onMounted(() => fetchSongsDetails(playerStore.playlist));
 
-// 监听播放列表的变化（添加/移除歌曲）
-watch(() => playerStore.playlist, (newIds) => {
-    fetchSongsDetails(newIds);
-}, { deep: true });
-
-// 监听播放列表的可见性变化
-watch(() => uiStore.isPlaylistVisible, (isVisible) => {
-    if (isVisible) {
-        // 如果播放列表隐藏期间主歌曲列表发生了变化，我们可能需要重新获取详情
-        // 不过现在只需要滚动即可
-        scrollToCurrentSong();
-    }
-});
-
-// 监听当前播放歌曲的变化
-watch(() => playerStore.currentSong, () => {
-    // 只有在播放列表已经可见时才滚动
-    if (uiStore.isPlaylistVisible) {
-        scrollToCurrentSong();
-    }
-}, { deep: true });
+watch(() => playerStore.playlist, (newIds) => fetchSongsDetails(newIds), { deep: true });
+watch(() => uiStore.isPlaylistVisible, (isVisible) => { if (isVisible) scrollToCurrentSong(); });
+watch(() => playerStore.currentSong, () => { if (uiStore.isPlaylistVisible) scrollToCurrentSong(); }, { deep: true });
 </script>
 
 <template>
-    <div class="playlist" :class="{
-        'is-loading': isLoading,
-        'is-empty': !isLoading && songs.length === 0
-    }">
-        <div class="playlist__header">
-            <h3 class="playlist__title">播放列表</h3>
-            <CustomButton 
-                type="icon-only" 
-                icon="times" 
-                @click="uiStore.togglePlaylist()" 
-                custom-class="playlist__close-btn"
-                aria-label="关闭播放列表"
-            />
+    <div :class="[
+        'flex flex-col h-full bg-surface-elevated text-content-base rounded shadow-custom overflow-hidden border border-line-base select-none slide-in',
+        'max-md:rounded-none max-md:shadow-none max-md:border-none max-md:border-l max-md:border-line-base',
+        isLoading ? 'opacity-80' : '', songs.length === 0 && !isLoading ? '' : ''
+    ]">
+        <div class="flex justify-between items-center p-4 bg-surface-overlay border-b border-line-base shrink-0 max-md:p-3">
+            <h3 class="m-0 text-lg font-medium text-content-base max-md:text-base">播放列表</h3>
+            <CustomButton type="icon-only" icon="times" @click="uiStore.togglePlaylist()"
+                :customClass="'min-w-[44px] min-h-[44px] max-md:min-w-[40px] max-md:min-h-[40px]'"
+                aria-label="关闭播放列表" />
         </div>
 
-        <div class="playlist__content">
+        <!-- 内容区 -->
+        <div class="flex-1 flex flex-col overflow-hidden">
             <!-- 加载状态 -->
-            <div v-if="isLoading" class="playlist__loading">
-                <div class="loading-spinner"></div>
-                <span class="loading-text">正在加载...</span>
+            <div v-if="isLoading" class="flex flex-col items-center justify-center flex-1 gap-4 text-content-secondary p-8 max-md:gap-3 max-md:p-4">
+                <div class="w-8 h-8 border-3 border-surface-overlay border-t-accent-green rounded-full spin max-md:w-7 max-md:h-7 max-md:border-2"></div>
+                <span class="text-sm font-medium max-md:text-xs">正在加载...</span>
             </div>
 
             <!-- 歌曲列表 -->
-            <ul v-else-if="songs.length > 0" class="playlist__song-list" ref="songListRef">
+            <ul v-else-if="songs.length > 0" ref="songListRef"
+                class="list-none m-0 p-0 overflow-y-auto flex-1
+                       [&::-webkit-scrollbar]:w-2
+                       [&::-webkit-scrollbar-track]:bg-surface-base
+                       [&::-webkit-scrollbar-thumb]:bg-overlay-medium [&::-webkit-scrollbar-thumb]:rounded-[4px] [&::-webkit-scrollbar-thumb]:transition-colors [&::-webkit-scrollbar-thumb]:duration-200
+                       [&::-webkit-scrollbar-thumb:hover]:bg-overlay-light
+                       max-md:[&::-webkit-scrollbar]:w-[6px]">
                 <li v-for="song in songs" :key="song.id" :data-song-id="song.id" @click="playSong(song)"
-                    class="playlist__song-item" :class="{
-                        'is-playing': playerStore.currentSong && playerStore.currentSong.id === song.id
-                    }">
-                    <div class="playlist__song-info">
-                        <span class="playlist__song-title">{{ song.title }}</span>
-                        <span class="playlist__song-artist">{{ song.artist }}</span>
+                    :class="[
+                        'flex justify-between items-center px-4 py-3 cursor-pointer border-b border-surface-base transition-all duration-200 relative min-h-[60px]',
+                        'hover:bg-overlay-light active:bg-overlay-medium active:scale-[0.98]',
+                        playerStore.currentSong && playerStore.currentSong.id === song.id
+                            ? 'bg-surface-overlay text-accent-green border-l-3 border-l-accent-green pl-[13px]'
+                            : '',
+                        'max-md:px-3 max-md:py-2 max-md:min-h-[52px]',
+                        playerStore.currentSong && playerStore.currentSong.id === song.id ? 'max-md:pl-[9px]' : '',
+                    ]">
+                    <!-- 播放中指示线 -->
+                    <span v-if="playerStore.currentSong && playerStore.currentSong.id === song.id"
+                        class="absolute left-2 top-1/2 -translate-y-1/2 w-1 h-5 bg-gradient-to-b from-accent-green to-accent-green-hover rounded-[2px] playing-pulse">
+                    </span>
+                    <div class="flex flex-col min-w-0 flex-1 mr-4 max-md:mr-3">
+                        <span :class="[
+                            'font-medium text-sm text-content-base truncate mb-1 max-md:text-xs',
+                            playerStore.currentSong && playerStore.currentSong.id === song.id ? 'text-accent-green font-medium' : ''
+                        ]">{{ song.title }}</span>
+                        <span class="text-xs text-content-secondary truncate max-md:text-2xs">{{ song.artist }}</span>
                     </div>
-                    <CustomButton 
-                        type="icon-only" 
-                        icon="trash" 
-                        size="small"
-                        @click.stop="removeFromPlaylist(song.id)" 
-                        custom-class="playlist__remove-btn"
-                        aria-label="从播放列表移除"
-                    />
+                    <CustomButton type="icon-only" icon="trash" size="small"
+                        @click.stop="removeFromPlaylist(song.id)"
+                        :customClass="[
+                            'min-w-8 min-h-8 shrink-0 transition-all duration-200',
+                            'max-md:min-w-7 max-md:min-h-7 max-md:opacity-100 max-md:visible',
+                            'opacity-0 invisible group-hover:opacity-100 group-hover:visible'
+                        ].join(' ')"
+                        aria-label="从播放列表移除" />
                 </li>
             </ul>
 
             <!-- 空状态 -->
-            <div v-else class="playlist__empty">
+            <div v-else class="flex flex-col items-center justify-center flex-1 p-8 text-center text-content-secondary max-md:p-4">
                 <FAIcon name="music" size="xl" color="secondary" />
-                <p class="playlist__empty-text">播放列表为空</p>
-                <p class="playlist__empty-hint">添加一些歌曲开始播放</p>
+                <p class="text-lg font-medium text-content-secondary m-0 mb-2 max-md:text-base">播放列表为空</p>
+                <p class="text-sm text-content-disabled m-0 max-md:text-xs">添加一些歌曲开始播放</p>
             </div>
         </div>
     </div>
 </template>
-
-<style lang="scss" scoped>
-
-.playlist {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    background-color: $bg-secondary;
-    color: $text-primary;
-    border-radius: $border-radius;
-    box-shadow: $box-shadow;
-    overflow: hidden;
-    @extend .slide-in;
-    user-select: none;
-    border: 1px solid $bg-tertiary;
-
-    @include respond-to("sm") {
-        border-radius: 0;
-        box-shadow: none;
-        border: none;
-        border-left: 1px solid $bg-tertiary;
-    }
-}
-
-.playlist__header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: $content-padding;
-    background-color: $bg-tertiary;
-    border-bottom: 1px solid $bg-tertiary;
-    flex-shrink: 0;
-
-    @include respond-to("sm") {
-        padding: ($content-padding * 0.75);
-    }
-}
-
-.playlist__title {
-    margin: 0;
-    font-size: $font-size-lg;
-    font-weight: $font-weight-medium;
-    color: $text-primary;
-
-    @include respond-to("sm") {
-        font-size: $font-size-base;
-    }
-}
-
-.playlist__close-btn {
-    min-width: 44px;
-    min-height: 44px;
-
-    @include respond-to("sm") {
-        min-width: 40px;
-        min-height: 40px;
-    }
-}
-
-.playlist__content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-.playlist__loading {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    flex: 1;
-    gap: $content-padding;
-    color: $text-secondary;
-    padding: ($content-padding * 2);
-
-    @include respond-to("sm") {
-        padding: $content-padding;
-        gap: ($content-padding * 0.75);
-    }
-}
-
-.loading-spinner {
-    width: 32px;
-    height: 32px;
-    border: 3px solid $bg-tertiary;
-    border-top: 3px solid $accent-green;
-    border-radius: 50%;
-    @extend .spin;
-
-    @include respond-to("sm") {
-        width: 28px;
-        height: 28px;
-        border-width: 2px;
-    }
-}
-
-.loading-text {
-    font-size: $font-size-base;
-    font-weight: $font-weight-medium;
-
-    @include respond-to("sm") {
-        font-size: $font-size-sm;
-    }
-}
-
-.playlist__song-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    overflow-y: auto;
-    flex: 1;
-
-    // 自定义滚动条
-    &::-webkit-scrollbar {
-        width: 8px;
-    }
-
-    &::-webkit-scrollbar-track {
-        background: $bg-primary;
-    }
-
-    &::-webkit-scrollbar-thumb {
-        background: $overlay-medium;
-        border-radius: 4px;
-        transition: background-color $transition-base;
-
-        &:hover {
-            background: $overlay-light;
-        }
-    }
-
-    @include respond-to("sm") {
-        &::-webkit-scrollbar {
-            width: 6px;
-        }
-    }
-}
-
-.playlist__song-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: ($content-padding * 0.75) $content-padding;
-    cursor: pointer;
-    border-bottom: 1px solid $bg-primary;
-    transition: all $transition-base;
-    position: relative;
-    min-height: 60px;
-
-    &:hover {
-        background-color: $overlay-light;
-
-        .playlist__remove-btn {
-            opacity: 1;
-            visibility: visible;
-        }
-    }
-
-    &:active {
-        background-color: $overlay-medium;
-        transform: scale(0.98);
-    }
-
-    &.is-playing {
-        background-color: $bg-tertiary;
-        color: $accent-green;
-        border-left: 3px solid $accent-green;
-        padding-left: calc(#{$content-padding} - 3px);
-
-        .playlist__song-title {
-            color: $accent-green;
-            font-weight: $font-weight-medium;
-        }
-
-        &::before {
-            content: '';
-            position: absolute;
-            left: ($content-padding * 0.5);
-            top: 50%;
-            transform: translateY(-50%);
-            width: 4px;
-            height: 20px;
-            background: linear-gradient(to bottom, $accent-green, $accent-hover);
-            border-radius: 2px;
-            @extend .playing-pulse;
-        }
-    }
-
-    @include respond-to("sm") {
-        padding: ($content-padding * 0.5) ($content-padding * 0.75);
-        min-height: 52px;
-
-        &.is-playing {
-            padding-left: calc(#{$content-padding * 0.75} - 3px);
-        }
-    }
-}
-
-.playlist__song-info {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    flex: 1;
-    margin-right: $content-padding;
-
-    @include respond-to("sm") {
-        margin-right: ($content-padding * 0.75);
-    }
-}
-
-.playlist__song-title {
-    font-weight: $font-weight-medium;
-    font-size: $font-size-base;
-    color: $text-primary;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-bottom: 4px;
-
-    @include respond-to("sm") {
-        font-size: $font-size-sm;
-    }
-}
-
-.playlist__song-artist {
-    font-size: $font-size-sm;
-    color: $text-secondary;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-
-    @include respond-to("sm") {
-        font-size: $font-size-xs;
-    }
-}
-
-.playlist__remove-btn {
-    opacity: 0;
-    visibility: hidden;
-    transition: all $transition-base;
-    min-width: 32px;
-    min-height: 32px;
-    flex-shrink: 0;
-
-    @include respond-to("sm") {
-        opacity: 1;
-        visibility: visible;
-        min-width: 28px;
-        min-height: 28px;
-    }
-}
-
-.playlist__empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    flex: 1;
-    padding: ($content-padding * 2);
-    text-align: center;
-    color: $text-secondary;
-
-    @include respond-to("sm") {
-        padding: $content-padding;
-    }
-}
-
-.playlist__empty-text {
-    font-size: $font-size-lg;
-    font-weight: $font-weight-medium;
-    color: $text-secondary;
-    margin: 0 0 ($content-padding * 0.5) 0;
-
-    @include respond-to("sm") {
-        font-size: $font-size-base;
-    }
-}
-
-.playlist__empty-hint {
-    font-size: $font-size-sm;
-    color: $text-disabled;
-    margin: 0;
-
-    @include respond-to("sm") {
-        font-size: $font-size-xs;
-    }
-}
-
-// 加载状态下的动画
-.playlist.is-loading {
-    .playlist__header {
-        opacity: 0.8;
-    }
-}
-
-// 空状态下的动画
-.playlist.is-empty {
-    .playlist__empty {
-        @extend .fade-in-up;
-    }
-}
-
-// 高对比度模式支持
-@media (prefers-contrast: high) {
-    .playlist {
-        border: 2px solid $text-primary;
-    }
-
-    .playlist__song-item {
-        border-bottom: 1px solid $text-secondary;
-
-        &.is-playing {
-            border-left-width: 4px;
-        }
-    }
-}
-
-// 减少动画模式支持
-@media (prefers-reduced-motion: reduce) {
-    .playlist,
-    .playlist__song-item,
-    .playlist__remove-btn,
-    .playlist__close-btn,
-    .loading-spinner {
-        animation: none;
-        transition: none;
-    }
-
-    .playlist__song-item {
-        &:hover,
-        &:active {
-            transform: none;
-        }
-    }
-
-    .playlist__close-btn,
-    .playlist__remove-btn {
-        &:hover,
-        &:active {
-            transform: none;
-        }
-    }
-}
-</style>

@@ -187,14 +187,12 @@ onUnmounted(() => {
     </div>
 </template>
 
-<style scoped lang="scss">
-// 标题栏样式
+<style scoped>
 .title-bar {
     flex-shrink: 0;
-    z-index: $z-modal;
+    z-index: 200;
 }
 
-// 主布局样式
 #app-container {
     display: flex;
     flex-direction: column;
@@ -204,7 +202,7 @@ onUnmounted(() => {
 
 .main-layout {
     display: flex;
-    height: calc(100vh - #{$title-bar-height} - #{$player-bar-height});
+    height: calc(100vh - 32px - 90px);
     overflow: hidden;
 }
 
@@ -215,11 +213,11 @@ onUnmounted(() => {
     width: var(--sidebar-width, 250px);
     height: 100%;
     transition: width 0.25s ease-out, opacity 0.2s ease-out;
+}
 
-    .sidebar-hidden & {
-        width: 0;
-        opacity: 0;
-    }
+.sidebar-hidden .sidebar-container {
+    width: 0;
+    opacity: 0;
 }
 
 .content-wrapper {
@@ -235,56 +233,43 @@ onUnmounted(() => {
     background-color: transparent;
     cursor: col-resize;
     flex-shrink: 0;
-
-    &:hover {
-        background-color: rgba(255, 255, 255, 0.1);
-    }
 }
 
-// 播放列表容器样式
+.resize-handle:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
 .playlist-container {
     position: fixed;
-    top: $title-bar-height;
+    top: 32px;
     right: 0;
-    bottom: $player-bar-height;
+    bottom: 90px;
     width: 350px;
-    z-index: $z-playlist;
+    z-index: 150;
     transform: translateX(100%);
-    transition: transform $transition-base ease-out;
-
-    &.is-visible {
-        transform: translateX(0);
-    }
-
-    @include respond-to("md") {
-        width: 320px;
-    }
-
-    @include respond-to("sm") {
-        width: 100%;
-        top: 0;
-        bottom: $player-bar-height;
-    }
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1) ease-out;
 }
 
-// 播放器控制栏样式
+.playlist-container.is-visible {
+    transform: translateX(0);
+}
+
+@media (max-width: 1024px) {
+    .playlist-container { width: 320px; }
+}
+
+@media (max-width: 768px) {
+    .playlist-container { width: 100%; top: 0; bottom: 90px; }
+}
+
 .player-bar {
     flex-shrink: 0;
-    z-index: $z-player;
+    z-index: 200;
 }
 
-// 减少动画模式支持
 @media (prefers-reduced-motion: reduce) {
-    .sidebar-container {
-        transition: none !important;
-
-        .sidebar-hidden & {
-            transform: none !important;
-        }
-    }
-
-    .playlist-container {
-        transition: none !important;
-    }
+    .sidebar-container { transition: none !important; }
+    .sidebar-hidden .sidebar-container { transform: none !important; }
+    .playlist-container { transition: none !important; }
 }
 </style>

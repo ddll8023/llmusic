@@ -1,5 +1,14 @@
 @import "tailwindcss";
+
+/*
+ * LLMusic 主题系统
+ * 定义与项目设计规范一致的 Tailwind 自定义主题值
+ * 迁移自 SCSS 变量体系（_colors.scss / _typography.scss / _layout.scss）
+ */
 @theme {
+  /* ========== 色彩系统 ========== */
+
+  /* 主色板（保留 Element Plus 兼容） */
   --color-primary-50: #eff6ff;
   --color-primary-100: #dbeafe;
   --color-primary-200: #bfdbfe;
@@ -10,21 +19,73 @@
   --color-primary-700: #1d4ed8;
   --color-primary-800: #1e40af;
   --color-primary-900: #1e3a8a;
+
+  /* 背景色（surface）— 源自 $bg-primary / $bg-secondary / $bg-tertiary */
   --color-surface-base: #121212;
   --color-surface-elevated: #1a1a1a;
   --color-surface-overlay: #242424;
   --color-surface-sunken: #0a0a0a;
+
+  /* 文本色（content）— 源自 $text-primary / $text-secondary / $text-disabled */
   --color-content-base: #ffffff;
   --color-content-secondary: #b3b3b3;
   --color-content-tertiary: #737373;
   --color-content-disabled: #535353;
   --color-content-inverse: #121212;
+
+  /* 边框/分割线色 — 源自 $bg-tertiary / $bg-tertiary-hover */
   --color-line-base: #282828;
   --color-line-light: #383838;
   --color-line-lighter: #4a4a4a;
+
+  /* 功能色 — 源自 $accent-green / $accent-hover / $danger / $warning / $info */
   --color-accent-green: #4caf50;
   --color-accent-green-hover: #66bb6a;
   --color-accent-danger: #f44336;
   --color-accent-warning: #ff9800;
   --color-accent-info: #2196f3;
+
+  /* 半透明覆盖色 — 源自 $overlay-light / $overlay-medium / $overlay-dark */
+  --color-overlay-light: rgba(255, 255, 255, 0.1);
+  --color-overlay-medium: rgba(255, 255, 255, 0.2);
+  --color-overlay-dark: rgba(0, 0, 0, 0.3);
+
+  /* ========== 字体系统 ========== */
+
+  /* 字体族 — 源自 $font-family-base */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+
+  /* 等宽字体 — 源自 $font-family-mono */
+  --font-mono: "SF Mono", Monaco, Inconsolata, "Roboto Mono", Consolas,
+    "Courier New", monospace;
+
+  /* 自定义字号 — 源自 $font-size-xs: 10px */
+  --text-2xs: 10px;
+  --text-2xs--line-height: 1.4;
+
+  /* ========== 间距系统 ========== */
+
+  /* 自定义间距 — 源自 $section-padding: 24px 等 */
+  --spacing-18: 4.5rem;
+  --spacing-88: 22rem;
+  --spacing-128: 32rem;
+
+  /* ========== 阴影系统 ========== */
+
+  /* 源自 $box-shadow / $box-shadow-hover / $box-shadow-active */
+  --shadow-custom: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --shadow-custom-hover: 0 4px 12px rgba(0, 0, 0, 0.2);
+  --shadow-custom-active: 0 1px 4px rgba(0, 0, 0, 0.1);
+
+  /* ========== 动画时长 ========== */
+
+  /* 源自 $transition-fast / $transition-base / $transition-slow */
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
+  --duration-slow: 300ms;
+
+  /* ========== 缓动函数 ========== */
+
+  --ease-out-expo: cubic-bezier(0.4, 0, 0.2, 1);
 }

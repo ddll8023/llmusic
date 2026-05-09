@@ -322,7 +322,7 @@ const forceRefreshTable = () => {
 </script>
 
 <template>
-  <div class="main-content">
+  <div class="h-full flex flex-col overflow-hidden">
     <ContentHeader title="本地音乐" :show-search="true" :search-value="mediaStore.searchTerm"
       search-placeholder="筛选歌曲、专辑或艺术家" :actions="headerActions" @search-input="handleSearchInput"
       @action-click="handleHeaderAction" />
@@ -340,19 +340,18 @@ const forceRefreshTable = () => {
   </div>
 </template>
 
-<style lang="scss" scoped>
+<style scoped>
 .main-content {
   flex: 1;
   min-height: 0;
-  background-color: $bg-primary;
-  color: $text-primary;
+  background-color: #121212;
+  color: #ffffff;
   padding: 0;
   display: flex;
   flex-direction: column;
   position: relative;
 }
 
-// 高亮更新动画
 @keyframes highlight-update {
   0% {
     background-color: rgba(76, 175, 80, 0.4);

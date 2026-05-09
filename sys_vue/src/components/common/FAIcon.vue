@@ -22,87 +22,36 @@ const props = defineProps({
     }
 });
 
-// 计算图标的CSS类
-const iconClasses = computed(() => {
-    const classes = ['fa', `fa-${props.name}`];
+// 尺寸映射 — Tailwind 类名
+const sizeMap = {
+    small: 'text-xs',
+    medium: 'text-base',
+    large: 'text-xl',
+    xl: 'text-2xl',
+};
 
-    // 尺寸类
-    classes.push(`icon--${props.size}`);
+// 颜色映射 — Tailwind 主题色
+const colorMap = {
+    primary: 'text-content-base',
+    secondary: 'text-content-secondary',
+    accent: 'text-accent-green',
+    danger: 'text-accent-danger',
+    disabled: 'text-content-disabled',
+};
 
-    // 颜色类
-    classes.push(`icon--${props.color}`);
-
-    // 交互状态类
-    if (props.clickable) {
-        classes.push('icon--clickable');
-    }
-
-    return classes;
-});
+// 计算图标的 Tailwind 类名
+const iconClasses = computed(() => [
+    'fa',
+    `fa-${props.name}`,
+    'inline-block align-middle',
+    sizeMap[props.size],
+    colorMap[props.color],
+    props.clickable
+        ? 'cursor-pointer transition-all duration-200 hover:text-accent-green-hover hover:scale-110 active:scale-95'
+        : '',
+]);
 </script>
 
 <template>
     <i :class="iconClasses" aria-hidden="true"></i>
 </template>
-
-<style lang="scss" scoped>
-// Font Awesome 图标基础样式
-.fa {
-    display: inline-block;
-    vertical-align: middle;
-    transition: color $transition-base;
-}
-
-// 图标尺寸样式
-.icon--small {
-    font-size: 12px;
-}
-
-.icon--medium {
-    font-size: 16px;
-}
-
-.icon--large {
-    font-size: 20px;
-}
-
-.icon--xl {
-    font-size: 24px;
-}
-
-// 图标颜色样式
-.icon--primary {
-    color: $text-primary;
-}
-
-.icon--secondary {
-    color: $text-secondary;
-}
-
-.icon--accent {
-    color: $accent-green;
-}
-
-.icon--danger {
-    color: $danger;
-}
-
-.icon--disabled {
-    color: $text-disabled;
-}
-
-// 可点击图标样式
-.icon--clickable {
-    cursor: pointer;
-    transition: color $transition-base, transform $transition-fast;
-
-    &:hover {
-        color: $accent-hover;
-        transform: scale(1.1);
-    }
-
-    &:active {
-        transform: scale(0.95);
-    }
-}
-</style>
