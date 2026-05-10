@@ -10,7 +10,7 @@
 
       <div class="flex-1 overflow-y-auto p-5 [&::-webkit-scrollbar]:w-[6px] [&::-webkit-scrollbar-track]:bg-surface-overlay [&::-webkit-scrollbar-track]:rounded
                    [&::-webkit-scrollbar-thumb]:bg-overlay-light [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-thumb:hover]:bg-overlay-medium">
-        <div class="mb-5 p-3 bg-surface-overlay rounded-xl border border-line-base transition-all duration-200 hover:bg-[#383838]">
+        <div class="mb-5 p-3 bg-surface-overlay rounded-xl border border-line-base transition-all duration-200 hover:bg-line-light">
           <div class="font-medium text-content-base text-sm mb-1 truncate leading-normal">{{ currentSong?.title || '未知歌曲' }}</div>
           <div class="text-2xs text-content-secondary font-mono break-all leading-relaxed">{{ currentSong?.filePath || '' }}</div>
         </div>
@@ -45,7 +45,7 @@
             </div>
           </div>
 
-          <div class="mt-5 p-4 bg-surface-overlay rounded-xl border border-line-base transition-all duration-200 hover:bg-[#383838]">
+          <div class="mt-5 p-4 bg-surface-overlay rounded-xl border border-line-base transition-all duration-200 hover:bg-line-light">
             <h4 class="m-0 mb-3 text-xs font-bold text-content-base leading-normal">技术信息</h4>
             <div class="grid grid-cols-2 gap-2 max-md:grid-cols-1">
               <div class="flex justify-between items-center py-1">

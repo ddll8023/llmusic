@@ -104,8 +104,8 @@ defineExpose({ focus, blur });
 <template>
     <div class="flex flex-col gap-1.5 w-full">
         <!-- 标签 -->
-        <label v-if="label" :class="[labelClasses, required ? 'required' : '']">
-            {{ label }}
+        <label v-if="label" :class="labelClasses">
+            {{ label }}<span v-if="required" class="text-accent-danger"> *</span>
         </label>
 
         <!-- 输入框容器 -->
@@ -148,9 +148,3 @@ defineExpose({ focus, blur });
     </div>
 </template>
 
-<style scoped>
-label.required::after {
-  content: " *";
-  color: #f44336;
-}
-</style>

@@ -79,6 +79,7 @@ const CHANNELS = {
 
 	// --- 下载 ---
 	DOWNLOAD_FILE: "download-file",
+	BATCH_DOWNLOAD: "batch-download",
 
 	// --- 文件路径获取 ---
 	GET_PATH_FOR_FILE: "get-path-for-file",

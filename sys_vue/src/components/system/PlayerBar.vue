@@ -852,12 +852,12 @@ const showLyrics = async () => {
                 <div class="w-full flex items-center gap-3 max-sm:gap-2">
                     <span class="text-2xs text-content-secondary min-w-[40px] text-center font-medium max-sm:min-w-[35px]">{{ formatTime(playerStore.currentTime) }}</span>
                     <div ref="timelineRef"
-                        class="flex-1 h-2 flex items-center cursor-pointer bg-overlay-medium rounded-full transition-all duration-200 relative overflow-hidden hover:h-2.5 hover:bg-overlay-light max-sm:h-[6px] max-sm:hover:h-2"
+                        class="group flex-1 h-2 flex items-center cursor-pointer bg-overlay-medium rounded-full transition-all duration-200 relative overflow-hidden hover:h-2.5 hover:bg-overlay-light max-sm:h-[6px] max-sm:hover:h-2"
                         @click="setPlayTime">
                         <div class="h-full bg-content-base rounded-full transition-all duration-200 relative"
                             :style="{ width: progressPercentage }">
-                            <span class="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-content-base rounded-full opacity-0 transition-opacity duration-200
-                                group-hover/hover:opacity-100 max-sm:w-2.5 max-sm:h-2.5"></span>
+                            <span class="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-content-base rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200
+                                max-sm:w-2.5 max-sm:h-2.5"></span>
                         </div>
                     </div>
                     <span class="text-2xs text-content-secondary min-w-[40px] text-center font-medium max-sm:min-w-[35px]">{{ formatTime(playerStore.currentSong.duration) }}</span>
@@ -871,11 +871,11 @@ const showLyrics = async () => {
                     :title="playerStore.muted ? '取消静音' : '静音'"
                     :customClass="playerStore.muted ? 'text-accent-green!' : ''" @click="toggleMute" />
                 <div ref="volumeRef"
-                    class="w-[100px] h-[6px] flex items-center cursor-pointer bg-overlay-medium rounded-full transition-all duration-200 relative overflow-hidden hover:h-2 hover:bg-overlay-light max-lg:w-[80px]"
+                    class="group w-[100px] h-[6px] flex items-center cursor-pointer bg-overlay-medium rounded-full transition-all duration-200 relative overflow-hidden hover:h-2 hover:bg-overlay-light max-lg:w-[80px]"
                     @mousedown="startVolumeChange" title="调节音量">
                     <div class="h-full bg-content-base rounded-full transition-all duration-200 relative"
                         :style="{ width: volumePercentage }">
-                        <span class="absolute right-0 top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-content-base rounded-full opacity-0 transition-opacity duration-200"></span>
+                        <span class="absolute right-0 top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-content-base rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"></span>
                     </div>
                 </div>
             </div>
@@ -888,9 +888,3 @@ const showLyrics = async () => {
     </div>
 </template>
 
-<style scoped>
-/* 进度条和音量条悬停时的圆点显示 */
-div:hover > div > span {
-  opacity: 1;
-}
-</style>

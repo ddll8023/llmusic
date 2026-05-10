@@ -11,7 +11,11 @@ const props = defineProps({
   },
   placeholder: { type: String, default: '请选择' },
   disabled: { type: Boolean, default: false },
-  customClass: { type: String, default: '' }
+  customClass: { type: String, default: '' },
+  placement: {
+    type: String, default: 'bottom',
+    validator: (value) => ['top', 'bottom'].includes(value)
+  }
 });
 
 const emit = defineEmits(['update:modelValue', 'change']);
@@ -42,12 +46,17 @@ const triggerClasses = computed(() => {
     'flex items-center justify-between bg-surface-overlay text-content-base border border-line-base rounded cursor-pointer transition-all duration-200 select-none w-full',
     selectedTriggerSize.value,
     isOpen.value ? 'border-accent-green' : '',
-    'hover:bg-[#383838] hover:border-overlay-light',
+    'hover:bg-line-light hover:border-overlay-light',
     'focus-within:border-accent-green',
   ].join(' ');
 });
 
-const dropdownClasses = 'absolute top-full left-0 right-0 mt-1 bg-surface-elevated border border-line-base rounded shadow-custom-hover z-[100] max-h-[200px] overflow-y-auto';
+const dropdownClasses = computed(() => {
+  const base = 'absolute left-0 right-0 bg-surface-elevated border border-line-base rounded shadow-custom-hover z-[100] max-h-[200px] overflow-y-auto';
+  return props.placement === 'top'
+    ? `${base} bottom-full mb-1`
+    : `${base} top-full mt-1`;
+});
 
 const optionBase = 'px-3 py-2 cursor-pointer transition-colors duration-200 text-content-base text-xs';
 

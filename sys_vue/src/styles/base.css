@@ -253,6 +253,16 @@
   animation: modalFadeIn 0.3s ease-out;
 }
 
+@keyframes highlightUpdate {
+  0% { background-color: rgba(76, 175, 80, 0.4); }
+  50% { background-color: rgba(76, 175, 80, 0.2); }
+  100% { background-color: transparent; }
+}
+
+.highlight-update {
+  animation: highlightUpdate 1.5s ease-out;
+}
+
 /* ========== 4. 悬停效果工具类 ========== */
 
 .hover-lift {

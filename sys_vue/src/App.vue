@@ -154,17 +154,17 @@ onUnmounted(() => {
 <template>
     <div id="app-container">
         <!-- 自定义标题栏 -->
-        <TitleBar class="title-bar" />
+        <TitleBar />
 
         <!-- 全局扫描进度 -->
         <GlobalScanProgress />
 
-        <div class="main-layout" :class="layoutClasses">
+        <div class="flex h-[calc(100vh-122px)] overflow-hidden" :class="layoutClasses">
             <div class="sidebar-container">
                 <SideBar />
-                <div class="resize-handle" @mousedown="startResize" @dblclick="handleResizeHandleDoubleClick"></div>
+                <div class="w-1 bg-transparent cursor-col-resize shrink-0 hover:bg-overlay-light" @mousedown="startResize" @dblclick="handleResizeHandleDoubleClick"></div>
             </div>
-            <div class="content-wrapper">
+            <div class="flex-1 flex flex-col overflow-hidden min-w-0">
                 <MusicLibrary v-if="uiStore.currentView === 'main'" />
                 <DiscoverMusic v-else-if="uiStore.currentView === 'discover'" />
                 <MetadataManager v-else-if="uiStore.currentView === 'metadata'" />
@@ -176,7 +176,7 @@ onUnmounted(() => {
         <div class="playlist-container" :class="{ 'is-visible': uiStore.isPlaylistVisible }">
             <Playlist />
         </div>
-        <PlayerBar class="player-bar" />
+        <PlayerBar />
 
         <!-- 歌词页面 -->
         <LyricPage />
@@ -188,27 +188,10 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.title-bar {
-    flex-shrink: 0;
-    z-index: 200;
-}
-
-#app-container {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    overflow: hidden;
-}
-
-.main-layout {
-    display: flex;
-    height: calc(100vh - 32px - 90px);
-    overflow: hidden;
-}
-
+/* 侧边栏容器 — CSS 变量驱动宽度 + transition */
 .sidebar-container {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     flex-shrink: 0;
     width: var(--sidebar-width, 250px);
     height: 100%;
@@ -220,25 +203,7 @@ onUnmounted(() => {
     opacity: 0;
 }
 
-.content-wrapper {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    min-width: 0;
-}
-
-.resize-handle {
-    width: 4px;
-    background-color: transparent;
-    cursor: col-resize;
-    flex-shrink: 0;
-}
-
-.resize-handle:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-}
-
+/* 播放列表面板 — transform 动画 */
 .playlist-container {
     position: fixed;
     top: 32px;
@@ -247,7 +212,7 @@ onUnmounted(() => {
     width: 350px;
     z-index: 150;
     transform: translateX(100%);
-    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1) ease-out;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .playlist-container.is-visible {
@@ -259,12 +224,7 @@ onUnmounted(() => {
 }
 
 @media (max-width: 768px) {
-    .playlist-container { width: 100%; top: 0; bottom: 90px; }
-}
-
-.player-bar {
-    flex-shrink: 0;
-    z-index: 200;
+    .playlist-container { width: 100%; top: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

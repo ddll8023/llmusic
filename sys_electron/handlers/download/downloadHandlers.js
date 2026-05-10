@@ -27,6 +27,37 @@ function createDownloadHandlers(mainWindow) {
 				}
 			},
 		},
+		{
+			channel: CHANNELS.BATCH_DOWNLOAD,
+			handler: async (_event, options) => {
+				const { songs } = options;
+				const dirResult = await dialog.showOpenDialog(mainWindow, {
+					properties: ["openDirectory"],
+					title: "选择保存目录",
+				});
+				if (dirResult.canceled || !dirResult.filePaths[0]) {
+					return { success: true, canceled: true };
+				}
+				const saveDir = dirResult.filePaths[0];
+				const results = [];
+				for (const song of songs) {
+					try {
+						const filePath = require("path").join(saveDir, song.filename);
+						const response = await net.fetch(song.url);
+						if (!response.ok) {
+							results.push({ filename: song.filename, success: false });
+							continue;
+						}
+						const buffer = Buffer.from(await response.arrayBuffer());
+						fs.writeFileSync(filePath, buffer);
+						results.push({ filename: song.filename, success: true });
+					} catch {
+						results.push({ filename: song.filename, success: false });
+					}
+				}
+				return { success: true, results };
+			},
+		},
 	];
 	return { handlers, cleanup: () => {} };
 }

@@ -5,6 +5,7 @@ import { usePlayerStore } from '../../store/player';
 import ContextMenu from './ContextMenu.vue';
 import FAIcon from './FAIcon.vue';
 import CustomButton from '../custom/CustomButton.vue';
+import CustomCheckbox from '../custom/CustomCheckbox.vue';
 import { formatDuration } from '../../utils/timeUtils';
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
 
@@ -246,11 +247,7 @@ const handleActionClick = (action, song, event) => {
 };
 
 // 选择处理
-const handleSongSelection = (song, event) => {
-    if (event) {
-        event.stopPropagation();
-    }
-
+const handleSongSelection = (song) => {
     const isSelected = props.selectedSongIds.includes(song.id);
     const newSelectedIds = isSelected
         ? props.selectedSongIds.filter(id => id !== song.id)
@@ -320,7 +317,7 @@ const scrollToCurrentSong = async () => {
         setTimeout(() => {
             scroller.value.scrollToItem(index);
 
-            const currentPlaying = document.querySelector('.song-row.playing');
+            const currentPlaying = document.querySelector(`[data-song-id="${currentSongId}"]`);
             if (currentPlaying) {
                 currentPlaying.classList.add('highlighted');
                 setTimeout(() => {
@@ -370,62 +367,73 @@ defineExpose({
 </script>
 
 <template>
-    <div class="song-table" :style="{ height: containerHeight }">
+    <div class="flex flex-col flex-1 overflow-hidden relative bg-surface-base text-content-base" :style="{ height: containerHeight }">
         <!-- 加载状态 -->
-        <div v-if="loading" class="loading-state">
-            <div class="loader"></div>
+        <div v-if="loading" class="flex flex-col items-center justify-center flex-1 text-content-secondary p-8 max-md:p-4">
+            <div class="w-10 h-10 border-[3px] border-line-base rounded-full border-t-accent-green animate-spin mb-4 max-md:w-8 max-md:h-8 max-md:border-2 max-md:mb-3"></div>
             <p>加载中...</p>
         </div>
 
         <!-- 空状态 -->
-        <div v-else-if="songs.length === 0" class="empty-state">
+        <div v-else-if="songs.length === 0" class="flex flex-col items-center justify-center flex-1 text-content-secondary p-8 max-md:p-4">
             <FAIcon :name="emptyIcon" size="xl" color="secondary" />
-            <p>{{ emptyText }}</p>
+            <p class="text-lg mb-6 font-medium max-md:text-sm max-md:mb-4">{{ emptyText }}</p>
         </div>
 
         <!-- 歌曲表格 -->
-        <div v-else class="table-container">
+        <div v-else class="flex flex-col flex-1 h-[calc(100%-40px)] min-h-0 relative overflow-hidden">
             <!-- 表头 -->
-            <div class="song-list-header">
-                <div v-for="header in tableHeaders" :key="header.key" class="header-col"
-                    :class="{ sortable: header.sortable }"
+            <div class="flex items-center bg-surface-elevated text-content-secondary px-2.5 h-10 border-b border-line-base shrink-0 sticky top-0 z-[1] max-md:h-9 max-md:px-2">
+                <div v-for="header in tableHeaders" :key="header.key"
+                    :class="[
+                        'p-2 font-medium text-sm whitespace-nowrap overflow-hidden text-ellipsis flex items-center max-md:text-xs max-md:p-1.5',
+                        header.sortable ? 'cursor-pointer transition-colors duration-200 hover:text-content-base' : ''
+                    ]"
                     :style="{ width: header.width, flexShrink: header.key === 'index' || header.key === 'cover' ? 0 : undefined }"
                     @click="header.sortable ? handleSort(header.key) : null">
                     {{ header.label }}
-                    <span v-if="header.sortable && sortBy === header.key" class="sort-icon">
+                    <span v-if="header.sortable && sortBy === header.key" class="ml-[5px]">
                         {{ sortDirection === 'asc' ? '↑' : '↓' }}
                     </span>
                 </div>
-                <div v-if="showActionColumn" class="header-col-fixed"></div>
+                <div v-if="showActionColumn" class="shrink-0 p-2 flex items-center max-md:p-1.5"></div>
             </div>
 
             <!-- 虚拟滚动列表 -->
-            <RecycleScroller ref="scroller" class="song-scroller" :items="songs" :item-size="60" key-field="id"
+            <RecycleScroller ref="scroller" class="flex-1 min-h-0 w-full overflow-y-auto" :items="songs" :item-size="60" key-field="id"
                 :emit-update="true" v-slot="{ item: song, index }" @update="onUpdate" @scroll="handleScroll">
-                <div class="song-row" @dblclick="handleSongPlay(song)"
-                    :class="{ 'playing': currentSongId === song.id, 'selected': showSelection && selectedSongIds.includes(song.id) }"
+                <div @dblclick="handleSongPlay(song)"
+                    :class="[
+                        'group flex items-center h-[60px] px-2.5 border-b border-surface-base transition-all duration-200 cursor-pointer max-md:h-[52px] max-md:px-2',
+                        'hover:bg-overlay-light active:bg-overlay-medium active:scale-[0.98]',
+                        currentSongId === song.id ? 'text-accent-green bg-accent-green/10 border-l-[3px] border-l-accent-green pl-[7px] max-md:pl-[5px]' : '',
+                        showSelection && selectedSongIds.includes(song.id) ? 'bg-accent-green/[0.04] shadow-[inset_3px_0_0_0_rgba(76,175,80,0.5)]' : ''
+                    ]"
                     @mouseenter="hoveredSongId = song.id" @mouseleave="hoveredSongId = null"
                     @contextmenu="handleContextMenu($event, song)" :data-song-id="song.id">
 
                     <!-- 选择框 -->
-                    <div v-if="showSelection" class="song-col selection-col" style="width: 40px; flex-shrink: 0;">
-                        <input type="checkbox" :checked="selectedSongIds.includes(song.id)"
-                            @change="handleSongSelection(song, $event)" class="song-checkbox" />
+                    <div v-if="showSelection" class="p-2 whitespace-nowrap overflow-hidden text-ellipsis flex items-center justify-center max-md:p-1.5" style="width: 40px; flex-shrink: 0;" @click.stop>
+                        <CustomCheckbox :checked="selectedSongIds.includes(song.id)" size="small"
+                            @change="handleSongSelection(song)" />
                     </div>
 
                     <!-- 序号 -->
-                    <div class="song-col song-index" style="width: 40px; flex-shrink: 0;">
+                    <div :class="[
+                        'p-2 whitespace-nowrap overflow-hidden text-ellipsis flex items-center justify-center font-medium text-xs max-md:p-1.5 max-md:text-[10px]',
+                        currentSongId === song.id ? 'text-accent-green font-medium' : 'text-content-secondary'
+                    ]" style="width: 40px; flex-shrink: 0;">
                         {{ getRealIndex(song) + 1 }}
                     </div>
 
                     <!-- 封面 -->
-                    <div class="song-col" style="width: 60px; flex-shrink: 0;">
-                        <div class="song-cover-container">
-                            <img :src="getSongCoverUrl(song)" alt="封面" class="song-cover" />
+                    <div class="p-2 whitespace-nowrap overflow-hidden text-ellipsis flex items-center max-md:p-1.5" style="width: 60px; flex-shrink: 0;">
+                        <div class="relative w-12 h-12 rounded overflow-hidden shrink-0 max-md:w-10 max-md:h-10">
+                            <img :src="getSongCoverUrl(song)" alt="封面" class="w-full h-full object-cover rounded bg-surface-overlay shadow-md transition-transform duration-200 group-hover:scale-110" />
                             <transition name="fade">
-                                <div v-if="hoveredSongId === song.id" class="play-icon-overlay"
+                                <div v-if="hoveredSongId === song.id" class="absolute inset-0 bg-overlay-dark flex items-center justify-center cursor-pointer rounded"
                                     @click="handleSongPlay(song)">
-                                    <svg viewBox="0 0 24 24" class="play-icon">
+                                    <svg viewBox="0 0 24 24" class="fill-content-base w-5 h-5 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] max-md:w-4 max-md:h-4">
                                         <path d="M8 5v14l11-7z"></path>
                                     </svg>
                                 </div>
@@ -434,32 +442,32 @@ defineExpose({
                     </div>
 
                     <!-- 歌曲名 -->
-                    <div class="song-col" :style="{ width: showPlayCount ? '30%' : '35%' }">
+                    <div class="p-2 whitespace-nowrap overflow-hidden text-ellipsis flex items-center max-md:p-1.5" :style="{ width: showPlayCount ? '30%' : '35%' }">
                         {{ song.title || '未知歌曲' }}
                     </div>
 
                     <!-- 歌手 -->
-                    <div class="song-col" :style="{ width: showPlayCount ? '15%' : '20%' }">
+                    <div class="p-2 whitespace-nowrap overflow-hidden text-ellipsis flex items-center max-md:p-1.5" :style="{ width: showPlayCount ? '15%' : '20%' }">
                         {{ song.artist || '未知艺术家' }}
                     </div>
 
                     <!-- 专辑 -->
-                    <div class="song-col" :style="{ width: showPlayCount ? '20%' : '25%' }">
+                    <div class="p-2 whitespace-nowrap overflow-hidden text-ellipsis flex items-center max-md:p-1.5" :style="{ width: showPlayCount ? '20%' : '25%' }">
                         {{ song.album || '未知专辑' }}
                     </div>
 
                     <!-- 播放次数 -->
-                    <div v-if="showPlayCount" class="song-col" style="width: 10%;">
+                    <div v-if="showPlayCount" class="p-2 whitespace-nowrap overflow-hidden text-ellipsis flex items-center max-md:p-1.5" style="width: 10%;">
                         {{ song.playCount || 0 }}
                     </div>
 
                     <!-- 时长 -->
-                    <div class="song-col" style="width: 10%;">
+                    <div class="p-2 whitespace-nowrap overflow-hidden text-ellipsis flex items-center max-md:p-1.5" style="width: 10%;">
                         {{ formatDuration(song.duration) }}
                     </div>
 
                     <!-- 操作列 -->
-                    <div v-if="showActionColumn" class="song-col action-column">
+                    <div v-if="showActionColumn" class="p-2 whitespace-nowrap overflow-hidden text-ellipsis flex items-center shrink-0 justify-center gap-0.5 max-md:p-1.5 max-md:gap-px">
                         <template v-if="actionColumnType === 'metadata'">
                             <CustomButton type="icon-only" icon="edit" size="small" :circle="true" title="编辑元数据"
                                 @click="handleActionClick('edit', song, $event)" />
@@ -472,17 +480,17 @@ defineExpose({
 
             <!-- 固定按钮 -->
             <transition name="slide-fade">
-                <div v-if="showFixedButtons" class="fixed-buttons">
-                    <div class="fixed-button locate-button" @click="scrollToCurrentSong" title="定位当前播放歌曲">
-                        <svg width="24" height="24" viewBox="0 0 24 24">
+                <div v-if="showFixedButtons" class="fixed right-5 bottom-[110px] flex flex-col gap-2.5 z-[100] max-md:right-4 max-md:bottom-[100px] max-md:gap-2">
+                    <div class="w-11 h-11 rounded bg-surface-overlay flex items-center justify-center cursor-pointer shadow-md transition-all duration-200 select-none border border-line-base hover:scale-105 hover:shadow-lg hover:bg-surface-overlay active:scale-95 max-md:w-10 max-md:h-10" @click="scrollToCurrentSong" title="定位当前播放歌曲">
+                        <svg class="drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)] max-md:w-5 max-md:h-5" width="24" height="24" viewBox="0 0 24 24">
                             <path fill="#FFFFFF"
                                 d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z">
                             </path>
                         </svg>
                     </div>
 
-                    <div class="fixed-button top-button" @click="scrollToTop" title="回到顶部">
-                        <svg width="24" height="24" viewBox="0 0 24 24">
+                    <div class="w-11 h-11 rounded bg-surface-overlay flex items-center justify-center cursor-pointer shadow-md transition-all duration-200 select-none border border-line-base hover:scale-105 hover:shadow-lg hover:bg-surface-overlay active:scale-95 max-md:w-10 max-md:h-10" @click="scrollToTop" title="回到顶部">
+                        <svg class="drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)] max-md:w-5 max-md:h-5" width="24" height="24" viewBox="0 0 24 24">
                             <path fill="#FFFFFF" d="M8 11h3v10h2V11h3l-4-4-4 4zM4 3v2h16V3H4z"></path>
                         </svg>
                     </div>
@@ -495,44 +503,44 @@ defineExpose({
             :menu-type="contextMenuType" @close="closeContextMenu" @action="handleMenuAction" />
 
         <!-- 歌曲信息对话框 -->
-        <div v-if="songInfoDialogVisible" class="song-info-dialog fade-in">
-            <div class="dialog-content">
-                <h2>歌曲信息</h2>
-                <div class="info-grid">
-                    <div class="info-section">
-                        <h3>基本信息</h3>
-                        <div class="info-item">
-                            <span class="info-label">标题:</span>
-                            <span class="info-value">{{ currentSongForInfo.title || '未知标题' }}</span>
+        <div v-if="songInfoDialogVisible" class="fixed inset-0 bg-overlay-dark flex items-center justify-center z-[300] fade-in">
+            <div class="dialog-content bg-surface-elevated p-6 rounded-lg w-[90%] max-w-[500px] border border-line-base shadow-[0_10px_25px_rgba(0,0,0,0.5)] max-h-[80vh] overflow-y-auto max-md:p-4 max-md:max-h-[90vh]">
+                <h2 class="mt-0 mb-5 text-accent-green border-b border-line-base pb-2.5 text-lg font-medium max-md:text-sm max-md:mb-4">歌曲信息</h2>
+                <div class="grid grid-cols-2 gap-2.5 mb-4 max-md:grid-cols-1 max-md:gap-2">
+                    <div class="p-2.5 bg-surface-base rounded border border-line-base max-md:p-2">
+                        <h3 class="text-sm my-2.5 text-content-secondary font-medium max-md:text-xs max-md:my-2">基本信息</h3>
+                        <div class="my-2 flex items-start gap-2 max-md:my-1.5 max-md:gap-1.5">
+                            <span class="text-content-secondary w-[70px] shrink-0 font-medium text-xs max-md:w-[60px] max-md:text-[10px]">标题:</span>
+                            <span class="text-content-base break-words text-xs leading-normal max-md:text-[10px]">{{ currentSongForInfo.title || '未知标题' }}</span>
                         </div>
-                        <div class="info-item">
-                            <span class="info-label">艺术家:</span>
-                            <span class="info-value">{{ currentSongForInfo.artist || '未知艺术家' }}</span>
+                        <div class="my-2 flex items-start gap-2 max-md:my-1.5 max-md:gap-1.5">
+                            <span class="text-content-secondary w-[70px] shrink-0 font-medium text-xs max-md:w-[60px] max-md:text-[10px]">艺术家:</span>
+                            <span class="text-content-base break-words text-xs leading-normal max-md:text-[10px]">{{ currentSongForInfo.artist || '未知艺术家' }}</span>
                         </div>
-                        <div class="info-item">
-                            <span class="info-label">专辑:</span>
-                            <span class="info-value">{{ currentSongForInfo.album || '未知专辑' }}</span>
+                        <div class="my-2 flex items-start gap-2 max-md:my-1.5 max-md:gap-1.5">
+                            <span class="text-content-secondary w-[70px] shrink-0 font-medium text-xs max-md:w-[60px] max-md:text-[10px]">专辑:</span>
+                            <span class="text-content-base break-words text-xs leading-normal max-md:text-[10px]">{{ currentSongForInfo.album || '未知专辑' }}</span>
                         </div>
-                        <div class="info-item">
-                            <span class="info-label">时长:</span>
-                            <span class="info-value">{{ formatDuration(currentSongForInfo.duration) }}</span>
+                        <div class="my-2 flex items-start gap-2 max-md:my-1.5 max-md:gap-1.5">
+                            <span class="text-content-secondary w-[70px] shrink-0 font-medium text-xs max-md:w-[60px] max-md:text-[10px]">时长:</span>
+                            <span class="text-content-base break-words text-xs leading-normal max-md:text-[10px]">{{ formatDuration(currentSongForInfo.duration) }}</span>
                         </div>
-                        <div v-if="showPlayCount" class="info-item">
-                            <span class="info-label">播放次数:</span>
-                            <span class="info-value">{{ currentSongForInfo.playCount || 0 }}</span>
+                        <div v-if="showPlayCount" class="my-2 flex items-start gap-2 max-md:my-1.5 max-md:gap-1.5">
+                            <span class="text-content-secondary w-[70px] shrink-0 font-medium text-xs max-md:w-[60px] max-md:text-[10px]">播放次数:</span>
+                            <span class="text-content-base break-words text-xs leading-normal max-md:text-[10px]">{{ currentSongForInfo.playCount || 0 }}</span>
                         </div>
                     </div>
 
-                    <div class="info-section">
-                        <h3>技术信息</h3>
-                        <div class="info-item">
-                            <span class="info-label">比特率:</span>
-                            <span class="info-value">{{ currentSongForInfo.bitrate ? `${(currentSongForInfo.bitrate /
+                    <div class="p-2.5 bg-surface-base rounded border border-line-base max-md:p-2">
+                        <h3 class="text-sm my-2.5 text-content-secondary font-medium max-md:text-xs max-md:my-2">技术信息</h3>
+                        <div class="my-2 flex items-start gap-2 max-md:my-1.5 max-md:gap-1.5">
+                            <span class="text-content-secondary w-[70px] shrink-0 font-medium text-xs max-md:w-[60px] max-md:text-[10px]">比特率:</span>
+                            <span class="text-content-base break-words text-xs leading-normal max-md:text-[10px]">{{ currentSongForInfo.bitrate ? `${(currentSongForInfo.bitrate /
                                 1000).toFixed(1)} kbps` : '未知' }}</span>
                         </div>
-                        <div class="info-item">
-                            <span class="info-label">文件大小:</span>
-                            <span class="info-value">{{
+                        <div class="my-2 flex items-start gap-2 max-md:my-1.5 max-md:gap-1.5">
+                            <span class="text-content-secondary w-[70px] shrink-0 font-medium text-xs max-md:w-[60px] max-md:text-[10px]">文件大小:</span>
+                            <span class="text-content-base break-words text-xs leading-normal max-md:text-[10px]">{{
                                 currentSongForInfo.fileSize
                                     ? currentSongForInfo.fileSize >= 1024 * 1024
                                         ? `${(currentSongForInfo.fileSize / (1024 * 1024)).toFixed(2)} MB`
@@ -542,599 +550,67 @@ defineExpose({
                                     : '未知'
                             }}</span>
                         </div>
-                        <div class="info-item">
-                            <span class="info-label">格式:</span>
-                            <span class="info-value">{{ currentSongForInfo.format || '未知格式' }}</span>
+                        <div class="my-2 flex items-start gap-2 max-md:my-1.5 max-md:gap-1.5">
+                            <span class="text-content-secondary w-[70px] shrink-0 font-medium text-xs max-md:w-[60px] max-md:text-[10px]">格式:</span>
+                            <span class="text-content-base break-words text-xs leading-normal max-md:text-[10px]">{{ currentSongForInfo.format || '未知格式' }}</span>
                         </div>
-                        <div class="info-item">
-                            <span class="info-label">采样率:</span>
-                            <span class="info-value">{{ currentSongForInfo.sampleRate ? `${currentSongForInfo.sampleRate
+                        <div class="my-2 flex items-start gap-2 max-md:my-1.5 max-md:gap-1.5">
+                            <span class="text-content-secondary w-[70px] shrink-0 font-medium text-xs max-md:w-[60px] max-md:text-[10px]">采样率:</span>
+                            <span class="text-content-base break-words text-xs leading-normal max-md:text-[10px]">{{ currentSongForInfo.sampleRate ? `${currentSongForInfo.sampleRate
                                 / 1000}
                                 kHz` : '未知' }}</span>
                         </div>
                     </div>
                 </div>
 
-                <div class="info-path">
-                    <span class="info-label">文件路径:</span>
-                    <span class="info-value path">{{ currentSongForInfo.filePath || '未知路径' }}</span>
+                <div class="mt-4 p-2.5 bg-surface-base rounded flex gap-2 border border-line-base max-md:p-2 max-md:gap-1.5">
+                    <span class="text-content-secondary w-[70px] shrink-0 font-medium text-xs max-md:w-[60px] max-md:text-[10px]">文件路径:</span>
+                    <span class="font-mono text-[11px] bg-surface-overlay p-1 px-2 rounded-sm break-all text-content-base leading-normal max-md:text-[9px] max-md:p-0.5 max-md:px-1">{{ currentSongForInfo.filePath || '未知路径' }}</span>
                 </div>
 
-                <CustomButton type="primary" @click="closeSongInfoDialog">关闭</CustomButton>
+                <div class="mt-5 w-full max-md:mt-4">
+                    <CustomButton type="primary" @click="closeSongInfoDialog">关闭</CustomButton>
+                </div>
             </div>
         </div>
     </div>
 </template>
 
 <style scoped>
-.song-table {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    position: relative;
-    background-color: #121212;
-    color: #ffffff;
+/* RecycleScroller 滚动条自定义 */
+:deep(.vue-recycle-scroller)::-webkit-scrollbar {
+    width: 8px;
 }
-/* comment */
-.loading-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    flex: 1;
-    color: #b3b3b3;
-    padding: (16px * 2);
-
-    @media (max-width: 768px) {
-        padding: 16px;
-    }
+:deep(.vue-recycle-scroller)::-webkit-scrollbar-track {
+    background: #121212;
 }
-
-.loader {
-    width: 40px;
-    height: 40px;
-    border: 3px solid #282828;
-    border-radius: 50%;
-    border-top-color: #4caf50;
-    animation: spin 1s linear infinite;
-    margin-bottom: 16px;
-
-    @media (max-width: 768px) {
-        width: 32px;
-        height: 32px;
-        border-width: 2px;
-        margin-bottom: (16px * 0.75);
-    }
-}
-/* comment */
-.empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    flex: 1;
-    color: #b3b3b3;
-    padding: (16px * 2);
-
-    .icon-wrapper {
-        color: #535353;
-        margin-bottom: 16px;
-        opacity: 0.6;
-    }
-
-    p {
-        font-size: 18px;
-        margin-bottom: (16px * 1.5);
-        font-weight: 500;
-
-        @media (max-width: 768px) {
-            font-size: 14px;
-            margin-bottom: 16px;
-        }
-    }
-
-    @media (max-width: 768px) {
-        padding: 16px;
-    }
-}
-/* comment */
-.table-container {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    height: calc(100% - 40px);
-    min-height: 0;
-    position: relative;
-    overflow: hidden;
-}
-
-.song-list-header {
-    display: flex;
-    align-items: center;
-    background-color: #181818;
-    color: #b3b3b3;
-    padding: 0 (16px * 0.625);
-    height: 40px;
-    border-bottom: 1px solid #282828;
-    flex-shrink: 0;
-    position: sticky;
-    top: 0;
-    z-index: 1;
-
-    @media (max-width: 768px) {
-        height: 36px;
-        padding: 0 (16px * 0.5);
-    }
-}
-
-.header-col {
-    padding: (16px * 0.5);
-    font-weight: 550;
-    font-size: 14px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: flex;
-    align-items: center;
-
-    &.sortable {
-        cursor: pointer;
-        transition: color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-
-        &:hover {
-            color: #ffffff;
-        }
-    }
-
-    @media (max-width: 768px) {
-        font-size: 12px;
-        padding: (16px * 0.375);
-    }
-}
-
-.header-col-fixed {
-    flex-shrink: 0;
-    padding: 0 (16px * 0.5);
-    display: flex;
-    align-items: center;
-
-    @media (max-width: 768px) {
-        padding: 0 (16px * 0.375);
-    }
-}
-
-.sort-icon {
-    margin-left: (16px * 0.3125);
-}
-/* comment */
-.song-scroller {
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    overflow-y: auto;
-
-    &::-webkit-scrollbar {
-        width: 8px;
-    }
-
-    &::-webkit-scrollbar-track {
-        background: #121212;
-    }
-
-    &::-webkit-scrollbar-thumb {
-        background: rgba(255,255,255,0.2);
-        border-radius: (4px);
-        transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-
-        &:hover {
-            background: rgba(255,255,255,0.1);
-        }
-    }
-
-    @media (max-width: 768px) {
-        &::-webkit-scrollbar {
-            width: 6px;
-        }
-    }
-}
-/* comment */
-.song-row {
-    display: flex;
-    align-items: center;
-    height: 60px;
-    padding: 0 (16px * 0.625);
-    border-bottom: 1px solid #121212;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    cursor: pointer;
-
-    &:hover {
-        background-color: rgba(255,255,255,0.1);
-
-        .song-cover {
-            transform: scale(1.1);
-        }
-    }
-
-    &:active {
-        background-color: rgba(255,255,255,0.2);
-        transform: scale(0.98);
-    }
-
-    &.playing {
-        color: #4caf50;
-        background-color: rgba(#4caf50, 0.1);
-        border-left: 3px solid #4caf50;
-        padding-left: calc(#{16px * 0.625} - 3px);
-
-        .song-index {
-            color: #4caf50;
-            font-weight: 550;
-        }
-
-        &.highlighted {
-            animation: playingPulse 1.5s ease;
-        }
-    }
-
-    @media (max-width: 768px) {
-        height: 52px;
-        padding: 0 (16px * 0.5);
-
-        &.playing {
-            padding-left: calc(#{16px * 0.5} - 3px);
-        }
-    }
-}
-
-
-.song-col {
-    padding: (16px * 0.5);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: flex;
-    align-items: center;
-
-    @media (max-width: 768px) {
-        padding: (16px * 0.375);
-    }
-}
-
-.song-index {
-    justify-content: center;
-    font-weight: 500;
-    color: #b3b3b3;
-    font-size: 12px;
-
-    @media (max-width: 768px) {
-        font-size: 10px;
-    }
-}
-/* comment */
-.song-cover-container {
-    position: relative;
-    width: 48px;
-    height: 48px;
-    border-radius: 4px;
-    overflow: hidden;
-    flex-shrink: 0;
-
-    @media (max-width: 768px) {
-        width: 40px;
-        height: 40px;
-    }
-}
-
-.song-cover {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 4px;
-    background-color: #282828;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.play-icon-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.3);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
+:deep(.vue-recycle-scroller)::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
     border-radius: 4px;
 }
-
-.play-icon {
-    fill: #ffffff;
-    width: 20px;
-    height: 20px;
-    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
-
-    @media (max-width: 768px) {
-        width: 16px;
-        height: 16px;
-    }
+:deep(.vue-recycle-scroller)::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.1);
 }
-/* comment */
-.action-column {
-    flex-shrink: 0;
-    justify-content: center;
-    gap: 2px;
-
-    @media (max-width: 768px) {
-        gap: 1px;
-    }
-}
-/* comment */
-.selection-col {
-    justify-content: center;
-}
-
-.song-checkbox {
-    width: 16px;
-    height: 16px;
-    border-radius: 3px;
-    border: 2px solid #b3b3b3;
-    background-color: transparent;
-    cursor: pointer;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-
-    &:checked {
-        background-color: #4caf50;
-        border-color: #4caf50;
-    }
-
-    &:hover {
-        border-color: #4caf50;
-    }
-}
-/* comment */
-.song-row.selected {
-    background-color: rgba(#4caf50, 0.05);
-    border-left: 2px solid #4caf50;
-    padding-left: calc(#{16px * 0.625} - 2px);
-
-    @media (max-width: 768px) {
-        padding-left: calc(#{16px * 0.5} - 2px);
-    }
-}
-/* comment */
-.fixed-buttons {
-    position: fixed;
-    right: (16px * 1.25);
-    bottom: 110px;
-    display: flex;
-    flex-direction: column;
-    gap: (16px * 0.625);
-    z-index: 100;
-
-    @media (max-width: 768px) {
-        right: 16px;
-        bottom: 100px;
-        gap: (16px * 0.5);
+@media (max-width: 768px) {
+    :deep(.vue-recycle-scroller)::-webkit-scrollbar {
+        width: 6px;
     }
 }
 
-
-.fixed-button {
-    width: 44px;
-    height: 44px;
-    border-radius: 4px;
-    background-color: #282828;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15)-hover;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    user-select: none;
-    border: 1px solid #282828;
-
-    &:hover {
-        transform: scale(1.05);
-        background-color: #282828-hover;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    }
-
-    &:active {
-        transform: scale(0.95);
-    }
-
-    svg {
-        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
-    }
-
-    @media (max-width: 768px) {
-        width: 40px;
-        height: 40px;
-
-        svg {
-            width: 20px;
-            height: 20px;
-        }
-    }
+/* dialog-content 滚动条 */
+.dialog-content::-webkit-scrollbar {
+    width: 6px;
 }
-/* comment */
-.song-info-dialog {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.3);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 300;
-
-    .dialog-content {
-        background-color: #181818;
-        padding: (16px * 1.5);
-        border-radius: (4px * 2);
-        width: 90%;
-        max-width: 500px;
-        border: 1px solid #282828;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-        max-height: 80vh;
-        overflow-y: auto;
-
-        &::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        &::-webkit-scrollbar-track {
-            background: #121212;
-        }
-
-        &::-webkit-scrollbar-thumb {
-            background: rgba(255,255,255,0.2);
-            border-radius: (4px * 0.5);
-        }
-
-        @media (max-width: 768px) {
-            padding: 16px;
-            max-height: 90vh;
-        }
-    }
-
-    h2 {
-        margin-top: 0;
-        margin-bottom: (16px * 1.25);
-        color: #4caf50;
-        border-bottom: 1px solid #282828;
-        padding-bottom: (16px * 0.625);
-        font-size: 18px;
-        font-weight: 550;
-
-        @media (max-width: 768px) {
-            font-size: 14px;
-            margin-bottom: 16px;
-        }
-    }
-
-    h3 {
-        font-size: 14px;
-        margin: (16px * 0.625) 0;
-        color: #b3b3b3;
-        font-weight: 500;
-
-        @media (max-width: 768px) {
-            font-size: 12px;
-            margin: (16px * 0.5) 0;
-        }
-    }
-
-    .custom-button {
-        margin-top: (16px * 1.25);
-        width: 100%;
-
-        @media (max-width: 768px) {
-            margin-top: 16px;
-        }
-    }
+.dialog-content::-webkit-scrollbar-track {
+    background: #121212;
+}
+.dialog-content::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
 }
 
-.info-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: (16px * 0.625);
-    margin-bottom: 16px;
-
-    @media (max-width: 768px) {
-        grid-template-columns: 1fr;
-        gap: (16px * 0.5);
-    }
-}
-
-.info-section {
-    padding: (16px * 0.625);
-    background-color: #121212;
-    border-radius: 4px;
-    border: 1px solid #282828;
-
-    @media (max-width: 768px) {
-        padding: (16px * 0.5);
-    }
-}
-
-.info-item {
-    margin: (16px * 0.5) 0;
-    display: flex;
-    align-items: flex-start;
-    gap: (16px * 0.5);
-
-    @media (max-width: 768px) {
-        margin: (16px * 0.375) 0;
-        gap: (16px * 0.375);
-    }
-}
-
-.info-label {
-    color: #b3b3b3;
-    width: 70px;
-    flex-shrink: 0;
-    font-weight: 500;
-    font-size: 12px;
-
-    @media (max-width: 768px) {
-        width: 60px;
-        font-size: 10px;
-    }
-}
-
-.info-value {
-    color: #ffffff;
-    word-break: break-word;
-    font-size: 12px;
-    line-height: 1.4;
-
-    &.path {
-        font-family: 'Courier New', monospace;
-        font-size: (12px * 0.9);
-        background-color: #282828;
-        padding: (16px * 0.25) (16px * 0.5);
-        border-radius: (4px * 0.5);
-        overflow-wrap: break-word;
-        word-break: break-all;
-    }
-
-    @media (max-width: 768px) {
-        font-size: 10px;
-
-        &.path {
-            font-size: (10px * 0.9);
-            padding: (16px * 0.125) (16px * 0.25);
-        }
-    }
-}
-
-.info-path {
-    margin-top: 16px;
-    padding: (16px * 0.625);
-    background-color: #121212;
-    border-radius: 4px;
-    display: flex;
-    gap: (16px * 0.5);
-    border: 1px solid #282828;
-
-    .info-label {
-        width: 70px;
-        flex-shrink: 0;
-    }
-
-    @media (max-width: 768px) {
-        padding: (16px * 0.5);
-        gap: (16px * 0.375);
-
-        .info-label {
-            width: 60px;
-        }
-    }
+/* 播放脉冲动画 (通过 JS classList.add('highlighted') 触发) */
+[data-song-id].highlighted {
+    animation: playingPulse 1.5s ease;
 }
 </style>

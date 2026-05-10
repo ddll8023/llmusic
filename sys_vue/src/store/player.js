@@ -9,6 +9,16 @@ export const PlayMode = {
 	REPEAT_ONE: "repeat_one", // 单曲循环
 };
 
+// Fisher-Yates 洗牌算法
+function shuffleArray(arr) {
+	const shuffled = [...arr];
+	for (let i = shuffled.length - 1; i > 0; i--) {
+		const j = Math.floor(Math.random() * (i + 1));
+		[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+	}
+	return shuffled;
+}
+
 // 定义播放器存储
 export const usePlayerStore = defineStore("player", {
 	state: () => ({
@@ -30,6 +40,10 @@ export const usePlayerStore = defineStore("player", {
 		currentListId: null,
 		// 当前播放索引
 		currentIndex: -1,
+		// 随机播放：洗牌队列与历史栈
+		shuffleQueue: [],      // 打乱后的歌曲ID队列
+		shuffleIndex: -1,      // 当前在洗牌队列中的位置
+		playHistory: [],       // 播放历史栈（用于"上一首"回溯）
 		// 歌词相关
 		lyrics: [], // 解析后的歌词数据，包含时间戳和文本
 		currentLyricIndex: -1, // 当前播放的歌词索引
@@ -66,6 +80,64 @@ export const usePlayerStore = defineStore("player", {
 	},
 
 	actions: {
+		// 生成洗牌队列，当前歌曲放在队列头部
+		generateShuffleQueue() {
+			if (this.playlist.length === 0) {
+				this.shuffleQueue = [];
+				this.shuffleIndex = -1;
+				return;
+			}
+
+			const currentSongId = this.currentSong ? this.currentSong.id : null;
+			// 排除当前歌曲后洗牌
+			const others = this.playlist.filter((id) => id !== currentSongId);
+			this.shuffleQueue = shuffleArray(others);
+			// 当前歌曲放在头部
+			if (currentSongId && this.playlist.includes(currentSongId)) {
+				this.shuffleQueue.unshift(currentSongId);
+			}
+			this.shuffleIndex = 0;
+		},
+
+		// 从洗牌队列中取下一首（前进方向）
+		_getShuffleNextSongId() {
+			if (this.shuffleQueue.length === 0) return null;
+
+			// 如果还没开始或已到末尾，重新洗牌
+			if (this.shuffleIndex < 0 || this.shuffleIndex >= this.shuffleQueue.length) {
+				this.generateShuffleQueue();
+			}
+
+			// 如果当前有歌曲在播放，先记录到历史
+			if (this.currentSong) {
+				this.playHistory.push(this.currentSong.id);
+			}
+
+			// 前进一步
+			if (this.shuffleIndex < this.shuffleQueue.length - 1) {
+				this.shuffleIndex++;
+			} else {
+				// 到达队列末尾，重新洗牌开始新一轮
+				this.generateShuffleQueue();
+				this.shuffleIndex = 0;
+			}
+
+			return this.shuffleQueue[this.shuffleIndex];
+		},
+
+		// 从历史栈中取上一首
+		_getShufflePrevSongId() {
+			if (this.playHistory.length > 0) {
+				return this.playHistory.pop();
+			}
+			// 历史栈空了，在洗牌队列中后退
+			if (this.shuffleIndex > 0) {
+				this.shuffleIndex--;
+				return this.shuffleQueue[this.shuffleIndex];
+			}
+			return null;
+		},
+
 		// 载入保存的播放器状态
 		loadPlayerState() {
 			try {
@@ -99,12 +171,12 @@ export const usePlayerStore = defineStore("player", {
 						if (
 							typeof state.currentIndex === "number" &&
 							state.currentIndex >= 0 &&
-							state.currentIndex < state.playlist.length
+							state.currentIndex < this.playlist.length
 						) {
 							this.currentIndex = state.currentIndex;
 
 							// 尝试加载上次播放的歌曲
-							const lastSongId = state.playlist[state.currentIndex];
+							const lastSongId = state.playlist[this.currentIndex];
 							if (lastSongId) {
 								window.electronAPI
 									.getSongById(lastSongId)
@@ -187,6 +259,17 @@ export const usePlayerStore = defineStore("player", {
 			this.savePlayerState(); // 保存当前索引变更
 			// 加载歌词
 			this.loadLyrics(song.id);
+
+			// 随机模式下，更新洗牌队列指针指向当前歌曲
+			if (this.playMode === PlayMode.RANDOM) {
+				const posInQueue = this.shuffleQueue.indexOf(song.id);
+				if (posInQueue !== -1) {
+					this.shuffleIndex = posInQueue;
+				} else {
+					// 歌曲不在当前队列中，重建队列
+					this.generateShuffleQueue();
+				}
+			}
 
 			// 更新媒体会话元数据（基本信息，封面会在PlayerBar组件中更新）
 			if ("mediaSession" in navigator) {
@@ -284,6 +367,36 @@ export const usePlayerStore = defineStore("player", {
 			return { success: false, error: "没有正在播放的歌曲" };
 		},
 
+		// 内部：根据歌曲ID设置播放
+		async _playBySongId(songId) {
+			if (!songId) return false;
+			try {
+				const result = await window.electronAPI.getSongById(songId);
+				if (result.success && result.song) {
+					this.currentSong = result.song;
+					this.playing = true;
+					this.currentTime = 0;
+					this.accumulatedPlayTime = 0;
+					this.hasBeenCounted = false;
+					// 更新 playlist 中的索引
+					const idx = this.playlist.indexOf(songId);
+					if (idx !== -1) {
+						this.currentIndex = idx;
+					}
+					this.savePlayerState();
+					this.loadLyrics(result.song.id);
+					console.log(`播放歌曲: ${result.song.title} (ID: ${result.song.id})`);
+					return true;
+				} else {
+					console.error(`获取歌曲信息失败:`, result.error);
+					return false;
+				}
+			} catch (error) {
+				console.error(`播放歌曲时出错:`, error);
+				return false;
+			}
+		},
+
 		// 播放下一首
 		async playNext(isPlaybackEnd = false) {
 			if (!this.currentSong || this.playlist.length === 0) {
@@ -296,117 +409,28 @@ export const usePlayerStore = defineStore("player", {
 				return;
 			}
 
-			let nextIndex;
+			let nextSongId;
 
-			// 根据播放模式确定下一首歌
 			switch (this.playMode) {
 				case PlayMode.RANDOM:
-					if (this.playlist.length > 1) {
-						const mediaStore = useMediaStore();
-						const playlistWithDetails = this.playlist
-							.map((songId) => mediaStore.songs.find((s) => s.id === songId))
-							.filter(Boolean); // 过滤掉在当前歌曲列表中找不到的歌曲
-
-						// 如果无法获取到歌曲详情，则退回到简单随机
-						if (playlistWithDetails.length < 2) {
-							nextIndex = Math.floor(Math.random() * this.playlist.length);
-							while (nextIndex === this.currentIndex) {
-								nextIndex = Math.floor(Math.random() * this.playlist.length);
-							}
-							break;
-						}
-
-						// --- 加权随机算法 ---
-						let weightedSongs = playlistWithDetails.map((song) => ({
-							id: song.id,
-							// 权重与播放次数成反比，播放次数越少，权重越高
-							// 使用次数的平方来急剧增加高播放次数歌曲的"惩罚"
-							// 增加 `|| 0` 来处理 playCount 可能为 undefined 的情况
-							weight: 1 / ((song.playCount || 0) ** 2 + 1),
-						}));
-
-						// 如果当前歌曲也在加权列表中，暂时将其权重设为0，以避免立即重复播放
-						const currentSongInWeightedList = weightedSongs.find(
-							(s) => s.id === this.currentSong.id
-						);
-						if (currentSongInWeightedList) {
-							currentSongInWeightedList.weight = 0;
-						}
-
-						const totalWeight = weightedSongs.reduce(
-							(sum, song) => sum + song.weight,
-							0
-						);
-
-						if (totalWeight === 0) {
-							// 如果所有歌曲权重都为0（例如只有一首歌或所有歌都播放过很多次），则随机选一首
-							const availableSongs = weightedSongs.filter(
-								(s) => s.id !== this.currentSong.id
-							);
-							if (availableSongs.length > 0) {
-								const randomSong =
-									availableSongs[
-										Math.floor(Math.random() * availableSongs.length)
-									];
-								nextIndex = this.playlist.indexOf(randomSong.id);
-							} else {
-								// 如果没有其他歌曲可选，就播放当前歌曲
-								nextIndex = this.currentIndex;
-							}
-						} else {
-							let random = Math.random() * totalWeight;
-
-							let chosenSongId = null;
-							for (const song of weightedSongs) {
-								random -= song.weight;
-								if (random <= 0) {
-									chosenSongId = song.id;
-									break;
-								}
-							}
-							nextIndex = this.playlist.indexOf(chosenSongId);
-						}
-					} else {
-						nextIndex = 0;
-					}
+					nextSongId = this._getShuffleNextSongId();
 					break;
 
 				case PlayMode.SEQUENCE:
 				default:
-					// 顺序模式下播放下一首，到末尾则回到开头
-					nextIndex = (this.currentIndex + 1) % this.playlist.length;
+					const nextIndex = (this.currentIndex + 1) % this.playlist.length;
+					this.currentIndex = nextIndex;
+					nextSongId = this.playlist[nextIndex];
 					break;
 			}
 
-			// 设置下一首为当前播放歌曲
-			this.currentIndex = nextIndex;
-			const nextSongId = this.playlist[nextIndex];
-			this.savePlayerState(); // 保存当前索引变更
-
-			// 这里需要通过 API 获取歌曲完整信息
-			try {
-				const result = await window.electronAPI.getSongById(nextSongId);
-				if (result.success && result.song) {
-					console.log(
-						`播放下一首歌曲: ${result.song.title} (ID: ${result.song.id})`
-					);
-					this.currentSong = result.song;
-					this.playing = true;
-					this.currentTime = 0;
-					this.accumulatedPlayTime = 0; // 重置累积播放时间
-					this.hasBeenCounted = false; // 重置计数标记
-					// 加载歌词
-					this.loadLyrics(result.song.id);
-				} else {
-					console.error(`获取下一首歌曲信息失败:`, result.error);
-				}
-			} catch (error) {
-				console.error(`播放下一首歌曲时出错:`, error);
+			if (nextSongId) {
+				await this._playBySongId(nextSongId);
 			}
 		},
 
 		// 播放上一首
-		playPrevious() {
+		async playPrevious() {
 			if (!this.currentSong || this.playlist.length === 0) {
 				return;
 			}
@@ -417,101 +441,26 @@ export const usePlayerStore = defineStore("player", {
 				return;
 			}
 
-			let prevIndex;
+			let prevSongId;
 
-			// 根据播放模式确定上一首歌
 			switch (this.playMode) {
 				case PlayMode.RANDOM:
-					// 随机播放模式下，上一首也是随机的（同样使用加权随机）
-					if (this.playlist.length > 1) {
-						const mediaStore = useMediaStore();
-						const playlistWithDetails = this.playlist
-							.map((songId) => mediaStore.songs.find((s) => s.id === songId))
-							.filter(Boolean);
-
-						if (playlistWithDetails.length < 2) {
-							prevIndex = Math.floor(Math.random() * this.playlist.length);
-							while (prevIndex === this.currentIndex) {
-								prevIndex = Math.floor(Math.random() * this.playlist.length);
-							}
-							break;
-						}
-
-						let weightedSongs = playlistWithDetails.map((song) => ({
-							id: song.id,
-							// 增加 `|| 0` 来处理 playCount 可能为 undefined 的情况
-							weight: 1 / ((song.playCount || 0) ** 2 + 1),
-						}));
-
-						const currentSongInWeightedList = weightedSongs.find(
-							(s) => s.id === this.currentSong.id
-						);
-						if (currentSongInWeightedList) {
-							currentSongInWeightedList.weight = 0;
-						}
-
-						const totalWeight = weightedSongs.reduce(
-							(sum, song) => sum + song.weight,
-							0
-						);
-
-						if (totalWeight === 0) {
-							const availableSongs = weightedSongs.filter(
-								(s) => s.id !== this.currentSong.id
-							);
-							if (availableSongs.length > 0) {
-								const randomSong =
-									availableSongs[
-										Math.floor(Math.random() * availableSongs.length)
-									];
-								prevIndex = this.playlist.indexOf(randomSong.id);
-							} else {
-								prevIndex = this.currentIndex;
-							}
-						} else {
-							let random = Math.random() * totalWeight;
-							let chosenSongId = null;
-							for (const song of weightedSongs) {
-								random -= song.weight;
-								if (random <= 0) {
-									chosenSongId = song.id;
-									break;
-								}
-							}
-							prevIndex = this.playlist.indexOf(chosenSongId);
-						}
-					} else {
-						prevIndex = 0;
-					}
+					prevSongId = this._getShufflePrevSongId();
 					break;
 
 				case PlayMode.SEQUENCE:
-				case PlayMode.REPEAT_ONE: // 手动点击上一首时
 				default:
-					// 顺序模式下播放上一首，到开头则跳到末尾
-					prevIndex =
+					const prevIndex =
 						(this.currentIndex - 1 + this.playlist.length) %
 						this.playlist.length;
+					this.currentIndex = prevIndex;
+					prevSongId = this.playlist[prevIndex];
 					break;
 			}
 
-			// 设置上一首为当前播放歌曲
-			this.currentIndex = prevIndex;
-			const prevSongId = this.playlist[prevIndex];
-			this.savePlayerState(); // 保存当前索引变更
-
-			// 这里需要通过 API 获取歌曲完整信息
-			window.electronAPI.getSongById(prevSongId).then((result) => {
-				if (result.success && result.song) {
-					this.currentSong = result.song;
-					this.playing = true;
-					this.currentTime = 0;
-					this.accumulatedPlayTime = 0; // 重置累积播放时间
-					this.hasBeenCounted = false; // 重置计数标记
-					// 加载歌词
-					this.loadLyrics(result.song.id);
-				}
-			});
+			if (prevSongId) {
+				await this._playBySongId(prevSongId);
+			}
 		},
 
 		// 跳转到指定播放时间
@@ -659,6 +608,12 @@ export const usePlayerStore = defineStore("player", {
 			this.playMode = mode;
 			this.savePlayerState(); // 保存状态变更
 
+			// 切到随机模式时，生成洗牌队列并清空历史
+			if (mode === PlayMode.RANDOM && oldMode !== PlayMode.RANDOM) {
+				this.playHistory = [];
+				this.generateShuffleQueue();
+			}
+
 			// 如果切换到单曲循环模式，检查歌曲是否即将结束
 			if (mode === PlayMode.REPEAT_ONE) {
 				// 如果当前歌曲即将结束（剩余时间不足0.5秒），则手动重新开始播放
@@ -715,6 +670,9 @@ export const usePlayerStore = defineStore("player", {
 			this.currentSong = null;
 			this.playing = false;
 			this.currentTime = 0;
+			this.shuffleQueue = [];
+			this.shuffleIndex = -1;
+			this.playHistory = [];
 			this.savePlayerState(); // 保存状态变更
 		},
 
@@ -805,6 +763,11 @@ export const usePlayerStore = defineStore("player", {
 					this.clearCurrentSong();
 				}
 
+				// 播放列表变了，如果处于随机模式需要重建洗牌队列
+				if (this.playMode === PlayMode.RANDOM) {
+					this.generateShuffleQueue();
+				}
+
 				// 保存更新后的状态
 				this.savePlayerState();
 				return true;
@@ -817,6 +780,11 @@ export const usePlayerStore = defineStore("player", {
 		addToPlaylist(songId) {
 			if (!this.playlist.includes(songId)) {
 				this.playlist.push(songId);
+				// 随机模式下，新歌追加到洗牌队列的随机位置
+				if (this.playMode === PlayMode.RANDOM && this.shuffleQueue.length > 0) {
+					const insertPos = Math.floor(Math.random() * (this.shuffleQueue.length - this.shuffleIndex)) + this.shuffleIndex + 1;
+					this.shuffleQueue.splice(insertPos, 0, songId);
+				}
 			}
 		},
 
@@ -824,9 +792,20 @@ export const usePlayerStore = defineStore("player", {
 		removeFromPlaylist(index) {
 			if (index >= 0 && index < this.playlist.length) {
 				const isCurrentlyPlaying = index === this.currentIndex;
+				const removedSongId = this.playlist[index];
 
 				// 从播放列表中移除
 				this.playlist.splice(index, 1);
+
+				// 从洗牌队列和历史中同步移除
+				const sqIdx = this.shuffleQueue.indexOf(removedSongId);
+				if (sqIdx !== -1) {
+					this.shuffleQueue.splice(sqIdx, 1);
+					if (sqIdx < this.shuffleIndex) {
+						this.shuffleIndex--;
+					}
+				}
+				this.playHistory = this.playHistory.filter((id) => id !== removedSongId);
 
 				// 如果移除的是当前播放歌曲
 				if (isCurrentlyPlaying) {
@@ -883,6 +862,11 @@ export const usePlayerStore = defineStore("player", {
 			const newIndex = this.playlist.indexOf(songToPlayId);
 			if (newIndex !== -1) {
 				this.currentIndex = newIndex;
+			}
+
+			// 播放列表替换后，重建洗牌队列并清空历史
+			if (this.playMode === PlayMode.RANDOM) {
+				this.playHistory = [];
 			}
 
 			this.savePlayerState(); // 保存播放列表变更
@@ -1292,6 +1276,9 @@ export const usePlayerStore = defineStore("player", {
 			this.currentTime = 0;
 			this.playlist = [];
 			this.currentIndex = -1;
+			this.shuffleQueue = [];
+			this.shuffleIndex = -1;
+			this.playHistory = [];
 			this.resetLyrics(); // 调用已有的歌词重置方法
 			this.isOnlineSong = false;
 			this.savePlayerState(); // 保存重置后的状态

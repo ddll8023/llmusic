@@ -219,7 +219,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="playlist-content">
+    <div class="flex flex-col flex-1 overflow-hidden relative bg-surface-base text-content-base">
         <!-- 歌单头部 -->
         <ContentHeader v-if="currentPlaylist" :title="currentPlaylist.name" :subtitle="currentPlaylist.description"
             :meta-text="`${playlistStore.currentPlaylistSongs.length} 首歌曲`" :actions="headerActions"
@@ -233,11 +233,11 @@ onMounted(() => {
             @context-menu-action="handleContextMenuAction" />
 
         <!-- 删除确认对话框 -->
-        <div v-if="showDeleteConfirm" class="delete-confirm-dialog">
-            <div class="dialog-content">
-                <h3>删除歌单</h3>
-                <p>确定要删除歌单"{{ currentPlaylist?.name }}"吗？此操作不可撤销。</p>
-                <div class="dialog-buttons">
+        <div v-if="showDeleteConfirm" class="fixed inset-0 bg-overlay-dark flex items-center justify-center z-[100] fade-in">
+            <div class="bg-surface-elevated rounded-lg p-6 w-[400px] max-w-[90%] shadow-custom border border-line-base fade-in-up max-md:p-4">
+                <h3 class="mt-0 mb-4 text-content-base text-lg font-medium max-md:text-sm">删除歌单</h3>
+                <p class="mb-6 text-content-secondary text-sm leading-relaxed max-md:text-xs">确定要删除歌单"{{ currentPlaylist?.name }}"吗？此操作不可撤销。</p>
+                <div class="flex justify-end gap-3 max-md:gap-2">
                     <CustomButton type="secondary" @click="showDeleteConfirm = false">取消</CustomButton>
                     <CustomButton type="danger" @click="deletePlaylist">确认删除</CustomButton>
                 </div>
@@ -245,177 +245,3 @@ onMounted(() => {
         </div>
     </div>
 </template>
-
-<style lang="scss" scoped>
-@use "sass:color";
-
-.playlist-content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    position: relative;
-    background-color: #121212;
-    color: #ffffff;
-}
-/* comment */
-.delete-confirm-dialog {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0,0,0,0.3);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
-    animation: fadeIn 0.15s cubic-bezier(0.4, 0, 0.2, 1) ease-out;
-}
-
-.dialog-content {
-    background-color: #181818;
-    border-radius: (4px * 2);
-    padding: (16px * 1.5);
-    width: 400px;
-    max-width: 90%;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15)-hover;
-    border: 1px solid #282828;
-    animation: slideUp 0.25s cubic-bezier(0.4, 0, 0.2, 1) ease-out;
-
-    h3 {
-        margin-top: 0;
-        margin-bottom: 16px;
-        color: #ffffff;
-        font-size: 18px;
-        font-weight: 550;
-    }
-
-    p {
-        margin-bottom: (16px * 1.5);
-        color: #b3b3b3;
-        font-size: 14px;
-        line-height: 1.5;
-    }
-
-    @media (max-width: 768px) {
-        padding: 16px;
-
-        h3 {
-            font-size: 14px;
-        }
-
-        p {
-            font-size: 12px;
-        }
-    }
-}
-
-@keyframes slideUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.dialog-buttons {
-    display: flex;
-    justify-content: flex-end;
-    gap: (16px * 0.75);
-
-    @media (max-width: 768px) {
-        gap: (16px * 0.5);
-    }
-}
-
-.cancel-btn,
-.delete-btn {
-    padding: (16px * 0.5) 16px;
-    border-radius: 4px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    border: none;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    min-width: 80px;
-
-    @media (max-width: 768px) {
-        padding: (16px * 0.375) (16px * 0.75);
-        font-size: 12px;
-        min-width: 70px;
-    }
-}
-
-.cancel-btn {
-    background-color: transparent;
-    color: #b3b3b3;
-    border: 1px solid #282828;
-
-    &:hover {
-        background-color: rgba(255,255,255,0.1);
-        color: #ffffff;
-        border-color: #b3b3b3;
-    }
-}
-
-.delete-btn {
-    background-color: #f44336;
-    color: #ffffff;
-
-    &:hover {
-        background-color: color.adjust(#f44336, $lightness: -10%);
-        transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    }
-
-    &:active {
-        transform: translateY(0);
-    }
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
-}
-/* comment */
-@media (prefers-contrast: high) {
-    .playlist-content {
-        border: 2px solid #ffffff;
-    }
-
-    .cancel-btn,
-    .delete-btn {
-        border: 2px solid currentColor;
-    }
-}
-/* comment */
-@media (prefers-reduced-motion: reduce) {
-
-    *,
-    *::before,
-    *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-    }
-
-    .cancel-btn,
-    .delete-btn {
-
-        &:hover,
-        &:active {
-            transform: none;
-        }
-    }
-}
-</style>

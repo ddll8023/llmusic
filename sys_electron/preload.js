@@ -155,6 +155,7 @@ const API = {
 	// 下载相关
 	download: {
 		saveFile: (options) => ipcRenderer.invoke("download-file", options),
+		batchDownload: (options) => ipcRenderer.invoke("batch-download", options),
 	},
 };
 
@@ -249,6 +250,7 @@ const compatAPI = {
 
 	// 文件下载
 	downloadFile: API.download.saveFile,
+		batchDownloadFiles: API.download.batchDownload,
 };
 
 // 安全地暴露主进程的API给渲染进程

@@ -256,9 +256,9 @@ onMounted(async () => {
         nextTick(() => {
           const songRow = document.querySelector(`[data-song-id="${songId}"]`);
           if (songRow) {
-            songRow.classList.add('updated');
+            songRow.classList.add('highlight-update');
             setTimeout(() => {
-              songRow.classList.remove('updated');
+              songRow.classList.remove('highlight-update');
             }, 1500);
           }
         });
@@ -312,9 +312,9 @@ const forceRefreshTable = () => {
       }
 
       // 添加高亮效果
-      songRow.classList.add('updated');
+      songRow.classList.add('highlight-update');
       setTimeout(() => {
-        songRow.classList.remove('updated');
+        songRow.classList.remove('highlight-update');
       }, 1500);
     }
   });
@@ -339,34 +339,3 @@ const forceRefreshTable = () => {
       @confirm="handleDeleteConfirm" />
   </div>
 </template>
-
-<style scoped>
-.main-content {
-  flex: 1;
-  min-height: 0;
-  background-color: #121212;
-  color: #ffffff;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-}
-
-@keyframes highlight-update {
-  0% {
-    background-color: rgba(76, 175, 80, 0.4);
-  }
-
-  50% {
-    background-color: rgba(76, 175, 80, 0.2);
-  }
-
-  100% {
-    background-color: transparent;
-  }
-}
-
-:deep(.song-row.updated) {
-  animation: highlight-update 1.5s ease-out;
-}
-</style>

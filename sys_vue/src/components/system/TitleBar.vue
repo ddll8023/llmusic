@@ -40,15 +40,9 @@ const uiStore = useUiStore();
         <CustomButton type="icon-only" size="small" :icon="isMaximized ? 'window-restore' : 'square-o'"
           icon-size="small" customClass="title-bar__button" @click="maximizeRestoreWindow" />
         <CustomButton type="icon-only" size="small" icon="times" icon-size="small"
-          customClass="title-bar__button--close" @click="closeWindow" />
+          customClass="hover:!bg-accent-danger hover:!text-content-base" @click="closeWindow" />
       </div>
     </div>
   </div>
 </template>
 
-<style scoped>
-.title-bar__button--close:hover {
-  background-color: #f44336 !important;
-  color: #ffffff !important;
-}
-</style>

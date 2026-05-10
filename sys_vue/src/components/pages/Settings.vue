@@ -150,29 +150,29 @@ const handleLogout = () => {
 </script>
 
 <template>
-  <div class="settings-page">
-    <h2>设置</h2>
+  <div class="p-6 text-content-base h-full overflow-y-auto max-md:p-4">
+    <h2 class="text-xl mb-6 font-bold max-md:text-lg max-md:mb-4">设置</h2>
 
-    <div class="settings-section">
-      <h3>音乐库管理</h3>
-      <div class="library-grid">
+    <div class="mb-6 max-md:mb-4">
+      <h3 class="text-sm text-content-secondary mb-4 border-b border-line-base pb-2 font-medium max-md:text-[13px]">音乐库管理</h3>
+      <div class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5 mt-4 max-md:grid-cols-1 max-md:gap-4">
         <!-- 循环显示已有的音乐库 -->
-        <div v-for="lib in mediaStore.libraries" :key="lib.id" class="library-card">
-          <div class="card-content">
-            <div class="card-icon">
+        <div v-for="lib in mediaStore.libraries" :key="lib.id" class="group bg-surface-overlay rounded-lg p-4 flex flex-col justify-between border border-transparent transition-all duration-200 min-h-[160px] fade-in max-md:min-h-[140px] max-md:p-3 hover:border-overlay-light hover:-translate-y-0.5 hover:shadow-lg">
+          <div class="flex flex-col flex-1">
+            <div class="text-content-secondary mb-3 max-md:mb-2">
               <FAIcon name="folder" size="xl" color="secondary" />
             </div>
-            <div class="card-info">
-              <span class="library-name">{{ lib.name }}</span>
-              <span class="library-path">{{ lib.path }}</span>
+            <div class="flex-1">
+              <span class="text-sm font-semibold text-content-base block mb-1 whitespace-nowrap overflow-hidden text-ellipsis max-md:text-xs">{{ lib.name }}</span>
+              <span class="text-[10px] text-content-secondary break-all mb-2 whitespace-normal leading-normal flex-grow">{{ lib.path }}</span>
             </div>
           </div>
-          <div class="card-footer">
-            <div class="card-stats">
+          <div class="flex justify-between items-center mt-3 max-md:mt-2">
+            <div class="flex items-center gap-1.5 text-[10px] text-content-secondary">
               <FAIcon name="music" size="small" color="secondary" />
               <span>{{ lib.songCount }} 首歌曲</span>
             </div>
-            <div class="library-actions">
+            <div class="flex gap-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100 max-md:opacity-100">
               <CustomButton type="icon-only" icon="edit" circle size="medium" @click="openEditLibraryModal(lib)" title="重命名" />
               <CustomButton type="icon-only" icon="refresh" circle size="medium" @click="handleRescanLibrary(lib)" title="重新扫描" />
               <CustomButton type="danger" icon="trash" circle size="medium" @click="handleRemoveLibrary(lib)" title="移除" />
@@ -181,25 +181,25 @@ const handleLogout = () => {
         </div>
 
         <!-- 添加新库的卡片 -->
-        <div class="library-card add-library-card" @click="handleAddLibrary">
+        <div class="rounded-lg p-4 flex flex-col justify-between transition-all duration-200 min-h-[160px] fade-in max-md:min-h-[140px] max-md:p-3 border-2 border-dashed border-overlay-light bg-transparent items-center justify-center cursor-pointer text-content-secondary gap-3 hover:bg-surface-overlay hover:border-accent-green hover:text-content-base hover:-translate-y-0.5" @click="handleAddLibrary">
           <FAIcon name="plus" size="xl" color="secondary" />
           <span>添加新库</span>
         </div>
       </div>
     </div>
 
-    <div class="settings-section">
-      <h3>账号</h3>
-      <div v-if="authStore.isLoggedIn" class="settings-item">
-        <div class="user-info">
+    <div class="mb-6 max-md:mb-4">
+      <h3 class="text-sm text-content-secondary mb-4 border-b border-line-base pb-2 font-medium max-md:text-[13px]">账号</h3>
+      <div v-if="authStore.isLoggedIn" class="flex justify-between items-center py-3 max-md:flex-col max-md:items-start max-md:gap-2">
+        <div class="flex items-center gap-3">
           <FAIcon name="user" size="xl" color="secondary" />
-          <div class="user-detail">
-            <span class="user-name">QQ 音乐用户</span>
-            <span class="user-id">ID: {{ authStore.userInfo.encrypt_uin }}</span>
+          <div class="flex flex-col">
+            <span class="text-xs text-content-base font-medium">QQ 音乐用户</span>
+            <span class="text-[10px] text-content-secondary">ID: {{ authStore.userInfo.encrypt_uin }}</span>
           </div>
-          <span v-if="authStore.isExpired" class="credential-expired">凭证已过期</span>
+          <span v-if="authStore.isExpired" class="text-[10px] text-accent-danger ml-2">凭证已过期</span>
         </div>
-        <div class="user-actions">
+        <div class="flex gap-2">
           <CustomButton v-if="authStore.isExpired" type="primary" size="medium" @click="handleOpenLoginModal">
             重新登录
           </CustomButton>
@@ -208,22 +208,22 @@ const handleLogout = () => {
           </CustomButton>
         </div>
       </div>
-      <div v-else class="settings-item">
-        <span>未登录 QQ 音乐</span>
+      <div v-else class="flex justify-between items-center py-3 max-md:flex-col max-md:items-start max-md:gap-2">
+        <span class="text-xs text-content-base max-md:text-[10px]">未登录 QQ 音乐</span>
         <CustomButton type="primary" size="medium" @click="handleOpenLoginModal">
           登录
         </CustomButton>
       </div>
-      <div class="settings-item-description">
+      <div class="text-[10px] text-content-secondary -mt-2 pb-4 leading-normal max-md:mt-0 max-md:pb-3">
         登录后可使用在线搜索、试听和下载功能。
       </div>
     </div>
 
-    <div class="settings-section">
-      <h3>界面</h3>
-      <div class="settings-item">
-        <span>歌词页面动画效果</span>
-        <div class="select-container">
+    <div class="mb-6 max-md:mb-4">
+      <h3 class="text-sm text-content-secondary mb-4 border-b border-line-base pb-2 font-medium max-md:text-[13px]">界面</h3>
+      <div class="flex justify-between items-center py-3 max-md:flex-col max-md:items-start max-md:gap-2">
+        <span class="text-xs text-content-base max-md:text-[10px]">歌词页面动画效果</span>
+        <div>
           <CustomSelect
             :model-value="uiStore.lyricsAnimationStyle"
             :options="[
@@ -235,13 +235,13 @@ const handleLogout = () => {
           />
         </div>
       </div>
-      <div class="settings-item-description">
+      <div class="text-[10px] text-content-secondary -mt-2 pb-4 leading-normal max-md:mt-0 max-md:pb-3">
         选择歌词页面显示和隐藏时的动画效果。
       </div>
 
-      <div class="settings-item">
-        <span>窗口关闭行为</span>
-        <div class="select-container">
+      <div class="flex justify-between items-center py-3 max-md:flex-col max-md:items-start max-md:gap-2">
+        <span class="text-xs text-content-base max-md:text-[10px]">窗口关闭行为</span>
+        <div>
           <CustomSelect
             :model-value="uiStore.closeBehavior"
             :options="[
@@ -253,19 +253,19 @@ const handleLogout = () => {
           />
         </div>
       </div>
-      <div class="settings-item-description">
+      <div class="text-[10px] text-content-secondary -mt-2 pb-4 leading-normal max-md:mt-0 max-md:pb-3">
         选择点击窗口关闭按钮时的行为：完全退出应用或最小化到系统托盘。最小化后可通过点击托盘图标恢复窗口。
       </div>
     </div>
 
     <!-- 编辑音乐库 Modal -->
-    <div class="modal-overlay" v-if="showEditLibraryModal">
-      <div class="modal">
-        <div class="modal-content">
-          <h3>重命名音乐库</h3>
-          <p>为您的音乐库"{{ editingLibrary.name }}"输入一个新名称。</p>
-          <input type="text" v-model="newLibraryName" placeholder="新音乐库名称" class="modal-input" />
-          <div class="modal-buttons">
+    <div class="fixed inset-0 bg-overlay-dark flex items-center justify-center z-[100] fade-in" v-if="showEditLibraryModal">
+      <div class="modal-fade-in">
+        <div class="bg-surface-elevated text-content-base p-[30px] rounded-[12px] shadow-lg w-[90%] max-w-[450px] text-center border border-line-base max-md:p-5 max-md:max-w-[320px]">
+          <h3 class="mt-0 text-lg mb-5 font-semibold max-md:text-sm max-md:mb-4">重命名音乐库</h3>
+          <p class="text-content-secondary mb-5 text-xs leading-relaxed max-md:text-[10px] max-md:mb-4">为您的音乐库"{{ editingLibrary.name }}"输入一个新名称。</p>
+          <input type="text" v-model="newLibraryName" placeholder="新音乐库名称" class="w-full p-2.5 my-4 bg-surface-overlay border border-overlay-light text-content-base rounded text-xs transition-colors duration-200 box-border focus:outline-none focus:border-accent-green placeholder:text-content-disabled max-md:text-[10px] max-md:p-2" />
+          <div class="flex justify-center gap-5 mt-[25px] max-md:gap-4 max-md:mt-5">
             <CustomButton type="secondary" @click="showEditLibraryModal = false">取消</CustomButton>
             <CustomButton type="primary" @click="handleUpdateLibrary">保存</CustomButton>
           </div>
@@ -274,12 +274,12 @@ const handleLogout = () => {
     </div>
 
     <!-- 通用确认对话框 -->
-    <div class="modal-overlay" v-if="showConfirmModal">
-      <div class="modal">
-        <div class="modal-content">
-          <h3>{{ confirmModalTitle }}</h3>
-          <p>{{ confirmModalMessage }}</p>
-          <div class="modal-buttons">
+    <div class="fixed inset-0 bg-overlay-dark flex items-center justify-center z-[100] fade-in" v-if="showConfirmModal">
+      <div class="modal-fade-in">
+        <div class="bg-surface-elevated text-content-base p-[30px] rounded-[12px] shadow-lg w-[90%] max-w-[450px] text-center border border-line-base max-md:p-5 max-md:max-w-[320px]">
+          <h3 class="mt-0 text-lg mb-5 font-semibold max-md:text-sm max-md:mb-4">{{ confirmModalTitle }}</h3>
+          <p class="text-content-secondary mb-5 text-xs leading-relaxed max-md:text-[10px] max-md:mb-4">{{ confirmModalMessage }}</p>
+          <div class="flex justify-center gap-5 mt-[25px] max-md:gap-4 max-md:mt-5">
             <CustomButton type="secondary" @click="closeConfirmModal">取消</CustomButton>
             <CustomButton type="danger" @click="executeConfirmAction">确认</CustomButton>
           </div>
@@ -288,12 +288,12 @@ const handleLogout = () => {
     </div>
 
     <!-- 通用信息提示弹窗 -->
-    <div class="modal-overlay" v-if="showInfoModal">
-      <div class="modal">
-        <div class="modal-content">
-          <h3>{{ infoModalTitle }}</h3>
-          <p class="final-message">{{ infoModalMessage }}</p>
-          <div class="modal-buttons">
+    <div class="fixed inset-0 bg-overlay-dark flex items-center justify-center z-[100] fade-in" v-if="showInfoModal">
+      <div class="modal-fade-in">
+        <div class="bg-surface-elevated text-content-base p-[30px] rounded-[12px] shadow-lg w-[90%] max-w-[450px] text-center border border-line-base max-md:p-5 max-md:max-w-[320px]">
+          <h3 class="mt-0 text-lg mb-5 font-semibold max-md:text-sm max-md:mb-4">{{ infoModalTitle }}</h3>
+          <p class="text-sm my-5 min-h-[22px] max-md:text-xs max-md:my-4 text-content-secondary leading-relaxed">{{ infoModalMessage }}</p>
+          <div class="flex justify-center gap-5 mt-[25px] max-md:gap-4 max-md:mt-5">
             <CustomButton type="primary" @click="closeInfoModal">确定</CustomButton>
           </div>
         </div>
@@ -301,15 +301,15 @@ const handleLogout = () => {
     </div>
 
     <!-- 登录弹窗 -->
-    <div class="modal-overlay" v-if="showLoginModal">
-      <div class="modal">
-        <div class="modal-content login-modal">
-          <h3>QQ 音乐登录</h3>
+    <div class="fixed inset-0 bg-overlay-dark flex items-center justify-center z-[100] fade-in" v-if="showLoginModal">
+      <div class="modal-fade-in">
+        <div class="bg-surface-elevated text-content-base p-[30px] rounded-[12px] shadow-lg w-[90%] max-w-[380px] text-center border border-line-base max-md:p-5 max-md:max-w-[320px]">
+          <h3 class="mt-0 text-lg mb-5 font-semibold max-md:text-sm max-md:mb-4">QQ 音乐登录</h3>
 
           <!-- 选择登录方式 -->
-          <div v-if="!authStore.qrCodeBase64 && authStore.qrStatus !== 'loading'" class="login-options">
-            <p class="login-hint">请选择登录方式</p>
-            <div class="login-buttons">
+          <div v-if="!authStore.qrCodeBase64 && authStore.qrStatus !== 'loading'" class="text-center py-4">
+            <p class="text-content-secondary mb-5 text-xs leading-relaxed">请选择登录方式</p>
+            <div class="flex gap-4 justify-center">
               <CustomButton type="primary" @click="handleLogin('qq')">
                 QQ 登录
               </CustomButton>
@@ -320,31 +320,31 @@ const handleLogout = () => {
           </div>
 
           <!-- 加载中 -->
-          <div v-else-if="authStore.qrStatus === 'loading'" class="qr-loading">
-            <i class="fa fa-spinner fa-spin"></i>
-            <p>正在获取二维码...</p>
+          <div v-else-if="authStore.qrStatus === 'loading'" class="text-center py-8">
+            <i class="fa fa-spinner fa-spin text-4xl text-content-secondary"></i>
+            <p class="mt-4 text-content-secondary text-xs leading-relaxed">正在获取二维码...</p>
           </div>
 
           <!-- 显示二维码 -->
-          <div v-else class="qr-container">
-            <img :src="'data:image/png;base64,' + authStore.qrCodeBase64" class="qr-image" />
-            <p class="qr-hint">
+          <div v-else class="text-center py-4">
+            <img :src="'data:image/png;base64,' + authStore.qrCodeBase64" class="w-[200px] h-[200px] rounded border border-line-base bg-white inline-block" />
+            <p class="mt-5 text-xs text-content-secondary">
               <span v-if="authStore.qrStatus === 'waiting'">请使用{{ authStore.loginType === 'qq' ? 'QQ' : '微信' }}扫描二维码</span>
-              <span v-else-if="authStore.qrStatus === 'scanned'" class="qr-success">扫描成功，请在手机上确认</span>
-              <span v-else-if="authStore.qrStatus === 'confirmed'" class="qr-success">已确认，正在登录...</span>
-              <span v-else-if="authStore.qrStatus === 'done'" class="qr-success">登录成功！</span>
-              <span v-else-if="authStore.qrStatus === 'expired'" class="qr-fail">
+              <span v-else-if="authStore.qrStatus === 'scanned'" class="text-accent-green">扫描成功，请在手机上确认</span>
+              <span v-else-if="authStore.qrStatus === 'confirmed'" class="text-accent-green">已确认，正在登录...</span>
+              <span v-else-if="authStore.qrStatus === 'done'" class="text-accent-green">登录成功！</span>
+              <span v-else-if="authStore.qrStatus === 'expired'" class="text-accent-danger">
                 二维码已过期
-                <a class="qr-action" @click="handleLogin(authStore.loginType)">点击刷新</a>
+                <a class="text-accent-green cursor-pointer underline ml-1" @click="handleLogin(authStore.loginType)">点击刷新</a>
               </span>
-              <span v-else-if="authStore.qrStatus === 'error'" class="qr-fail">
+              <span v-else-if="authStore.qrStatus === 'error'" class="text-accent-danger">
                 {{ authStore.qrMessage || '登录失败' }}
-                <a class="qr-action" @click="handleLogin(authStore.loginType)">重试</a>
+                <a class="text-accent-green cursor-pointer underline ml-1" @click="handleLogin(authStore.loginType)">重试</a>
               </span>
             </p>
           </div>
 
-          <div class="modal-buttons">
+          <div class="flex justify-center gap-5 mt-[25px] max-md:gap-4 max-md:mt-5">
             <CustomButton type="secondary" @click="handleCloseLoginModal">关闭</CustomButton>
           </div>
         </div>
@@ -352,550 +352,3 @@ const handleLogout = () => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.settings-page {
-  padding: 24px;
-  color: #ffffff;
-  height: 100%;
-  overflow-y: auto;
-}
-
-@media (max-width: 768px) {
-  .settings-page { padding: 16px; }
-}
-
-.settings-page h2 {
-  font-size: 20px;
-  margin-bottom: 24px;
-  font-weight: 700;
-}
-
-@media (max-width: 768px) {
-  .settings-page h2 { font-size: 18px; margin-bottom: 16px; }
-}
-
-.settings-section {
-  margin-bottom: 24px;
-}
-
-@media (max-width: 768px) {
-  .settings-section { margin-bottom: 16px; }
-}
-
-.settings-section h3 {
-  font-size: 14px;
-  color: #b3b3b3;
-  margin-bottom: 16px;
-  border-bottom: 1px solid #282828;
-  padding-bottom: 8px;
-  font-weight: 500;
-}
-
-@media (max-width: 768px) {
-  .settings-section h3 { font-size: 13px; }
-}
-
-.settings-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 0;
-}
-
-@media (max-width: 768px) {
-  .settings-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-}
-
-.settings-item span {
-  font-size: 12px;
-  color: #ffffff;
-}
-
-@media (max-width: 768px) {
-  .settings-item span { font-size: 10px; }
-}
-
-.select-container {
-  position: relative;
-}
-
-.select-container::after {
-  content: '▼';
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
-  font-size: 10px;
-  color: #b3b3b3;
-}
-
-.select-container select {
-  background-color: #282828;
-  color: #ffffff;
-  border: 1px solid #282828;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  appearance: none;
-  padding-right: 30px;
-  font-size: 12px;
-}
-
-.select-container select:hover {
-  background-color: #383838;
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-.select-container select:focus {
-  outline: none;
-  border-color: #4caf50;
-}
-
-@media (max-width: 768px) {
-  .select-container select { width: 100%; font-size: 10px; }
-}
-
-.settings-item-description {
-  font-size: 10px;
-  color: #b3b3b3;
-  margin-top: -8px;
-  padding-bottom: 16px;
-  line-height: 1.4;
-}
-
-@media (max-width: 768px) {
-  .settings-item-description {
-    margin-top: 0;
-    padding-bottom: 12px;
-  }
-}
-
-.library-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
-  margin-top: 16px;
-}
-
-@media (max-width: 768px) {
-  .library-grid { grid-template-columns: 1fr; gap: 16px; }
-}
-
-.library-card {
-  background-color: #282828;
-  border-radius: 8px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  border: 1px solid transparent;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  min-height: 160px;
-  animation: fadeIn 0.25s cubic-bezier(0.4, 0, 0.2, 1) ease-out;
-
-  &:hover {
-    border-color: rgba(255,255,255,0.1);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  }
-
-  @media (max-width: 768px) {
-    min-height: 140px;
-    padding: (16px * 0.75);
-  }
-}
-
-.card-content {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-}
-
-.card-icon {
-  color: #b3b3b3;
-  margin-bottom: (16px * 0.75);
-
-  @media (max-width: 768px) {
-    margin-bottom: (16px * 0.5);
-  }
-}
-
-.card-info {
-  flex: 1;
-
-  .library-name {
-    font-size: 14px;
-    font-weight: 600;
-    color: #ffffff;
-    display: block;
-    margin-bottom: (16px * 0.25);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-
-    @media (max-width: 768px) {
-      font-size: 12px;
-    }
-  }
-
-  .library-path {
-    font-size: 10px;
-    color: #b3b3b3;
-    word-break: break-all;
-    margin-bottom: (16px * 0.5);
-    white-space: normal;
-    line-height: 1.4;
-    flex-grow: 1;
-  }
-}
-
-.card-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: (16px * 0.75);
-
-  @media (max-width: 768px) {
-    margin-top: (16px * 0.5);
-  }
-}
-
-.card-stats {
-  display: flex;
-  align-items: center;
-  gap: (16px * 0.375);
-  font-size: 10px;
-  color: #b3b3b3;
-}
-
-.library-actions {
-  display: flex;
-  gap: (16px * 0.5);
-  opacity: 0;
-  transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-
-  @media (max-width: 768px) {
-    opacity: 1;
-  }
-}
-
-.library-card:hover .library-actions {
-  opacity: 1;
-}
-
-.btn-icon {
-  background: #181818;
-  border: 1px solid rgba(255,255,255,0.1);
-  color: #ffffff;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-
-  &:hover {
-    background: rgba(255,255,255,0.1);
-    transform: scale(1.05);
-  }
-
-  &:active {
-    transform: scale(0.95);
-  }
-
-  &.btn-danger:hover {
-    background: #f44336;
-    border-color: #f44336;
-  }
-
-  @media (max-width: 768px) {
-    width: 28px;
-    height: 28px;
-  }
-}
-
-.add-library-card {
-  border: 2px dashed rgba(255,255,255,0.1);
-  background-color: transparent;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: #b3b3b3;
-  gap: (16px * 0.75);
-
-  &:hover {
-    background-color: #282828;
-    border-color: #4caf50;
-    color: #ffffff;
-    transform: translateY(-2px);
-  }
-}
-
-/* Modal styles */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0,0,0,0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  animation: fadeIn 0.15s cubic-bezier(0.4, 0, 0.2, 1) ease-out;
-}
-
-.modal {
-  animation: modalSlideIn 0.25s cubic-bezier(0.4, 0, 0.2, 1) ease-out;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes modalSlideIn {
-  from {
-    opacity: 0;
-    transform: scale(0.9) translateY(-20px);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-.modal-content {
-  background-color: #181818;
-  color: #ffffff;
-  padding: (16px * 1.875);
-  border-radius: (4px * 3);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  width: 90%;
-  max-width: 450px;
-  text-align: center;
-  border: 1px solid #282828;
-
-  @media (max-width: 768px) {
-    padding: (16px * 1.25);
-    max-width: 320px;
-  }
-
-  h3 {
-    margin-top: 0;
-    font-size: 18px;
-    margin-bottom: (16px * 1.25);
-    font-weight: 600;
-
-    @media (max-width: 768px) {
-      font-size: 14px;
-      margin-bottom: 16px;
-    }
-  }
-
-  p {
-    color: #b3b3b3;
-    margin-bottom: (16px * 1.25);
-    font-size: 12px;
-    line-height: 1.5;
-
-    @media (max-width: 768px) {
-      font-size: 10px;
-      margin-bottom: 16px;
-    }
-  }
-}
-
-.modal-buttons {
-  display: flex;
-  justify-content: center;
-  gap: (16px * 1.25);
-  margin-top: (16px * 1.5625);
-
-  @media (max-width: 768px) {
-    gap: 16px;
-    margin-top: (16px * 1.25);
-  }
-}
-
-.final-message {
-  font-size: 14px;
-  margin: (16px * 1.25) 0;
-  min-height: 22px;
-
-  @media (max-width: 768px) {
-    font-size: 12px;
-    margin: 16px 0;
-  }
-}
-
-.modal-input {
-  width: 100%;
-  padding: (16px * 0.625);
-  margin: 16px 0;
-  background-color: #282828;
-  border: 1px solid rgba(255,255,255,0.1);
-  color: #ffffff;
-  border-radius: 4px;
-  font-size: 12px;
-  transition: border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  box-sizing: border-box;
-
-  &:focus {
-    outline: none;
-    border-color: #4caf50;
-  }
-
-  &::placeholder {
-    color: #535353;
-  }
-
-  @media (max-width: 768px) {
-    font-size: 10px;
-    padding: (16px * 0.5);
-  }
-}
-
-/* High contrast */
-@media (prefers-contrast: high) {
-
-  .library-card,
-  .modal-content {
-    border-width: 2px;
-    border-color: #ffffff;
-  }
-
-  .modal-input,
-  select {
-    border-width: 2px;
-  }
-}
-
-/* Reduced motion */
-@media (prefers-reduced-motion: reduce) {
-
-  .library-card,
-  .btn-icon,
-  .modal-overlay,
-  .modal,
-  select,
-  .modal-input {
-    animation: none;
-    transition: none;
-  }
-
-  .library-card:hover,
-  .btn-icon:hover,
-  .add-library-card:hover {
-    transform: none;
-  }
-}
-
-/* Login styles */
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.user-info .user-detail {
-  display: flex;
-  flex-direction: column;
-}
-
-.user-info .user-name {
-  font-size: 12px;
-  color: #ffffff;
-  font-weight: 500;
-}
-
-.user-info .user-id {
-  font-size: 10px;
-  color: #b3b3b3;
-}
-
-.user-info .credential-expired {
-  font-size: 10px;
-  color: #f44336;
-  margin-left: 8px;
-}
-
-.user-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.login-modal {
-  max-width: 380px !important;
-}
-
-.login-options {
-  text-align: center;
-  padding: 16px 0;
-}
-
-.login-options .login-hint {
-  color: #b3b3b3;
-  margin-bottom: 20px;
-}
-
-.login-options .login-buttons {
-  display: flex;
-  gap: 16px;
-  justify-content: center;
-}
-
-.qr-loading {
-  text-align: center;
-  padding: 32px 0;
-}
-
-.qr-loading i {
-  font-size: 36px;
-  color: #b3b3b3;
-}
-
-.qr-loading p {
-  margin-top: 16px;
-  color: #b3b3b3;
-}
-
-.qr-container {
-  text-align: center;
-  padding: 16px 0;
-}
-
-.qr-container .qr-image {
-  width: 200px;
-  height: 200px;
-  border-radius: 4px;
-  border: 1px solid #282828;
-  background-color: #fff;
-}
-
-.qr-container .qr-hint {
-  margin-top: 20px;
-  font-size: 12px;
-  color: #b3b3b3;
-}
-
-.qr-success { color: #4caf50; }
-.qr-fail { color: #f44336; }
-.qr-action { color: #4caf50; cursor: pointer; text-decoration: underline; margin-left: 4px; }
-</style>

@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
+import { ref, nextTick } from "vue";
 import { searchSongs, getAlbumImages, getSongUrls } from "../api/song.js";
 
 export const useDiscoverStore = defineStore("discover", () => {
@@ -30,12 +30,15 @@ export const useDiscoverStore = defineStore("discover", () => {
 		errorMsg.value = "";
 		searchResults.value = [];
 		total.value = 0;
+		searchStep.value = "searching";
 		const currentRequestId = String(Date.now());
 		requestId.value = currentRequestId;
 
+		// 确保 loading 遮罩先渲染到 DOM，避免快速响应时用户看不到加载动画
+		await nextTick();
+
 		try {
 			// 步骤 1：搜索歌曲基本信息
-			searchStep.value = "searching";
 			const searchRes = await searchSongs({
 				requestId: currentRequestId,
 				urlType: urlType.value,
@@ -123,10 +126,18 @@ export const useDiscoverStore = defineStore("discover", () => {
 	 * 批量下载选中的歌曲
 	 */
 	async function batchDownload(songs) {
-		for (const song of songs) {
-			if (song.songUrl?.url) {
-				await downloadSong(song);
-			}
+		const validSongs = songs.filter(s => s.songUrl?.url);
+		if (validSongs.length === 0) return;
+		validSongs.forEach(s => downloadingIds.value.add(s.songMid || s.songId));
+		try {
+			await window.electronAPI.batchDownloadFiles({
+				songs: validSongs.map(s => ({
+					url: s.songUrl.url,
+					filename: `${s.songName} - ${s.singer}.${s.songUrl.urlType || 'mp3'}`,
+				})),
+			});
+		} finally {
+			validSongs.forEach(s => downloadingIds.value.delete(s.songMid || s.songId));
 		}
 	}
 
@@ -135,6 +146,15 @@ export const useDiscoverStore = defineStore("discover", () => {
 	 */
 	function setPage(n) {
 		page.value = n;
+		handleSearch();
+	}
+
+	/**
+	 * 切换每页条数
+	 */
+	function setPageSize(size) {
+		pageSize.value = size;
+		page.value = 1;
 		handleSearch();
 	}
 
@@ -170,6 +190,7 @@ export const useDiscoverStore = defineStore("discover", () => {
 		downloadSong,
 		batchDownload,
 		setPage,
+		setPageSize,
 		playOnline,
 	};
 });

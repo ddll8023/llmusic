@@ -378,17 +378,19 @@ onMounted(async () => {
 </script>
 
 <template>
-    <div class="metadata-manager" :class="{ 'dragging': isDragging }" @dragover="handleDragOver"
-        @dragleave="handleDragLeave" @drop="handleDrop">
-        <div class="metadata-header">
-            <h1>音乐元数据管理</h1>
-            <div class="search-box">
+    <div class="w-full h-full flex flex-col p-4 max-md:p-3 text-content-base overflow-hidden relative"
+        :class="isDragging ? 'border-[3px] border-dashed border-accent-green bg-accent-green/5' : ''"
+        @dragover="handleDragOver" @dragleave="handleDragLeave" @drop="handleDrop">
+
+        <div class="flex justify-between items-center mb-4 max-md:flex-col max-md:items-start max-md:gap-3 max-md:mb-3">
+            <h1 class="text-xl font-medium">音乐元数据管理</h1>
+            <div class="w-[300px] max-md:w-full">
                 <CustomInput :model-value="searchQuery" @update:model-value="val => searchQuery = val" type="text"
                     placeholder="搜索歌曲..." prefix-icon="search" size="medium" />
             </div>
         </div>
 
-        <div class="metadata-toolbar">
+        <div class="flex gap-2.5 mb-4 max-md:flex-wrap max-md:gap-2">
             <CustomButton type="primary" :disabled="isImporting" :loading="isImporting" icon="download"
                 @click="importMusicFiles">
                 {{ isImporting ? '正在导入...' : '导入歌曲' }}
@@ -404,19 +406,20 @@ onMounted(async () => {
         </div>
 
         <!-- 导入状态提示 -->
-        <div v-if="importStatus !== 'idle'" class="import-status-bar" :class="importStatus">
-            <div class="import-status-message">
+        <div v-if="importStatus !== 'idle'" class="p-3 mb-[15px] rounded flex justify-between items-center"
+            :class="importStatus === 'importing' ? 'bg-accent-info' : importStatus === 'success' ? 'bg-accent-green' : 'bg-accent-danger'">
+            <div class="flex items-center gap-2">
                 <FAIcon :name="importStatus === 'importing' ? 'spinner' :
                     importStatus === 'success' ? 'check' : 'exclamation-triangle'" size="small"
                     :color="importStatus === 'success' ? 'accent' : importStatus === 'error' ? 'danger' : 'primary'"
-                    :class="{ 'loading-icon': importStatus === 'importing' }" />
+                    :class="importStatus === 'importing' ? 'spin' : ''" />
                 <span>{{ importResultMessage || (importStatus === 'importing' ? '正在导入音乐文件...' : '') }}</span>
             </div>
             <CustomButton v-if="importStatus !== 'importing'" type="icon-only" size="small" icon="times"
                 @click="importStatus = 'idle'" title="关闭" />
         </div>
 
-        <div class="metadata-content">
+        <div class="flex-1 flex overflow-hidden relative">
             <!-- 歌曲表格 -->
             <SongTable ref="songTableRef" :songs="filteredSongs" :loading="isLoading" :show-sortable="false"
                 :show-play-count="false" :show-action-column="true" :action-column-type="'metadata'"
@@ -426,36 +429,41 @@ onMounted(async () => {
                 @selection-change="handleSelectionChange" />
 
             <!-- 在线搜索面板 -->
-            <div class="online-search-panel" v-if="onlineSearchStatus !== 'idle'">
-                <div class="panel-header">
-                    <h3>在线元数据搜索结果</h3>
+            <div v-if="onlineSearchStatus !== 'idle'"
+                class="absolute right-0 top-0 bottom-0 w-[350px] bg-surface-elevated rounded-lg shadow-md flex flex-col z-[100] max-md:w-full max-md:fixed max-md:inset-0 max-md:rounded-none">
+                <div class="flex justify-between items-center p-[15px] border-b border-line-base">
+                    <h3 class="m-0 text-sm">在线元数据搜索结果</h3>
                     <CustomButton type="icon-only" size="small" icon="times"
                         @click="onlineSearchStatus = 'idle'; currentSearchingSong = null" title="关闭" />
                 </div>
-                <div class="panel-content">
-                    <div v-if="onlineSearchStatus === 'loading'" class="loading-state">
-                        <FAIcon name="spinner" size="large" color="primary" class="loading-icon" />
+                <div class="flex-1 overflow-auto p-[15px]">
+                    <div v-if="onlineSearchStatus === 'loading'"
+                        class="flex flex-col items-center justify-center py-10 text-content-secondary text-center">
+                        <FAIcon name="spinner" size="large" color="primary" class="spin mb-2.5" />
                         <span>搜索中...</span>
                     </div>
-                    <div v-else-if="onlineSearchStatus === 'error'" class="error-state">
+                    <div v-else-if="onlineSearchStatus === 'error'"
+                        class="flex flex-col items-center justify-center py-10 text-content-secondary text-center">
                         <FAIcon name="exclamation-triangle" size="large" color="danger" />
                         <span>搜索失败，请重试</span>
                     </div>
-                    <div v-else-if="onlineSearchResults.length === 0" class="empty-state">
+                    <div v-else-if="onlineSearchResults.length === 0"
+                        class="flex flex-col items-center justify-center py-10 text-content-secondary text-center">
                         未找到匹配的在线元数据
                     </div>
-                    <div v-else class="result-list">
-                        <div v-for="result in onlineSearchResults" :key="result.songId" class="result-item"
-                            :class="{ 'selected': selectedOnlineResult === result }"
+                    <div v-else class="flex flex-col gap-2.5">
+                        <div v-for="result in onlineSearchResults" :key="result.songId"
+                            class="p-2.5 rounded-[6px] cursor-pointer transition-all duration-200 border border-transparent hover:bg-surface-overlay"
+                            :class="selectedOnlineResult === result ? 'bg-surface-overlay border-accent-green' : ''"
                             @click="selectedOnlineResult = result">
-                            <div class="result-title">{{ result.songName }}</div>
-                            <div class="result-info">
-                                <span class="result-artist">{{ result.singer }}</span>
-                                <span class="result-divider">-</span>
-                                <span class="result-album">{{ result.album?.albumName }}</span>
+                            <div class="font-medium text-xs mb-1">{{ result.songName }}</div>
+                            <div class="text-[10px] text-content-secondary">
+                                <span>{{ result.singer }}</span>
+                                <span class="mx-1">-</span>
+                                <span>{{ result.album?.albumName }}</span>
                             </div>
                         </div>
-                        <div class="apply-actions" v-if="selectedOnlineResult">
+                        <div class="mt-4 flex justify-center" v-if="selectedOnlineResult">
                             <CustomButton type="primary" :disabled="isLoading" :loading="isLoading"
                                 @click="applyOnlineMetadata(currentSearchingSong, selectedOnlineResult)">
                                 {{ isLoading ? '应用中...' : '应用选中元数据' }}
@@ -467,31 +475,31 @@ onMounted(async () => {
         </div>
 
         <!-- 拖拽区域提示 -->
-        <div v-if="isDragging" class="drag-overlay">
-            <div class="drag-message">
+        <div v-if="isDragging" class="absolute inset-0 bg-overlay-dark flex justify-center items-center z-[300] rounded-lg">
+            <div class="text-center text-content-base bg-accent-green/20 p-10 rounded-xl border-2 border-dashed border-accent-green max-md:p-4">
                 <FAIcon name="upload" size="xl" color="accent" />
-                <h2>松开鼠标导入音乐文件</h2>
-                <p>支持 MP3, FLAC, WAV, M4A, OGG, AAC 格式</p>
+                <h2 class="mt-[15px] mb-2 text-4xl max-md:text-xl">松开鼠标导入音乐文件</h2>
+                <p class="text-xs text-content-secondary mt-[5px]">支持 MP3, FLAC, WAV, M4A, OGG, AAC 格式</p>
             </div>
         </div>
 
         <!-- 清除确认对话框 -->
-        <div v-if="showClearConfirm" class="confirm-dialog-overlay">
-            <div class="confirm-dialog">
-                <div class="confirm-header">
+        <div v-if="showClearConfirm" class="fixed inset-0 bg-overlay-dark flex justify-center items-center z-[100]">
+            <div class="bg-surface-elevated rounded-lg p-6 max-w-[480px] w-[90%] shadow-md max-md:w-[95%] max-md:p-4">
+                <div class="flex items-center gap-3 mb-4 text-accent-green">
                     <FAIcon name="info-circle" size="large" color="primary" />
-                    <h3>确认清空工作区</h3>
+                    <h3 class="m-0 text-lg font-medium">确认清空工作区</h3>
                 </div>
-                <div class="confirm-content">
-                    <p>您确定要清空当前工作区吗？这将清除您在此次会话中导入的歌曲列表。</p>
-                    <p class="info-text">
+                <div class="mb-6 leading-relaxed">
+                    <p class="mb-3 text-content-base">您确定要清空当前工作区吗？这将清除您在此次会话中导入的歌曲列表。</p>
+                    <p class="bg-accent-green/10 border border-accent-green/30 rounded p-2 px-3 text-[10px]">
                         <strong>说明：</strong>此操作只会清空工作区内容，不会影响音乐库中的数据，也不会删除您的音乐文件。
                     </p>
-                    <div class="song-count">
+                    <div class="bg-overlay-light rounded p-2 px-3 mt-3 text-xs text-content-base">
                         工作区中共有 <strong>{{ localSongs.length }}</strong> 首歌曲将被清除
                     </div>
                 </div>
-                <div class="confirm-actions">
+                <div class="flex gap-3 justify-end">
                     <CustomButton type="secondary" @click="showClearConfirm = false">取消</CustomButton>
                     <CustomButton type="primary" icon="trash" @click="clearWorkspace">
                         清空工作区
@@ -504,522 +512,3 @@ onMounted(async () => {
         <TagEditor ref="tagEditorRef" />
     </div>
 </template>
-
-<style lang="scss" scoped>
-/* comment */
-@use "sass:color";
-
-.metadata-manager {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    padding: 16px;
-    color: #ffffff;
-    overflow: hidden;
-    position: relative;
-}
-
-.metadata-manager.dragging {
-    border: 3px dashed #4caf50;
-    background-color: rgba(76, 175, 80, 0.05);
-}
-
-.metadata-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-}
-
-.metadata-header h1 {
-    font-size: 20px;
-    font-weight: 500;
-}
-
-.search-box {
-    width: 300px;
-}
-
-.metadata-toolbar {
-    display: flex;
-    gap: (16px * 0.625);
-    margin-bottom: 16px;
-}
-
-.import-btn,
-.select-all-btn,
-.clear-all-btn {
-    background: #181818;
-    color: #ffffff;
-    border: none;
-    padding: (16px * 0.5) 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 12px;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    display: flex;
-    align-items: center;
-    gap: (16px * 0.375);
-}
-
-.import-btn {
-    background: #4caf50;
-
-    &:hover {
-        background: #66bb6a;
-    }
-}
-
-.select-all-btn:hover {
-    background: color.adjust(#181818, $lightness: 10%);
-}
-
-.clear-all-btn {
-    background: #535353;
-
-    &:hover {
-        background: color.adjust(#535353, $lightness: 10%);
-    }
-}
-
-.import-btn:disabled,
-.clear-all-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.import-status-bar {
-    padding: (16px * 0.75) 16px;
-    margin-bottom: (16px * 0.9375);
-    border-radius: 4px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.import-status-bar.importing {
-    background-color: #2962FF;
-}
-
-.import-status-bar.success {
-    background-color: #4caf50;
-}
-
-.import-status-bar.error {
-    background-color: #f44336;
-}
-
-.import-status-message {
-    display: flex;
-    align-items: center;
-    gap: (16px * 0.5);
-}
-
-.loading-icon {
-    animation: spin 1.5s infinite linear;
-}
-
-.metadata-content {
-    flex: 1;
-    display: flex;
-    overflow: hidden;
-    position: relative;
-}
-
-.song-table-container {
-    flex: 1;
-    overflow: auto;
-}
-
-.song-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.song-table th,
-.song-table td {
-    padding: (16px * 0.75);
-    text-align: left;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.song-table th {
-    background: #181818;
-    position: sticky;
-    top: 0;
-    z-index: 1;
-}
-
-.song-row {
-    transition: background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.song-row:hover {
-    background: rgba(255,255,255,0.1);
-}
-
-.checkbox-column {
-    width: 40px;
-}
-
-.title-column {
-    width: 35%;
-}
-
-.artist-column,
-.album-column {
-    width: 25%;
-}
-
-.actions-column {
-    width: 100px;
-    text-align: center;
-}
-
-.edit-btn,
-.search-btn {
-    background: none;
-    border: none;
-    color: #b3b3b3;
-    cursor: pointer;
-    padding: (16px * 0.25);
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    margin: 0 (16px * 0.25);
-}
-
-.edit-btn:hover,
-.search-btn:hover {
-    color: #ffffff;
-    transform: scale(1.1);
-}
-
-.empty-row td {
-    text-align: center;
-    padding: (16px * 2.5);
-    color: #b3b3b3;
-}
-
-.online-search-panel {
-    position: absolute;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    width: 350px;
-    background: #181818;
-    border-radius: (4px * 2);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15)-hover;
-    display: flex;
-    flex-direction: column;
-    z-index: 100;
-}
-
-.panel-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: (16px * 0.9375);
-    border-bottom: 1px solid #282828;
-}
-
-.panel-header h3 {
-    margin: 0;
-    font-size: 14px;
-}
-
-.panel-content {
-    flex: 1;
-    overflow: auto;
-    padding: (16px * 0.9375);
-}
-
-.loading-state,
-.error-state,
-.empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: (16px * 2.5) 0;
-    color: #b3b3b3;
-    text-align: center;
-}
-
-.loading-icon {
-    animation: spin 1.5s infinite linear;
-    margin-bottom: (16px * 0.625);
-}
-
-@keyframes spin {
-    from {
-        transform: rotate(0deg);
-    }
-
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-.result-list {
-    display: flex;
-    flex-direction: column;
-    gap: (16px * 0.625);
-}
-
-.result-item {
-    padding: (16px * 0.625);
-    border-radius: (4px * 1.5);
-    cursor: pointer;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    border: 1px solid transparent;
-}
-
-.result-item:hover {
-    background: #282828;
-}
-
-.result-item.selected {
-    background: #282828;
-    border-color: #4caf50;
-}
-
-.result-title {
-    font-weight: 500;
-    font-size: 12px;
-    margin-bottom: (16px * 0.25);
-}
-
-.result-info {
-    font-size: 10px;
-    color: #b3b3b3;
-}
-
-.result-divider {
-    margin: 0 (16px * 0.25);
-}
-
-.apply-actions {
-    margin-top: 16px;
-    display: flex;
-    justify-content: center;
-}
-
-.apply-btn {
-    background: #4caf50;
-    color: #ffffff;
-    border: none;
-    padding: (16px * 0.5) 16px;
-    border-radius: (4px * 5);
-    cursor: pointer;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.apply-btn:hover {
-    background: #66bb6a;
-    transform: translateY(-2px);
-}
-
-.apply-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-}
-
-.drag-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.3);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 300;
-    border-radius: (4px * 2);
-}
-
-.drag-message {
-    text-align: center;
-    color: #ffffff;
-    background: rgba(76, 175, 80, 0.2);
-    padding: (16px * 2.5);
-    border-radius: (4px * 3);
-    border: 2px dashed #4caf50;
-}
-
-.drag-message h2 {
-    margin: (16px * 0.9375) 0 (16px * 0.5);
-    font-size: 36px;
-}
-
-.drag-message p {
-    font-size: 12px;
-    color: #b3b3b3;
-    margin: (16px * 0.3125) 0 0;
-}
-
-/* 确认对话框样式 */
-.confirm-dialog-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.3);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 100;
-}
-
-.confirm-dialog {
-    background: #181818;
-    border-radius: (4px * 2);
-    padding: (16px * 1.5);
-    max-width: 480px;
-    width: 90%;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15)-hover;
-}
-
-.confirm-header {
-    display: flex;
-    align-items: center;
-    gap: (16px * 0.75);
-    margin-bottom: 16px;
-    color: #4caf50;
-}
-
-.confirm-header h3 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 500;
-}
-
-.confirm-content {
-    margin-bottom: (16px * 1.5);
-    line-height: 1.5;
-}
-
-.confirm-content p {
-    margin: 0 0 (16px * 0.75);
-    color: #ffffff;
-}
-
-.info-text {
-    background: rgba(76, 175, 80, 0.1);
-    border: 1px solid rgba(76, 175, 80, 0.3);
-    border-radius: 4px;
-    padding: (16px * 0.5) (16px * 0.75);
-    font-size: 10px;
-}
-
-.song-count {
-    background: rgba(255,255,255,0.1);
-    border-radius: 4px;
-    padding: (16px * 0.5) (16px * 0.75);
-    margin-top: (16px * 0.75);
-    font-size: 12px;
-    color: #ffffff;
-}
-
-.confirm-actions {
-    display: flex;
-    gap: (16px * 0.75);
-    justify-content: flex-end;
-}
-
-.cancel-btn,
-.confirm-btn {
-    padding: (16px * 0.5) 16px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 12px;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    display: flex;
-    align-items: center;
-    gap: (16px * 0.375);
-}
-
-.cancel-btn {
-    background: #535353;
-    color: #ffffff;
-}
-
-.cancel-btn:hover {
-    background: color.adjust(#535353, $lightness: 10%);
-}
-
-.confirm-btn {
-    background: #4caf50;
-    color: #ffffff;
-}
-
-.confirm-btn:hover {
-    background: #66bb6a;
-    transform: translateY(-1px);
-}
-
-/* 响应式适配 */
-@media (max-width: 768px) {
-    .metadata-manager {
-        padding: (16px * 0.75);
-    }
-
-    .metadata-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: (16px * 0.75);
-        margin-bottom: (16px * 0.75);
-    }
-
-    .search-box {
-        width: 100%;
-        max-width: none;
-    }
-
-    .metadata-toolbar {
-        flex-wrap: wrap;
-        gap: (16px * 0.5);
-    }
-
-    .import-btn,
-    .select-all-btn,
-    .clear-all-btn {
-        font-size: 10px;
-        padding: (16px * 0.375) (16px * 0.75);
-    }
-
-    .song-table th,
-    .song-table td {
-        padding: (16px * 0.5);
-        font-size: 12px;
-    }
-
-    .online-search-panel {
-        width: 100%;
-        position: fixed;
-        left: 0;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        border-radius: 0;
-    }
-
-    .confirm-dialog {
-        width: 95%;
-        padding: 16px;
-    }
-
-    .drag-message {
-        padding: 16px;
-    }
-
-    .drag-message h2 {
-        font-size: 20px;
-    }
-}
-</style>
