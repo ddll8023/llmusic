@@ -12,9 +12,181 @@ const {
 	session,
 } = require("electron");
 const path = require("path");
+const { spawn } = require("child_process");
+const http = require("http");
 const { initDb, validateSongFiles } = require("./handlers/data/Database");
 const { setupIpcHandlers } = require("./handlers");
 const { CHANNELS } = require("./constants/ipcChannels");
+
+// ===== 后端服务配置 =====
+const BACKEND_HOST = "127.0.0.1";
+const BACKEND_PORT = 9752;
+
+// 后端进程状态
+let backendProcess = null;
+let isWaitingBackendStop = false;
+
+// 后端状态对象，供 IPC 查询
+const backendState = {
+	running: false,
+	status: "stopped", // stopped | starting | running | stopping | error
+	baseUrl: "",
+	host: "",
+	port: null,
+	pid: null,
+	error: "",
+};
+
+/**
+ * 获取后端可执行文件路径
+ */
+function getBackendExecutable() {
+	const projectRoot = path.resolve(__dirname, "..");
+	if (app.isPackaged) {
+		return path.join(process.resourcesPath, "backend", "backend.exe");
+	}
+	return path.join(projectRoot, "backend", ".venv", "Scripts", "python.exe");
+}
+
+/**
+ * 启动后端子进程
+ */
+function spawnBackend() {
+	const projectRoot = path.resolve(__dirname, "..");
+	const backendRoot = path.join(projectRoot, "backend");
+	const executablePath = getBackendExecutable();
+	const appDataDir = app.getPath("appData");
+
+	backendState.status = "starting";
+	backendState.host = BACKEND_HOST;
+	backendState.port = BACKEND_PORT;
+	backendState.baseUrl = `http://${BACKEND_HOST}:${BACKEND_PORT}`;
+	backendState.error = "";
+
+	const spawnArgs = app.isPackaged
+		? []
+		: ["-m", "uvicorn", "app.main:app", "--host", BACKEND_HOST, "--port", String(BACKEND_PORT)];
+
+	console.log(`[Backend] 启动中... 路径: ${executablePath}`);
+	console.log(`[Backend] 参数: ${spawnArgs.join(" ") || "(无 - 打包模式)"}`);
+
+	backendProcess = spawn(executablePath, spawnArgs, {
+		cwd: app.isPackaged ? undefined : backendRoot,
+		env: {
+			...process.env,
+			APP_HOST: BACKEND_HOST,
+			APP_PORT: String(BACKEND_PORT),
+			APP_DATA_DIR: path.join(appDataDir, "LLMusic"),
+			PYTHONUNBUFFERED: "1",
+		},
+		stdio: ["ignore", "pipe", "pipe"],
+		windowsHide: true,
+	});
+
+	backendState.pid = backendProcess.pid;
+
+	// 日志转发
+	backendProcess.stdout.on("data", (data) => {
+		console.log(`[Backend:out] ${data.toString().trim()}`);
+	});
+	backendProcess.stderr.on("data", (data) => {
+		console.log(`[Backend:err] ${data.toString().trim()}`);
+	});
+
+	backendProcess.on("exit", (code, signal) => {
+		console.log(`[Backend] 已退出, code=${code}, signal=${signal}`);
+		backendState.running = false;
+		backendState.status = "stopped";
+		backendState.pid = null;
+		backendProcess = null;
+	});
+
+	backendProcess.on("error", (err) => {
+		console.error(`[Backend] 启动失败:`, err);
+		backendState.status = "error";
+		backendState.error = err.message;
+		backendState.running = false;
+	});
+}
+
+/**
+ * 请求后端健康接口
+ */
+function requestBackendHealth(baseUrl) {
+	return new Promise((resolve) => {
+		const req = http.get(`${baseUrl}/health`, (res) => {
+			let body = "";
+			res.on("data", (chunk) => (body += chunk));
+			res.on("end", () => {
+				try {
+					const data = JSON.parse(body);
+					resolve(data.status === "ok");
+				} catch {
+					resolve(false);
+				}
+			});
+		});
+		req.on("error", () => resolve(false));
+		req.setTimeout(2000, () => {
+			req.destroy();
+			resolve(false);
+		});
+	});
+}
+
+/**
+ * 等待后端就绪（健康检查轮询）
+ */
+async function waitForBackendReady(baseUrl, timeoutMs = 15000) {
+	const deadline = Date.now() + timeoutMs;
+	console.log(`[Backend] 等待就绪... (超时: ${timeoutMs}ms)`);
+
+	while (Date.now() < deadline) {
+		const isReady = await requestBackendHealth(baseUrl);
+		if (isReady) {
+			console.log("[Backend] 就绪!");
+			backendState.running = true;
+			backendState.status = "running";
+			return true;
+		}
+		await new Promise((r) => setTimeout(r, 300));
+	}
+
+	console.error("[Backend] 健康检查超时!");
+	backendState.status = "error";
+	backendState.error = "健康检查超时";
+	return false;
+}
+
+/**
+ * 停止后端子进程
+ */
+function stopBackend() {
+	return new Promise((resolve) => {
+		if (!backendProcess || backendState.status === "stopped") {
+			resolve();
+			return;
+		}
+
+		backendState.status = "stopping";
+		console.log("[Backend] 正在停止...");
+
+		const timeout = setTimeout(() => {
+			console.log("[Backend] 优雅退出超时，强制终止");
+			if (backendProcess) {
+				backendProcess.kill("SIGKILL");
+			}
+			resolve();
+		}, 3000);
+
+		backendProcess.on("exit", () => {
+			clearTimeout(timeout);
+			resolve();
+		});
+
+		backendProcess.kill();
+	});
+}
 
 // 应用全局状态
 const appState = {
@@ -284,6 +456,17 @@ function cleanup() {
  */
 async function initializeApp() {
 	try {
+		// 启动后端子进程（dev-runner 管理时跳过，避免重复启动）
+		if (process.env.LLMUSIC_BACKEND_MANAGED) {
+			console.log("[Backend] 由 dev-runner 管理，跳过自动启动。");
+		} else {
+			spawnBackend();
+			const backendReady = await waitForBackendReady(backendState.baseUrl);
+			if (!backendReady) {
+				console.error("后端启动失败，应用可能无法正常使用在线功能。");
+			}
+		}
+
 		// 初始化数据库
 		await initDb();
 		console.log("数据库已成功初始化。");
@@ -413,6 +596,11 @@ app.on("window-all-closed", () => {
 });
 
 // 应用退出前事件
-app.on("before-quit", () => {
+app.on("before-quit", (event) => {
+	if (process.env.LLMUSIC_BACKEND_MANAGED) return;
+	if (!backendProcess || isWaitingBackendStop) return;
+	event.preventDefault();
+	isWaitingBackendStop = true;
 	cleanup();
+	stopBackend().finally(() => app.quit());
 });

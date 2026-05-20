@@ -5,7 +5,7 @@
 	"private": true,
 	"description": "",
 	"scripts": {
-		"dev": "npm --prefix sys_electron run dev",
+		"dev": "node sys_electron/dev-runner.js",
 		"dev:backend": "uv run --directory backend python -m app.main",
 		"dev:frontend": "npm --prefix sys_vue run dev",
 		"dev:electron": "npm --prefix sys_electron run dev",

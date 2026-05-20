@@ -9,7 +9,10 @@
 		"dev": "concurrently \"npm --prefix ../sys_vue run dev\" \"wait-on http://127.0.0.1:9753 && electron .\"",
 		"dev:electron": "electron .",
 		"build": "npm --prefix ../sys_vue run build",
-		"pack": "electron-builder"
+		"build:backend": "uv run --directory ../backend pyinstaller --onefile --name backend --distpath ../backend/dist ../backend/entry.py",
+		"pack": "electron-builder",
+		"dist:dir": "npm run build && npm run build:backend && electron-builder --win dir",
+		"dist:win": "npm run build && npm run build:backend && electron-builder --win"
 	},
 	"dependencies": {
 		"ffmpeg-static": "^5.2.0",
@@ -26,8 +29,29 @@
 		"wait-on": "^7.2.0"
 	},
 	"build": {
-		"appId": "com.electron.llmusic",
+		"appId": "com.llmusic.desktop",
 		"productName": "LLMusic",
+		"directories": {
+			"output": "../release"
+		},
+		"files": [
+			"**/*",
+			{
+				"from": "../sys_vue/dist",
+				"to": "sys_vue/dist",
+				"filter": ["**/*"]
+			}
+		],
+		"extraResources": [
+			{
+				"from": "../backend/dist/backend.exe",
+				"to": "backend/backend.exe"
+			},
+			{
+				"from": "../backend/app/credential/credential.json",
+				"to": "backend/credential/credential.json"
+			}
+		],
 		"asarUnpack": [
 			"**/node_modules/ffmpeg-static/**",
 			"**/node_modules/ffprobe-static/**"
@@ -69,6 +93,17 @@
 				"description": "AAC 音频文件",
 				"role": "Editor"
 			}
-		]
+		],
+		"win": {
+			"target": ["dir", "nsis"],
+			"icon": "build/icon.ico"
+		},
+		"nsis": {
+			"oneClick": false,
+			"allowToChangeInstallationDirectory": true,
+			"createDesktopShortcut": true,
+			"createStartMenuShortcut": true,
+			"shortcutName": "LLMusic"
+		}
 	}
 }
