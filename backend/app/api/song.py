@@ -65,3 +65,19 @@ async def get_song_urls(req: schemas_song.SongUrlRequest):
 
     except ServiceException as e:
         return error(code=e.code, message=e.message)
+
+
+@router.post("/searchByKeyword", response_model=ApiResponse)
+async def search_by_keyword(req: schemas_song.KeywordSearchRequest):
+    """通过关键词搜索歌曲"""
+    try:
+        result = await services_song.search_by_keyword(
+            keyword=req.keyword,
+            page=req.page,
+            page_size=req.pageSize,
+            request_id=req.requestId,
+        )
+        return success(data=result)
+
+    except ServiceException as e:
+        return error(code=e.code, message=e.message)

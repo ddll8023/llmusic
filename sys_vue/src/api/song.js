@@ -29,3 +29,12 @@ export function getAlbumImages(requestId, albumIdList) {
 export function getSongUrls(requestId, songIdList) {
 	return apiClient.post("/songUrl", { requestId, songIdList });
 }
+
+export function searchByKeyword(keyword, page, pageSize) {
+	return apiClient.post("/searchByKeyword", {
+		requestId: String(Date.now()),
+		keyword,
+		page,
+		pageSize,
+	});
+}

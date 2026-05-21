@@ -4,28 +4,54 @@
 			<header class="flex-shrink-0 bg-surface-elevated border-b border-line-base px-6 py-4">
 				<h1 class="text-xl font-semibold text-content-base mb-3">发现音乐</h1>
 				<div class="flex items-center gap-3">
-					<div class="w-[130px]">
-						<CustomSelect
-							v-model="discoverStore.urlType"
-							:options="urlTypeOptions"
-							size="medium"
-						/>
-					</div>
-					<div class="flex-1">
-						<CustomInput
-							v-model="discoverStore.searchUrl"
-							type="text"
-							placeholder="粘贴 QQ 音乐分享链接..."
-							size="medium"
-							@enter="discoverStore.handleSearch"
-						/>
-					</div>
+					<!-- 搜索模式切换 -->
+					<CustomButton
+						type="secondary"
+						size="small"
+						:icon="discoverStore.searchMode === 'link' ? 'link' : 'search'"
+						@click="toggleSearchMode">
+						{{ discoverStore.searchMode === 'link' ? '链接搜索' : '关键词搜索' }}
+					</CustomButton>
+
+					<!-- 链接搜索模式 -->
+					<template v-if="discoverStore.searchMode === 'link'">
+						<div class="w-[130px]">
+							<CustomSelect
+								v-model="discoverStore.urlType"
+								:options="urlTypeOptions"
+								size="medium"
+							/>
+						</div>
+						<div class="flex-1">
+							<CustomInput
+								v-model="discoverStore.searchUrl"
+								type="text"
+								placeholder="粘贴 QQ 音乐分享链接..."
+								size="medium"
+								@enter="discoverStore.handleSearch"
+							/>
+						</div>
+					</template>
+
+					<!-- 关键词搜索模式 -->
+					<template v-else>
+						<div class="flex-1">
+							<CustomInput
+								v-model="discoverStore.keyword"
+								type="text"
+								placeholder="输入歌曲名称..."
+								size="medium"
+								@enter="discoverStore.handleSearch"
+							/>
+						</div>
+					</template>
+
 					<CustomButton
 						type="primary"
 						size="medium"
 						icon="search"
 						:loading="discoverStore.loading"
-						:disabled="!discoverStore.searchUrl.trim()"
+						:disabled="!searchBtnEnabled"
 						@click="discoverStore.handleSearch">
 						搜索
 					</CustomButton>
@@ -160,6 +186,11 @@
 
 		const stepText = computed(() => stepTextMap[discoverStore.searchStep] || '')
 
+		const searchBtnEnabled = computed(() => {
+			if (discoverStore.searchMode === 'link') return discoverStore.searchUrl.trim()
+			return discoverStore.keyword.trim()
+		})
+
 		const totalPages = computed(() => Math.ceil(discoverStore.total / discoverStore.pageSize))
 
 		const jumpPage = ref('')
@@ -187,6 +218,10 @@
 			if (!isNaN(n) && n >= 1 && n <= totalPages.value) {
 				discoverStore.setPage(n)
 			}
+		}
+
+		function toggleSearchMode() {
+			discoverStore.searchMode = discoverStore.searchMode === 'link' ? 'keyword' : 'link'
 		}
 
 		function handlePlay(song) {

@@ -50,6 +50,13 @@ class SongUrlRequest(BaseModel):
     songIdList: list[str] = Field(..., description="歌曲 MID 列表")
 
 
+class KeywordSearchRequest(BaseModel):
+    requestId: str = "0"
+    keyword: str = Field(..., description="搜索关键词")
+    page: int = Field(default=1, ge=1)
+    pageSize: int = Field(default=10, ge=1, le=50)
+
+
 # ========== 响应类（Response）==========
 
 

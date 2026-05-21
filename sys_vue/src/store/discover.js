@@ -1,11 +1,13 @@
 import { defineStore } from "pinia";
 import { ref, nextTick } from "vue";
-import { searchSongs, getAlbumImages, getSongUrls } from "../api/song.js";
+import { searchSongs, searchByKeyword, getAlbumImages, getSongUrls } from "../api/song.js";
 
 export const useDiscoverStore = defineStore("discover", () => {
 	// 搜索状态
 	const searchUrl = ref("");
 	const urlType = ref("song");
+	const keyword = ref("");
+	const searchMode = ref("link"); // "link" | "keyword"
 	const searchResults = ref([]);
 	const total = ref(0);
 	const page = ref(1);
@@ -24,7 +26,7 @@ export const useDiscoverStore = defineStore("discover", () => {
 	 * 三步串行搜索：搜索 → 封面 → 下载链接
 	 */
 	async function handleSearch() {
-		if (!searchUrl.value.trim()) return;
+		if (searchMode.value === "link" && !searchUrl.value.trim()) return;
 
 		loading.value = true;
 		errorMsg.value = "";
@@ -38,17 +40,34 @@ export const useDiscoverStore = defineStore("discover", () => {
 		await nextTick();
 
 		try {
-			// 步骤 1：搜索歌曲基本信息
-			const searchRes = await searchSongs({
-				requestId: currentRequestId,
-				urlType: urlType.value,
-				searchUrl: searchUrl.value.trim(),
-				page: page.value,
-				pageSize: pageSize.value,
-			});
+			let songs = [];
+			let totalCount = 0;
 
-			const songs = searchRes.data.result || [];
-			total.value = searchRes.data.total || 0;
+			if (searchMode.value === "keyword") {
+				// 关键词搜索模式
+				if (!keyword.value.trim()) return;
+				const searchRes = await searchByKeyword(
+					keyword.value.trim(),
+					page.value,
+					pageSize.value
+				);
+				songs = searchRes.data.result || [];
+				totalCount = searchRes.data.total || 0;
+			} else {
+				// 链接搜索模式
+				if (!searchUrl.value.trim()) return;
+				const searchRes = await searchSongs({
+					requestId: currentRequestId,
+					urlType: urlType.value,
+					searchUrl: searchUrl.value.trim(),
+					page: page.value,
+					pageSize: pageSize.value,
+				});
+				songs = searchRes.data.result || [];
+				totalCount = searchRes.data.total || 0;
+			}
+
+			total.value = totalCount;
 
 			if (songs.length === 0) {
 				searchStep.value = "done";
@@ -175,6 +194,8 @@ export const useDiscoverStore = defineStore("discover", () => {
 		// 状态
 		searchUrl,
 		urlType,
+		keyword,
+		searchMode,
 		searchResults,
 		total,
 		page,

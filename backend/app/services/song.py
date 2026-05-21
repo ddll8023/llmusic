@@ -4,6 +4,7 @@ from urllib.parse import parse_qs, urlparse
 
 import httpx
 from qqmusic_api.modules.song import SongFileInfo
+from qqmusic_api.modules.search import SearchType
 
 from app.qqmusic.client import get_client
 from app.schemas.common import ErrorCode
@@ -112,6 +113,34 @@ async def get_song_url_list(song_mid_list, file_type, credential):
     return url_map
 
 
+async def search_by_keyword(keyword, page, page_size, request_id):
+    """通过关键词搜索歌曲"""
+    client = await get_client()
+
+    try:
+        result = await client.execute(
+            client.search.search_by_type(
+                keyword=keyword,
+                search_type=SearchType.SONG,
+                num=page_size,
+                page=page,
+            )
+        )
+    except ServiceException:
+        raise
+    except Exception:
+        logging.exception(f"关键词搜索失败: {keyword}")
+        raise ServiceException(ErrorCode.AI_SERVICE_ERROR, "服务调用失败，请稍后重试")
+
+    items = [_build_from_search_song(song) for song in result.song]
+
+    return {
+        "result": items,
+        "total": result.total_num,
+        "requestId": request_id,
+    }
+
+
 def get_album_covers(album_mid_list):
     """获取专辑封面 URL 列表"""
     return [ALBUM_COVER_TEMPLATE.format(mid=mid) for mid in album_mid_list]
@@ -154,6 +183,29 @@ def _build_single_song_item(song_id, detail):
             "albumCoverUrl": "",
         },
         "duration": _format_duration(track.interval),
+        "songUrl": "",
+    }
+
+
+def _build_from_search_song(song):
+    """构建关键词搜索结果的歌曲项"""
+    singer = " / ".join(s.name for s in song.singer)
+
+    return {
+        "songId": song.id,
+        "songMid": song.mid,
+        "songName": song.title,
+        "singer": singer,
+        "genre": "",
+        "lan": "",
+        "createTime": song.time_public,
+        "album": {
+            "albumId": song.album.id,
+            "albumMid": song.album.mid,
+            "albumName": song.album.name,
+            "albumCoverUrl": "",
+        },
+        "duration": _format_duration(song.interval),
         "songUrl": "",
     }
 
