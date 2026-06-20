@@ -243,7 +243,7 @@ function createWindow() {
 	if (app.isPackaged) {
 		// 生产环境，加载打包后的文件
 		mainWindow.loadFile(
-			path.join(__dirname, "../sys_vue/dist/index.html")
+			path.join(process.resourcesPath, "sys_vue", "dist", "index.html")
 		);
 	} else {
 		// 开发环境，加载 Vite 开发服务器

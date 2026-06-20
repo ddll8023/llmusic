@@ -1,5 +1,5 @@
 @echo off
-chcp 65001 >nul
+chcp 65001 >/dev/null
 echo ========================================
 echo LLMusic 应用打包脚本
 echo ========================================
@@ -35,7 +35,7 @@ if exist backend\dist (
     echo 清理旧的后端构建文件...
     rmdir /s /q backend\dist
 )
-uv run --directory backend pyinstaller --onefile --name backend --distpath backend\dist backend\entry.py
+uv run --directory backend pyinstaller --onefile --name backend --distpath dist entry.py
 if %errorlevel% neq 0 (
     echo 错误: 后端打包失败!
     pause
@@ -56,6 +56,7 @@ echo.
 echo ========================================
 echo 打包完成!
 echo.
-echo 产物目录: %CD%\releaseecho ========================================
+echo 产物目录: %CD%\release
+echo ========================================
 echo.
 pause

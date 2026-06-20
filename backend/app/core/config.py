@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    APP_HOST: str = "0.0.0.0"
+    APP_HOST: str = "127.0.0.1"
     APP_PORT: int = 9752
     APP_CORS_ORIGINS: list[str] = ["http://localhost:9753"]
     APP_LOG_LEVEL: str = "INFO"
