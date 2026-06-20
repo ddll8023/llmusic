@@ -6,6 +6,7 @@ import ContextMenu from './ContextMenu.vue';
 import FAIcon from './FAIcon.vue';
 import CustomButton from '../custom/CustomButton.vue';
 import CustomCheckbox from '../custom/CustomCheckbox.vue';
+import LoadingSpinner from '../custom/LoadingSpinner.vue';
 import { formatDuration } from '../../utils/timeUtils';
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
 
@@ -369,9 +370,8 @@ defineExpose({
 <template>
     <div class="flex flex-col flex-1 overflow-hidden relative bg-surface-base text-content-base" :style="{ height: containerHeight }">
         <!-- 加载状态 -->
-        <div v-if="loading" class="flex flex-col items-center justify-center flex-1 text-content-secondary p-8 max-md:p-4">
-            <div class="w-10 h-10 border-[3px] border-line-base rounded-full border-t-accent-green animate-spin mb-4 max-md:w-8 max-md:h-8 max-md:border-2 max-md:mb-3"></div>
-            <p>加载中...</p>
+        <div v-if="loading" class="flex items-center justify-center flex-1 p-8 max-md:p-4">
+            <LoadingSpinner text="加载中..." />
         </div>
 
         <!-- 空状态 -->
@@ -392,9 +392,7 @@ defineExpose({
                     :style="{ width: header.width, flexShrink: header.key === 'index' || header.key === 'cover' ? 0 : undefined }"
                     @click="header.sortable ? handleSort(header.key) : null">
                     {{ header.label }}
-                    <span v-if="header.sortable && sortBy === header.key" class="ml-[5px]">
-                        {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                    </span>
+                    <FAIcon v-if="header.sortable && sortBy === header.key" :name="sortDirection === 'asc' ? 'sort-asc' : 'sort-desc'" size="small" class="ml-[5px]" />
                 </div>
                 <div v-if="showActionColumn" class="shrink-0 p-2 flex items-center max-md:p-1.5"></div>
             </div>
@@ -433,9 +431,7 @@ defineExpose({
                             <transition name="fade">
                                 <div v-if="hoveredSongId === song.id" class="absolute inset-0 bg-overlay-dark flex items-center justify-center cursor-pointer rounded"
                                     @click="handleSongPlay(song)">
-                                    <svg viewBox="0 0 24 24" class="fill-content-base w-5 h-5 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] max-md:w-4 max-md:h-4">
-                                        <path d="M8 5v14l11-7z"></path>
-                                    </svg>
+                                    <FAIcon name="play" size="large" color="primary" />
                                 </div>
                             </transition>
                         </div>
@@ -481,19 +477,9 @@ defineExpose({
             <!-- 固定按钮 -->
             <transition name="slide-fade">
                 <div v-if="showFixedButtons" class="fixed right-5 bottom-[110px] flex flex-col gap-2.5 z-[100] max-md:right-4 max-md:bottom-[100px] max-md:gap-2">
-                    <div class="w-11 h-11 rounded bg-surface-overlay flex items-center justify-center cursor-pointer shadow-md transition-all duration-200 select-none border border-line-base hover:scale-105 hover:shadow-lg hover:bg-surface-overlay active:scale-95 max-md:w-10 max-md:h-10" @click="scrollToCurrentSong" title="定位当前播放歌曲">
-                        <svg class="drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)] max-md:w-5 max-md:h-5" width="24" height="24" viewBox="0 0 24 24">
-                            <path fill="#FFFFFF"
-                                d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z">
-                            </path>
-                        </svg>
-                    </div>
+                    <CustomButton type="icon-only" icon="crosshairs" size="medium" circle customClass="!w-11 !h-11" @click="scrollToCurrentSong" title="定位当前播放歌曲" />
 
-                    <div class="w-11 h-11 rounded bg-surface-overlay flex items-center justify-center cursor-pointer shadow-md transition-all duration-200 select-none border border-line-base hover:scale-105 hover:shadow-lg hover:bg-surface-overlay active:scale-95 max-md:w-10 max-md:h-10" @click="scrollToTop" title="回到顶部">
-                        <svg class="drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)] max-md:w-5 max-md:h-5" width="24" height="24" viewBox="0 0 24 24">
-                            <path fill="#FFFFFF" d="M8 11h3v10h2V11h3l-4-4-4 4zM4 3v2h16V3H4z"></path>
-                        </svg>
-                    </div>
+                    <CustomButton type="icon-only" icon="arrow-up" size="medium" circle customClass="!w-11 !h-11" @click="scrollToTop" title="回到顶部" />
                 </div>
             </transition>
         </div>

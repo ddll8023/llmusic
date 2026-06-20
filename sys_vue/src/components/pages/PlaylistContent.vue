@@ -5,6 +5,7 @@ import { usePlayerStore } from '../../store/player';
 import ContentHeader from '../common/ContentHeader.vue';
 import SongTable from '../common/SongTable.vue';
 import CustomButton from '../custom/CustomButton.vue';
+import CustomModal from '../custom/CustomModal.vue';
 
 // 接收父组件传递的导航函数
 const props = defineProps({
@@ -232,16 +233,8 @@ onMounted(() => {
             @play-song="handlePlaySong" @action-click="handleActionClick"
             @context-menu-action="handleContextMenuAction" />
 
-        <!-- 删除确认对话框 -->
-        <div v-if="showDeleteConfirm" class="fixed inset-0 bg-overlay-dark flex items-center justify-center z-[100] fade-in">
-            <div class="bg-surface-elevated rounded-lg p-6 w-[400px] max-w-[90%] shadow-custom border border-line-base fade-in-up max-md:p-4">
-                <h3 class="mt-0 mb-4 text-content-base text-lg font-medium max-md:text-sm">删除歌单</h3>
-                <p class="mb-6 text-content-secondary text-sm leading-relaxed max-md:text-xs">确定要删除歌单"{{ currentPlaylist?.name }}"吗？此操作不可撤销。</p>
-                <div class="flex justify-end gap-3 max-md:gap-2">
-                    <CustomButton type="secondary" @click="showDeleteConfirm = false">取消</CustomButton>
-                    <CustomButton type="danger" @click="deletePlaylist">确认删除</CustomButton>
-                </div>
-            </div>
-        </div>
+        <CustomModal :show="showDeleteConfirm" title="删除歌单" confirm-text="确认删除" confirm-type="danger" width="400px" @close="showDeleteConfirm = false" @confirm="deletePlaylist" @cancel="showDeleteConfirm = false">
+            <p class="text-content-secondary text-sm leading-relaxed">确定要删除歌单"{{ currentPlaylist?.name }}"吗？此操作不可撤销。</p>
+        </CustomModal>
     </div>
 </template>

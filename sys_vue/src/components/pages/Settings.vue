@@ -6,6 +6,8 @@ import { useAuthStore } from '../../store/auth';
 import { ref, onMounted } from 'vue';
 import FAIcon from '../common/FAIcon.vue';
 import CustomButton from '../custom/CustomButton.vue';
+import CustomInput from '../custom/CustomInput.vue';
+import CustomModal from '../custom/CustomModal.vue';
 import CustomSelect from '../custom/CustomSelect.vue';
 
 const mediaStore = useMediaStore();
@@ -258,97 +260,51 @@ const handleLogout = () => {
       </div>
     </div>
 
-    <!-- 编辑音乐库 Modal -->
-    <div class="fixed inset-0 bg-overlay-dark flex items-center justify-center z-[100] fade-in" v-if="showEditLibraryModal">
-      <div class="modal-fade-in">
-        <div class="bg-surface-elevated text-content-base p-[30px] rounded-[12px] shadow-lg w-[90%] max-w-[450px] text-center border border-line-base max-md:p-5 max-md:max-w-[320px]">
-          <h3 class="mt-0 text-lg mb-5 font-semibold max-md:text-sm max-md:mb-4">重命名音乐库</h3>
-          <p class="text-content-secondary mb-5 text-xs leading-relaxed max-md:text-[10px] max-md:mb-4">为您的音乐库"{{ editingLibrary.name }}"输入一个新名称。</p>
-          <input type="text" v-model="newLibraryName" placeholder="新音乐库名称" class="w-full p-2.5 my-4 bg-surface-overlay border border-overlay-light text-content-base rounded text-xs transition-colors duration-200 box-border focus:outline-none focus:border-accent-green placeholder:text-content-disabled max-md:text-[10px] max-md:p-2" />
-          <div class="flex justify-center gap-5 mt-[25px] max-md:gap-4 max-md:mt-5">
-            <CustomButton type="secondary" @click="showEditLibraryModal = false">取消</CustomButton>
-            <CustomButton type="primary" @click="handleUpdateLibrary">保存</CustomButton>
-          </div>
+    <CustomModal :show="showEditLibraryModal" title="重命名音乐库" :confirm-text="'保存'" confirm-type="primary" @close="showEditLibraryModal = false" @confirm="handleUpdateLibrary" @cancel="showEditLibraryModal = false">
+      <p class="text-content-secondary mb-5 text-xs leading-relaxed">为您的音乐库"{{ editingLibrary.name }}"输入一个新名称。</p>
+      <CustomInput type="text" v-model="newLibraryName" placeholder="新音乐库名称" size="large" />
+    </CustomModal>
+
+    <CustomModal :show="showConfirmModal" :title="confirmModalTitle" confirm-text="确认" confirm-type="danger" @close="closeConfirmModal" @confirm="executeConfirmAction" @cancel="closeConfirmModal">
+      <p class="text-content-secondary text-xs leading-relaxed">{{ confirmModalMessage }}</p>
+    </CustomModal>
+
+    <CustomModal :show="showInfoModal" :title="infoModalTitle" confirm-text="确定" @close="closeInfoModal" @confirm="closeInfoModal" cancel-text="">
+      <p class="text-sm text-content-secondary leading-relaxed">{{ infoModalMessage }}</p>
+    </CustomModal>
+
+    <CustomModal :show="showLoginModal" title="QQ 音乐登录" :show-footer="false" @close="handleCloseLoginModal">
+      <div v-if="!authStore.qrCodeBase64 && authStore.qrStatus !== 'loading'" class="text-center py-4">
+        <p class="text-content-secondary mb-5 text-xs leading-relaxed">请选择登录方式</p>
+        <div class="flex gap-4 justify-center">
+          <CustomButton type="primary" @click="handleLogin('qq')">QQ 登录</CustomButton>
+          <CustomButton type="secondary" @click="handleLogin('wx')">微信登录</CustomButton>
         </div>
       </div>
-    </div>
-
-    <!-- 通用确认对话框 -->
-    <div class="fixed inset-0 bg-overlay-dark flex items-center justify-center z-[100] fade-in" v-if="showConfirmModal">
-      <div class="modal-fade-in">
-        <div class="bg-surface-elevated text-content-base p-[30px] rounded-[12px] shadow-lg w-[90%] max-w-[450px] text-center border border-line-base max-md:p-5 max-md:max-w-[320px]">
-          <h3 class="mt-0 text-lg mb-5 font-semibold max-md:text-sm max-md:mb-4">{{ confirmModalTitle }}</h3>
-          <p class="text-content-secondary mb-5 text-xs leading-relaxed max-md:text-[10px] max-md:mb-4">{{ confirmModalMessage }}</p>
-          <div class="flex justify-center gap-5 mt-[25px] max-md:gap-4 max-md:mt-5">
-            <CustomButton type="secondary" @click="closeConfirmModal">取消</CustomButton>
-            <CustomButton type="danger" @click="executeConfirmAction">确认</CustomButton>
-          </div>
-        </div>
+      <div v-else-if="authStore.qrStatus === 'loading'" class="text-center py-8">
+        <FAIcon name="spinner" size="xl" color="secondary" class="animate-spin" />
+        <p class="mt-4 text-content-secondary text-xs leading-relaxed">正在获取二维码...</p>
       </div>
-    </div>
-
-    <!-- 通用信息提示弹窗 -->
-    <div class="fixed inset-0 bg-overlay-dark flex items-center justify-center z-[100] fade-in" v-if="showInfoModal">
-      <div class="modal-fade-in">
-        <div class="bg-surface-elevated text-content-base p-[30px] rounded-[12px] shadow-lg w-[90%] max-w-[450px] text-center border border-line-base max-md:p-5 max-md:max-w-[320px]">
-          <h3 class="mt-0 text-lg mb-5 font-semibold max-md:text-sm max-md:mb-4">{{ infoModalTitle }}</h3>
-          <p class="text-sm my-5 min-h-[22px] max-md:text-xs max-md:my-4 text-content-secondary leading-relaxed">{{ infoModalMessage }}</p>
-          <div class="flex justify-center gap-5 mt-[25px] max-md:gap-4 max-md:mt-5">
-            <CustomButton type="primary" @click="closeInfoModal">确定</CustomButton>
-          </div>
-        </div>
+      <div v-else class="text-center py-4">
+        <img :src="'data:image/png;base64,' + authStore.qrCodeBase64" class="w-[200px] h-[200px] rounded border border-line-base bg-white inline-block" />
+        <p class="mt-5 text-xs text-content-secondary">
+          <span v-if="authStore.qrStatus === 'waiting'">请使用{{ authStore.loginType === 'qq' ? 'QQ' : '微信' }}扫描二维码</span>
+          <span v-else-if="authStore.qrStatus === 'scanned'" class="text-accent-green">扫描成功，请在手机上确认</span>
+          <span v-else-if="authStore.qrStatus === 'confirmed'" class="text-accent-green">已确认，正在登录...</span>
+          <span v-else-if="authStore.qrStatus === 'done'" class="text-accent-green">登录成功！</span>
+          <span v-else-if="authStore.qrStatus === 'expired'" class="text-accent-danger">
+            二维码已过期
+            <CustomButton type="secondary" size="small" customClass="underline text-accent-green!" @click="handleLogin(authStore.loginType)">点击刷新</CustomButton>
+          </span>
+          <span v-else-if="authStore.qrStatus === 'error'" class="text-accent-danger">
+            {{ authStore.qrMessage || '登录失败' }}
+            <CustomButton type="secondary" size="small" customClass="underline text-accent-green!" @click="handleLogin(authStore.loginType)">重试</CustomButton>
+          </span>
+        </p>
       </div>
-    </div>
-
-    <!-- 登录弹窗 -->
-    <div class="fixed inset-0 bg-overlay-dark flex items-center justify-center z-[100] fade-in" v-if="showLoginModal">
-      <div class="modal-fade-in">
-        <div class="bg-surface-elevated text-content-base p-[30px] rounded-[12px] shadow-lg w-[90%] max-w-[380px] text-center border border-line-base max-md:p-5 max-md:max-w-[320px]">
-          <h3 class="mt-0 text-lg mb-5 font-semibold max-md:text-sm max-md:mb-4">QQ 音乐登录</h3>
-
-          <!-- 选择登录方式 -->
-          <div v-if="!authStore.qrCodeBase64 && authStore.qrStatus !== 'loading'" class="text-center py-4">
-            <p class="text-content-secondary mb-5 text-xs leading-relaxed">请选择登录方式</p>
-            <div class="flex gap-4 justify-center">
-              <CustomButton type="primary" @click="handleLogin('qq')">
-                QQ 登录
-              </CustomButton>
-              <CustomButton type="secondary" @click="handleLogin('wx')">
-                微信登录
-              </CustomButton>
-            </div>
-          </div>
-
-          <!-- 加载中 -->
-          <div v-else-if="authStore.qrStatus === 'loading'" class="text-center py-8">
-            <i class="fa fa-spinner fa-spin text-4xl text-content-secondary"></i>
-            <p class="mt-4 text-content-secondary text-xs leading-relaxed">正在获取二维码...</p>
-          </div>
-
-          <!-- 显示二维码 -->
-          <div v-else class="text-center py-4">
-            <img :src="'data:image/png;base64,' + authStore.qrCodeBase64" class="w-[200px] h-[200px] rounded border border-line-base bg-white inline-block" />
-            <p class="mt-5 text-xs text-content-secondary">
-              <span v-if="authStore.qrStatus === 'waiting'">请使用{{ authStore.loginType === 'qq' ? 'QQ' : '微信' }}扫描二维码</span>
-              <span v-else-if="authStore.qrStatus === 'scanned'" class="text-accent-green">扫描成功，请在手机上确认</span>
-              <span v-else-if="authStore.qrStatus === 'confirmed'" class="text-accent-green">已确认，正在登录...</span>
-              <span v-else-if="authStore.qrStatus === 'done'" class="text-accent-green">登录成功！</span>
-              <span v-else-if="authStore.qrStatus === 'expired'" class="text-accent-danger">
-                二维码已过期
-                <a class="text-accent-green cursor-pointer underline ml-1" @click="handleLogin(authStore.loginType)">点击刷新</a>
-              </span>
-              <span v-else-if="authStore.qrStatus === 'error'" class="text-accent-danger">
-                {{ authStore.qrMessage || '登录失败' }}
-                <a class="text-accent-green cursor-pointer underline ml-1" @click="handleLogin(authStore.loginType)">重试</a>
-              </span>
-            </p>
-          </div>
-
-          <div class="flex justify-center gap-5 mt-[25px] max-md:gap-4 max-md:mt-5">
-            <CustomButton type="secondary" @click="handleCloseLoginModal">关闭</CustomButton>
-          </div>
-        </div>
-      </div>
-    </div>
+      <template #footer>
+        <CustomButton type="secondary" @click="handleCloseLoginModal">关闭</CustomButton>
+      </template>
+    </CustomModal>
   </div>
 </template>

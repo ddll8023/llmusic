@@ -1,7 +1,7 @@
 /*
  * LLMusic 全局基础样式
- * 包含：CSS Reset、滚动条、@keyframes 动画、Vue 过渡类、Element Plus 变量覆盖
- * 原 SCSS 文件：_global.scss / _transitions.scss / main.scss (ElementPlus部分)
+ * 包含：CSS Reset、滚动条、@keyframes 动画、Vue 过渡类
+ * 原 SCSS 文件：_global.scss / _transitions.scss
  */
 
 /* ========== 1. CSS Reset & 基础样式 ========== */
@@ -283,67 +283,7 @@
   box-shadow: 0 0 20px rgba(76, 175, 80, 0.3);
 }
 
-/* ========== 5. Element Plus 主题变量覆盖 ========== */
-
-:root {
-  /* 主色调 */
-  --el-color-primary: #4caf50;
-  --el-color-primary-light-3: #81c784;
-  --el-color-primary-light-5: #a5d6a7;
-  --el-color-primary-light-7: #c8e6c9;
-  --el-color-primary-light-8: #dcedc8;
-  --el-color-primary-light-9: #e8f5e9;
-  --el-color-primary-dark-2: #388e3c;
-
-  /* 功能色 */
-  --el-color-success: #4caf50;
-  --el-color-warning: #ff9800;
-  --el-color-danger: #f44336;
-  --el-color-error: #f44336;
-  --el-color-info: #2196f3;
-
-  /* 背景色 */
-  --el-bg-color: #121212;
-  --el-bg-color-page: #121212;
-  --el-bg-color-overlay: #181818;
-
-  /* 文本色 */
-  --el-text-color-primary: #ffffff;
-  --el-text-color-regular: #b3b3b3;
-  --el-text-color-secondary: #535353;
-  --el-text-color-placeholder: #535353;
-  --el-text-color-disabled: #535353;
-
-  /* 边框色 */
-  --el-border-color: #282828;
-  --el-border-color-light: #383838;
-  --el-border-color-lighter: #4a4a4a;
-  --el-border-color-extra-light: #5a5a5a;
-  --el-border-color-dark: #1e1e1e;
-  --el-border-color-darker: #141414;
-
-  /* 填充色 */
-  --el-fill-color: #181818;
-  --el-fill-color-light: #242424;
-  --el-fill-color-lighter: #303030;
-  --el-fill-color-extra-light: #3c3c3c;
-  --el-fill-color-dark: #121212;
-  --el-fill-color-darker: #0a0a0a;
-  --el-fill-color-blank: transparent;
-
-  /* 遮罩层 */
-  --el-overlay-color: rgba(0, 0, 0, 0.8);
-  --el-overlay-color-light: rgba(0, 0, 0, 0.7);
-  --el-overlay-color-lighter: rgba(0, 0, 0, 0.5);
-
-  /* 圆角 */
-  --el-border-radius-base: 4px;
-  --el-border-radius-small: 2px;
-  --el-border-radius-round: 20px;
-  --el-border-radius-circle: 100%;
-}
-
-/* ========== 6. 无障碍 - 减少动画 ========== */
+/* ========== 5. 无障碍 - 减少动画 ========== */
 
 @media (prefers-reduced-motion: reduce) {
   *,

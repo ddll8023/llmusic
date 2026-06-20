@@ -8,7 +8,7 @@
 @theme {
   /* ========== 色彩系统 ========== */
 
-  /* 主色板（保留 Element Plus 兼容） */
+  /* 主色板 */
   --color-primary-50: #eff6ff;
   --color-primary-100: #dbeafe;
   --color-primary-200: #bfdbfe;

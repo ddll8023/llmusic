@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue';
 import { usePlaylistStore } from '../../store/playlist';
 import FAIcon from '../common/FAIcon.vue';
 import CustomButton from '../custom/CustomButton.vue';
+import CustomInput from '../custom/CustomInput.vue';
 
 const playlistStore = usePlaylistStore();
 
@@ -54,10 +55,7 @@ async function handleSavePlaylist() {
                 <form @submit.prevent="handleSavePlaylist" class="flex flex-col gap-4">
                     <div class="flex flex-col gap-1.5">
                         <label for="playlist-name" class="text-xs font-medium text-content-base">歌单名称</label>
-                        <input type="text" id="playlist-name"
-                            class="w-full px-3 py-2 text-sm bg-surface-base border border-line-base rounded text-content-base
-                                   placeholder:text-content-disabled focus:border-accent-green focus:outline-none transition-colors duration-200"
-                            v-model="playlistStore.editingPlaylist.name" placeholder="请输入歌单名称" autofocus>
+                        <CustomInput type="text" v-model="playlistStore.editingPlaylist.name" placeholder="请输入歌单名称" label="歌单名称" />
                     </div>
 
                     <div class="flex flex-col gap-1.5">

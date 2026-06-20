@@ -33,12 +33,7 @@
 					<!-- 加载遮罩 -->
 					<Transition name="loading-fade">
 						<div v-if="loading" class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-surface-base/80 backdrop-blur-sm">
-							<div class="loading-spinner mb-4">
-								<div class="spinner-ring"></div>
-								<div class="spinner-ring spinner-ring-delay"></div>
-								<div class="spinner-ring spinner-ring-delay-2"></div>
-							</div>
-							<div v-if="loadingText" class="text-sm text-content-secondary animate-pulse">{{ loadingText }}</div>
+              <LoadingSpinner :text="loadingText" />
 						</div>
 					</Transition>
 
@@ -128,9 +123,10 @@
 		 * 依赖组件：CustomButton、FAIcon
 		 */
 		import { ref, computed } from 'vue'
-		import CustomButton from '../custom/CustomButton.vue'
-		import CustomCheckbox from '../custom/CustomCheckbox.vue'
-		import FAIcon from '../common/FAIcon.vue'
+import CustomButton from '../custom/CustomButton.vue'
+import CustomCheckbox from '../custom/CustomCheckbox.vue'
+import FAIcon from '../common/FAIcon.vue'
+import LoadingSpinner from '../custom/LoadingSpinner.vue'
 
 		const props = defineProps({
 			songs: { type: Array, required: true },
@@ -212,33 +208,5 @@
 			opacity: 0;
 		}
 
-		/* 三环旋转加载动画 */
-		.loading-spinner {
-			position: relative;
-			width: 48px;
-			height: 48px;
-		}
-
-		.spinner-ring {
-			position: absolute;
-			inset: 0;
-			border-radius: 50%;
-			border: 3px solid transparent;
-			border-top-color: #4caf50;
-			animation: spin 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
-		}
-
-		.spinner-ring-delay {
-			border-top-color: rgba(76, 175, 80, 0.6);
-			animation-delay: -0.15s;
-		}
-
-		.spinner-ring-delay-2 {
-			border-top-color: rgba(76, 175, 80, 0.3);
-			animation-delay: -0.3s;
-		}
-
-		@keyframes spin {
-			to { transform: rotate(360deg); }
-		}
+        /* 加载动画已迁移至 LoadingSpinner 组件 */
 		</style>

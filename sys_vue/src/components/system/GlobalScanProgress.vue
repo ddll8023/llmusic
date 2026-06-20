@@ -9,25 +9,18 @@
           {{ mediaStore.scanProgress.processed }} / {{ mediaStore.scanProgress.total }}
         </span>
       </div>
-      <div class="bg-surface-elevated rounded overflow-hidden h-2 w-full mb-5 max-md:h-[6px] max-md:mb-4">
-        <div class="bg-accent-green h-full transition-all duration-200 rounded" :style="{ width: progressBarWidth }"></div>
-      </div>
+      <ProgressBar :value="mediaStore.scanProgress.processed" :max="mediaStore.scanProgress.total" :show-label="false" height="8px" class="mb-5" />
       <CustomButton type="danger" size="medium" icon="times" @click="cancelScan">取消扫描</CustomButton>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue';
 import { useMediaStore } from '../../store/media';
 import CustomButton from '../custom/CustomButton.vue';
+import ProgressBar from '../custom/ProgressBar.vue';
 
 const mediaStore = useMediaStore();
-
-const progressBarWidth = computed(() => {
-  if (mediaStore.scanProgress.total === 0) return '0%';
-  return `${(mediaStore.scanProgress.processed / mediaStore.scanProgress.total) * 100}%`;
-});
 
 const cancelScan = () => { mediaStore.cancelScan(); };
 </script>

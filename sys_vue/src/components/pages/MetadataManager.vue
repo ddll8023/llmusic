@@ -6,6 +6,7 @@ import SongTable from '../common/SongTable.vue';
 import TagEditor from '../common/TagEditor.vue';
 import CustomButton from '../custom/CustomButton.vue';
 import CustomInput from '../custom/CustomInput.vue';
+import CustomModal from '../custom/CustomModal.vue';
 
 const selectedSongs = ref([]);
 const searchQuery = ref('');
@@ -483,30 +484,15 @@ onMounted(async () => {
             </div>
         </div>
 
-        <!-- 清除确认对话框 -->
-        <div v-if="showClearConfirm" class="fixed inset-0 bg-overlay-dark flex justify-center items-center z-[100]">
-            <div class="bg-surface-elevated rounded-lg p-6 max-w-[480px] w-[90%] shadow-md max-md:w-[95%] max-md:p-4">
-                <div class="flex items-center gap-3 mb-4 text-accent-green">
-                    <FAIcon name="info-circle" size="large" color="primary" />
-                    <h3 class="m-0 text-lg font-medium">确认清空工作区</h3>
-                </div>
-                <div class="mb-6 leading-relaxed">
-                    <p class="mb-3 text-content-base">您确定要清空当前工作区吗？这将清除您在此次会话中导入的歌曲列表。</p>
-                    <p class="bg-accent-green/10 border border-accent-green/30 rounded p-2 px-3 text-[10px]">
-                        <strong>说明：</strong>此操作只会清空工作区内容，不会影响音乐库中的数据，也不会删除您的音乐文件。
-                    </p>
-                    <div class="bg-overlay-light rounded p-2 px-3 mt-3 text-xs text-content-base">
-                        工作区中共有 <strong>{{ localSongs.length }}</strong> 首歌曲将被清除
-                    </div>
-                </div>
-                <div class="flex gap-3 justify-end">
-                    <CustomButton type="secondary" @click="showClearConfirm = false">取消</CustomButton>
-                    <CustomButton type="primary" icon="trash" @click="clearWorkspace">
-                        清空工作区
-                    </CustomButton>
-                </div>
+        <CustomModal :show="showClearConfirm" title="确认清空工作区" confirm-text="清空工作区" confirm-type="primary" width="480px" @close="showClearConfirm = false" @confirm="clearWorkspace" @cancel="showClearConfirm = false">
+            <p class="mb-3 text-content-base text-sm">您确定要清空当前工作区吗？这将清除您在此次会话中导入的歌曲列表。</p>
+            <p class="bg-accent-green/10 border border-accent-green/30 rounded p-2 px-3 text-[10px] mb-3">
+                <strong>说明：</strong>此操作只会清空工作区内容，不会影响音乐库中的数据，也不会删除您的音乐文件。
+            </p>
+            <div class="bg-overlay-light rounded p-2 px-3 text-xs text-content-base">
+                工作区中共有 <strong>{{ localSongs.length }}</strong> 首歌曲将被清除
             </div>
-        </div>
+        </CustomModal>
 
         <!-- 标签编辑器组件 -->
         <TagEditor ref="tagEditorRef" />
