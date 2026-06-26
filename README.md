@@ -9,7 +9,7 @@
 - 后端：Python、FastAPI、Uvicorn、Pydantic
 - 本地数据：lowdb（JSON 文件数据库）
 - 在线音乐：QQ Music SDK（搜索、下载、二维码登录）
-- 音频处理：music-metadata、fluent-ffmpeg、ffmpeg-static
+- 音频处理：music-metadata、fluent-ffmpeg、ffmpeg-static、ffprobe-static
 
 ## 架构概述
 
