@@ -469,6 +469,14 @@ export const usePlayerStore = defineStore("player", {
 				return;
 			}
 
+			// 在线歌曲：直接控制 HTML5 Audio
+			if (this.isOnlineSong && window._onlineAudio) {
+				const newTime = Math.max(0, Math.min(time, this.currentSong.duration || 0));
+				window._onlineAudio.currentTime = newTime;
+				this.updateCurrentTime(newTime);
+				return;
+			}
+
 			// 确保时间在有效范围内
 			const newTime = Math.max(0, Math.min(time, this.currentSong.duration));
 

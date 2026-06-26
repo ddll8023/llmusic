@@ -3,9 +3,10 @@ import logging
 from urllib.parse import parse_qs, urlparse
 
 import httpx
-from qqmusic_api.modules.song import SongFileInfo
+from qqmusic_api.modules.song import SongFileInfo, SongFileType
 from qqmusic_api.modules.search import SearchType
 
+from app.credential.get_credential import get_credential
 from app.qqmusic.client import get_client
 from app.schemas.common import ErrorCode
 from app.utils.exception import ServiceException
@@ -146,8 +147,99 @@ def get_album_covers(album_mid_list):
     return [ALBUM_COVER_TEMPLATE.format(mid=mid) for mid in album_mid_list]
 
 
+async def get_song_url_list_v2(song_mid_list: list[str]):
+    """获取歌曲链接，有凭证→FLAC，失败降级→ACC_96匿名试听"""
+    try:
+        credential = get_credential()
+    except ServiceException:
+        # 从未登录过 → 直接匿名 ACC_96 试听
+        return await _request_anonymous_try(song_mid_list)
+
+    # 有凭证 → 先试 FLAC
+    try:
+        client = await get_client()
+        file_info = [SongFileInfo(mid=mid) for mid in song_mid_list]
+        result = await client.execute(
+            client.song.get_song_urls(
+                file_info=file_info,
+                file_type=SongFileType.FLAC,
+                credential=credential,
+            )
+        )
+        url_map = {}
+        for item in result.data:
+            url = f"{CDN_DOMAIN}{item.purl}" if item.purl and getattr(item, "result", 0) == 0 else ""
+            url_map[item.mid] = url
+        return _build_url_result(url_map, is_trial=False)
+    except Exception:
+        # 凭证过期或其它异常 → 降级为匿名 ACC_96 试听
+        logging.warning("FLAC 获取失败，降级到 ACC_96 试听")
+        return await _request_anonymous_try(song_mid_list)
+
+    # 有凭证 → FLAC
+    client = await get_client()
+    file_info = [SongFileInfo(mid=mid) for mid in song_mid_list]
+
+    try:
+        result = await client.execute(
+            client.song.get_song_urls(
+                file_info=file_info,
+                file_type=SongFileType.FLAC,
+                credential=credential,
+            )
+        )
+    except Exception:
+        # 凭证过期或其它异常 → 返回空（前端提示重新登录）
+        logging.exception("FLAC 获取失败")
+        return [{"url": "", "urlType": "", "isTrial": True} for _ in song_mid_list]
+
+    url_map = {}
+    for item in result.data:
+        url = f"{CDN_DOMAIN}{item.purl}" if item.purl and getattr(item, "result", 0) == 0 else ""
+        url_map[item.mid] = url
+
+    return _build_url_result(url_map, is_trial=False)
+
+
+async def _request_anonymous_try(song_mid_list: list[str]):
+    """匿名客户端请求 ACC_96 试听链接"""
+    from qqmusic_api import Client as AnonClient
+
+    anon_client = AnonClient()
+    file_info = [SongFileInfo(mid=mid) for mid in song_mid_list]
+
+    try:
+        result = await anon_client.execute(
+            anon_client.song.get_song_urls(
+                file_info=file_info,
+                file_type=SongFileType.ACC_96,
+            )
+        )
+    except Exception:
+        logging.exception("ACC_96 试听获取失败")
+        return [{"url": "", "urlType": "", "isTrial": True} for _ in song_mid_list]
+
+    url_map = {}
+    for item in result.data:
+        url = f"{CDN_DOMAIN}{item.purl}" if item.purl and getattr(item, "result", 0) == 0 else ""
+        url_map[item.mid] = url
+
+    return _build_url_result(url_map, is_trial=True)
+
 """辅助函数"""
 
+
+def _build_url_result(song_urls: dict[str, str], is_trial: bool) -> list[dict]:
+    """构建歌曲 URL 结果列表"""
+    result = []
+    for song_mid, url in song_urls.items():
+        url_type = "flac" if "flac" in url.lower() else "mp3"
+        result.append({
+            "url": url or "",
+            "urlType": url_type,
+            "isTrial": is_trial,
+        })
+    return result
 
 def _safe_get_genre(detail):
     """安全提取流派信息"""

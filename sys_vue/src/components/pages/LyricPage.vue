@@ -122,6 +122,11 @@ const currentSong = computed(() => playerStore.currentSong);
 // 监听当前歌曲变化，更新封面URL
 watch(currentSong, async (newSong) => {
     if (newSong && newSong.id) {
+        // 在线歌曲：直接从 window._onlineCoverUrl 读取
+        if (playerStore.isOnlineSong) {
+            albumCoverUrl.value = window._onlineCoverUrl || '';
+            return;
+        }
         try {
             const coverData = await window.electronAPI.getSongCover(newSong.id);
             if (coverData && coverData.success && coverData.cover) {

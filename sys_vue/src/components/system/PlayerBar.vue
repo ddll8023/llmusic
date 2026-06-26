@@ -283,7 +283,32 @@ const volumePercentage = computed(() => {
 
 // 点击进度条设置播放时间
 const setPlayTime = (event) => {
-    if (!timelineRef.value || !playerStore.currentSong || !window.decodedAudioBuffer) return;
+    if (!timelineRef.value || !playerStore.currentSong) return;
+
+    // 在线歌曲：使用 HTML5 Audio 的 duration
+    if (playerStore.isOnlineSong) {
+        const rect = timelineRef.value.getBoundingClientRect();
+        const percent = (event.clientX - rect.left) / rect.width;
+        const audio = window._onlineAudio;
+        if (!audio) return;
+        const duration = audio.duration || playerStore.currentSong.duration || 0;
+        if (duration <= 0) return;
+        const newTime = percent * duration;
+
+        // 锁定位置，防止 timeupdate 回调立即覆盖
+        if (window.positionLockTimeout) {
+            clearTimeout(window.positionLockTimeout);
+        }
+        window.isPositionLocked = true;
+        window.positionLockTimeout = setTimeout(() => {
+            window.isPositionLocked = false;
+        }, 300);
+
+        playerStore.seek(newTime);
+        return;
+    }
+
+    if (!window.decodedAudioBuffer) return;
 
     const rect = timelineRef.value.getBoundingClientRect();
     const percent = (event.clientX - rect.left) / rect.width;

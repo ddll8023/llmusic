@@ -96,7 +96,8 @@
 						<!-- 操作 -->
 						<div class="flex items-center justify-center gap-1">
 							<CustomButton type="icon-only" size="small" icon="play"
-								title="试听"
+								:disabled="!song.songUrl?.url"
+								:title="song.songUrl?.url ? '试听' : '登录后可试听'"
 								@click="$emit('play', song)" />
 							<CustomButton type="icon-only" size="small"
 								:icon="isDownloading(song) ? 'spinner' : 'download'"

@@ -1,8 +1,6 @@
 """歌曲搜索下载 API"""
 from fastapi import APIRouter
-from qqmusic_api.modules.song import SongFileType
 
-from app.credential.get_credential import get_credential
 from app.schemas import song as schemas_song
 from app.schemas.common import ApiResponse
 from app.schemas.response import error, success
@@ -47,20 +45,11 @@ def get_album_images(req: schemas_song.AlbumImgRequest):
 
 @router.post("/songUrl", response_model=ApiResponse)
 async def get_song_urls(req: schemas_song.SongUrlRequest):
-    """获取歌曲下载链接"""
+    """获取歌曲链接（有凭证→FLAC，无凭证→ACC_96试听）"""
     try:
-        credential = get_credential()
-        song_urls = await services_song.get_song_url_list(
+        result = await services_song.get_song_url_list_v2(
             song_mid_list=req.songIdList,
-            file_type=SongFileType.FLAC,
-            credential=credential,
         )
-
-        result = []
-        for song_mid, url in song_urls.items():
-            url_type = "flac" if "flac" in url.lower() else "mp3"
-            result.append({"url": url or "", "urlType": url_type})
-
         return success(data={"requestId": req.requestId, "result": result})
 
     except ServiceException as e:
