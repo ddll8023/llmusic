@@ -97,7 +97,7 @@
     </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, nextTick, onUnmounted, onMounted } from 'vue';
 import { usePlayerStore } from '../../store/player';
 import { useUiStore } from '../../store/ui';
@@ -107,8 +107,8 @@ import { formatTimeFromMs } from '../../utils/timeUtils';
 
 const playerStore = usePlayerStore();
 const uiStore = useUiStore();
-const lyricLineRefs = ref([]);
-const manualScrollTimer = ref(null);
+const lyricLineRefs = ref<any[]>([]);
+const manualScrollTimer = ref<any>(null);
 const fontSizeClass = ref('normal'); // 'small', 'normal', 'large'
 const albumCoverUrl = ref('');
 
@@ -128,7 +128,7 @@ watch(currentSong, async (newSong) => {
             return;
         }
         try {
-            const coverData = await window.electronAPI.getSongCover(newSong.id);
+            const coverData: any = await window.electronAPI.getSongCover(newSong.id);
             if (coverData && coverData.success && coverData.cover) {
                 // 使用cover和format字段构造Data URL
                 const format = coverData.format || 'image/jpeg';
@@ -162,7 +162,7 @@ const resetFontSize = () => {
 };
 
 // 在每次渲染时重置 refs 数组
-const setLyricLineRef = (el, index) => {
+const setLyricLineRef = (el: any, index: number) => {
     if (el) {
         lyricLineRefs.value[index] = el;
     }
@@ -172,7 +172,7 @@ const setLyricLineRef = (el, index) => {
 const handleManualScroll = () => {
     clearTimeout(manualScrollTimer.value);
     if (playerStore.isAutoScrolling) {
-        playerStore.setAutoScrolling(false);
+        (playerStore as any).setAutoScrolling(false);
     }
     manualScrollTimer.value = setTimeout(() => {
         resumeAutoScroll();
@@ -182,7 +182,7 @@ const handleManualScroll = () => {
 // 恢复自动滚动
 const resumeAutoScroll = () => {
     clearTimeout(manualScrollTimer.value);
-    playerStore.setAutoScrolling(true);
+    (playerStore as any).setAutoScrolling(true);
 
     // 立即滚动到当前行
     const currentIndex = playerStore.currentLyricIndex;
@@ -214,7 +214,7 @@ const processedLyrics = computed(() => {
                     time: line.time || -1,
                     // The store should have cleaned it, but as a backup, just ensure it's a string.
                     text: String(line.text || ''),
-                    timeText: line.timeText
+                    timeText: (line as any).timeText
                 };
             }
             if (typeof line === 'string') {
@@ -248,7 +248,7 @@ const closeLyrics = () => {
 };
 
 // 点击背景关闭
-const handleBackgroundClick = (e) => {
+const handleBackgroundClick = (e: any) => {
     // 只有在点击背景时才关闭歌词页面
     if (e.target.classList.contains('lyric-page')) {
         closeLyrics();
@@ -256,13 +256,13 @@ const handleBackgroundClick = (e) => {
 };
 
 // 调整歌词同步
-const adjustSync = (adjustment) => {
+const adjustSync = (adjustment: any) => {
     if (adjustment === 0) {
         // 重置偏移
-        playerStore.setLyricsSyncOffset(0);
+        (playerStore as any).setLyricsSyncOffset(0);
     } else {
         // 增加或减少偏移
-        playerStore.adjustLyricsSyncOffset(adjustment);
+        (playerStore as any).adjustLyricsSyncOffset(adjustment);
     }
 };
 

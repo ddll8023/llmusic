@@ -15,7 +15,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { useMediaStore } from '../../store/media';
 import CustomButton from '../custom/CustomButton.vue';
 import ProgressBar from '../custom/ProgressBar.vue';

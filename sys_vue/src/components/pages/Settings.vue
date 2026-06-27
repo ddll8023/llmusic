@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { useMediaStore } from '../../store/media';
 import { usePlayerStore } from '../../store/player';
 import { useUiStore } from '../../store/ui';
@@ -17,14 +17,14 @@ const authStore = useAuthStore();
 
 // --- 音乐库管理 State ---
 const showEditLibraryModal = ref(false);
-const editingLibrary = ref(null);
+const editingLibrary = ref<{ id: string; name: string; path: string } | null>(null);
 const newLibraryName = ref("");
 
 // --- 通用弹窗 State ---
 const showConfirmModal = ref(false);
 const confirmModalTitle = ref("");
 const confirmModalMessage = ref("");
-const confirmAction = ref(null);
+const confirmAction = ref<(() => void) | null>(null);
 
 // --- 登录弹窗 State ---
 const showLoginModal = ref(false);
@@ -50,7 +50,7 @@ const handleAddLibrary = async () => {
   }
 };
 
-const openEditLibraryModal = (library) => {
+const openEditLibraryModal = (library: any) => {
   editingLibrary.value = library;
   newLibraryName.value = library.name;
   showEditLibraryModal.value = true;
@@ -63,11 +63,11 @@ const handleUpdateLibrary = async () => {
     showInfoModal.value = true;
     return;
   }
-  await mediaStore.updateLibrary(editingLibrary.value.id, { name: newLibraryName.value });
+  if (editingLibrary.value) { await mediaStore.updateLibrary(editingLibrary.value.id, { name: newLibraryName.value }); }
   showEditLibraryModal.value = false;
 };
 
-const handleRemoveLibrary = (library) => {
+const handleRemoveLibrary = (library: any) => {
   confirmModalTitle.value = `确认移除音乐库`;
   confirmModalMessage.value = `您确定要移除 "${library.name}" 吗？所有属于该库的歌曲记录都将被删除（原始文件不会被删除）。`;
   confirmAction.value = async () => {
@@ -81,7 +81,7 @@ const handleRemoveLibrary = (library) => {
   showConfirmModal.value = true;
 };
 
-const handleRescanLibrary = async (library) => {
+const handleRescanLibrary = async (library: any) => {
   infoModalTitle.value = "开始扫描";
   infoModalMessage.value = `正在重新扫描音乐库 "${library.name}"...`;
   showInfoModal.value = true;
@@ -111,12 +111,12 @@ const closeInfoModal = () => {
 
 // --- 其他设置 Actions ---
 // 设置歌词动画效果
-const setLyricsAnimation = (style) => {
+const setLyricsAnimation = (style: any) => {
   uiStore.setLyricsAnimationStyle(style);
 };
 
 // 设置窗口关闭行为
-const setCloseBehavior = async (behavior) => {
+const setCloseBehavior = async (behavior: any) => {
   const result = await uiStore.setCloseBehavior(behavior);
   if (!result) {
     infoModalTitle.value = "设置失败";
@@ -137,7 +137,7 @@ const handleCloseLoginModal = () => {
   showLoginModal.value = false;
 };
 
-const handleLogin = (type) => {
+const handleLogin = (type: any) => {
   authStore.startQRLogin(type);
 };
 
@@ -261,7 +261,7 @@ const handleLogout = () => {
     </div>
 
     <CustomModal :show="showEditLibraryModal" title="重命名音乐库" :confirm-text="'保存'" confirm-type="primary" @close="showEditLibraryModal = false" @confirm="handleUpdateLibrary" @cancel="showEditLibraryModal = false">
-      <p class="text-content-secondary mb-5 text-xs leading-relaxed">为您的音乐库"{{ editingLibrary.name }}"输入一个新名称。</p>
+      <p class="text-content-secondary mb-5 text-xs leading-relaxed">为您的音乐库"{{ editingLibrary?.name }}"输入一个新名称。</p>
       <CustomInput type="text" v-model="newLibraryName" placeholder="新音乐库名称" size="large" />
     </CustomModal>
 
@@ -290,7 +290,6 @@ const handleLogout = () => {
         <p class="mt-5 text-xs text-content-secondary">
           <span v-if="authStore.qrStatus === 'waiting'">请使用{{ authStore.loginType === 'qq' ? 'QQ' : '微信' }}扫描二维码</span>
           <span v-else-if="authStore.qrStatus === 'scanned'" class="text-accent-green">扫描成功，请在手机上确认</span>
-          <span v-else-if="authStore.qrStatus === 'confirmed'" class="text-accent-green">已确认，正在登录...</span>
           <span v-else-if="authStore.qrStatus === 'done'" class="text-accent-green">登录成功！</span>
           <span v-else-if="authStore.qrStatus === 'expired'" class="text-accent-danger">
             二维码已过期

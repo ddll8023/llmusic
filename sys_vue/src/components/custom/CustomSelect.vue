@@ -1,76 +1,75 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import FAIcon from '../common/FAIcon.vue';
 
-const props = defineProps({
-  modelValue: { type: [String, Number], default: '' },
-  options: { type: Array, required: true, default: () => [] },
-  size: {
-    type: String, default: 'medium',
-    validator: (value) => ['small', 'medium', 'large'].includes(value)
-  },
-  placeholder: { type: String, default: '请选择' },
-  disabled: { type: Boolean, default: false },
-  customClass: { type: String, default: '' },
-  placement: {
-    type: String, default: 'bottom',
-    validator: (value) => ['top', 'bottom'].includes(value)
-  }
+interface SelectOption {
+	value: string | number
+	label: string
+}
+
+const props = withDefaults(defineProps<{
+	modelValue?: string | number
+	options?: SelectOption[]
+	size?: 'small' | 'medium' | 'large'
+	placeholder?: string
+	disabled?: boolean
+	customClass?: string
+	placement?: 'top' | 'bottom'
+}>(), {
+	modelValue: '',
+	options: () => [],
+	size: 'medium',
+	placeholder: '请选择',
+	disabled: false,
+	customClass: '',
+	placement: 'bottom',
 });
 
-const emit = defineEmits(['update:modelValue', 'change']);
+const emit = defineEmits<{
+	(e: 'update:modelValue', value: string | number): void
+	(e: 'change', value: string | number): void
+}>();
 
 const isOpen = ref(false);
-const selectRef = ref(null);
+const selectRef = ref<any>(null);
 
-const selectedOption = computed(() => props.options.find(opt => opt.value === props.modelValue));
+const selectedOption = computed(() => props.options.find((opt: any) => opt.value === props.modelValue));
 
-const sizeTriggerMap = {
-  small: 'min-h-[32px] px-2 text-xs',
-  medium: 'min-h-[40px] px-3 text-sm',
-  large: 'min-h-[48px] px-4 text-sm',
+const sizeTriggerMap: Record<string, string> = {
+	small: 'min-h-[32px] px-2 text-xs',
+	medium: 'min-h-[40px] px-3 text-sm',
+	large: 'min-h-[48px] px-4 text-base',
 };
-const selectedTriggerSize = computed(() => sizeTriggerMap[props.size]);
 
-const selectClasses = computed(() => {
-  return [
-    'relative inline-block w-full font-sans',
-    props.disabled ? 'opacity-50 pointer-events-none' : '',
-    isOpen.value ? 'z-[100]' : '',
-    props.customClass || '',
-  ].filter(Boolean).join(' ');
-});
+const sizeOptionsMap: Record<string, string> = {
+	small: 'max-h-[160px]',
+	medium: 'max-h-[200px]',
+	large: 'max-h-[240px]',
+};
 
 const triggerClasses = computed(() => {
-  return [
-    'flex items-center justify-between bg-surface-overlay text-content-base border border-line-base rounded cursor-pointer transition-all duration-200 select-none w-full',
-    selectedTriggerSize.value,
-    isOpen.value ? 'border-accent-green' : '',
-    'hover:bg-line-light hover:border-overlay-light',
-    'focus-within:border-accent-green',
-  ].join(' ');
+	const base = 'w-full flex items-center justify-between border border-line-base rounded cursor-pointer transition-colors duration-200 hover:border-accent-green';
+	const size = sizeTriggerMap[props.size] || sizeTriggerMap.medium;
+	const state = props.disabled ? 'opacity-50 cursor-not-allowed bg-surface-base' : 'bg-surface-elevated';
+	return [base, size, state].join(' ');
 });
 
-const dropdownClasses = computed(() => {
-  const base = 'absolute left-0 right-0 bg-surface-elevated border border-line-base rounded shadow-custom-hover z-[100] max-h-[200px] overflow-y-auto';
-  return props.placement === 'top'
-    ? `${base} bottom-full mb-1`
-    : `${base} top-full mt-1`;
-});
-
-const optionBase = 'px-3 py-2 cursor-pointer transition-colors duration-200 text-content-base text-xs';
-
-const handleClick = () => { if (!props.disabled) isOpen.value = !isOpen.value; };
-
-const handleOptionClick = (option) => {
-  if (option.disabled) return;
-  emit('update:modelValue', option.value);
-  emit('change', option.value);
-  isOpen.value = false;
+const handleSelect = (option: any) => {
+	if (props.disabled) return;
+	emit('update:modelValue', option.value);
+	emit('change', option.value);
+	isOpen.value = false;
 };
 
-const handleClickOutside = (event) => {
-  if (selectRef.value && !selectRef.value.contains(event.target)) isOpen.value = false;
+const handleToggle = () => {
+	if (props.disabled) return;
+	isOpen.value = !isOpen.value;
+};
+
+const handleClickOutside = (event: any) => {
+	if (selectRef.value && !selectRef.value.contains(event.target)) {
+		isOpen.value = false;
+	}
 };
 
 onMounted(() => document.addEventListener('click', handleClickOutside));
@@ -78,26 +77,24 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside));
 </script>
 
 <template>
-  <div ref="selectRef" :class="selectClasses">
-    <div :class="triggerClasses" @click="handleClick">
-      <span class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
-        {{ selectedOption?.label || placeholder }}
-      </span>
-      <FAIcon name="chevron-down" size="small" color="secondary"
-        :class="['shrink-0 ml-2 transition-transform duration-200', isOpen ? 'rotate-180' : '']" />
-    </div>
+	<div ref="selectRef" class="relative" :class="customClass">
+		<div :class="triggerClasses" @click="handleToggle">
+			<span :class="selectedOption ? 'text-content-base' : 'text-content-disabled'">
+				{{ selectedOption ? selectedOption.label : placeholder }}
+			</span>
+			<FAIcon :name="isOpen ? 'chevron-up' : 'chevron-down'" size="small" color="secondary" />
+		</div>
 
-    <div v-if="isOpen" :class="dropdownClasses">
-      <div v-for="option in options" :key="option.value"
-        :class="[
-          optionBase,
-          option.value === modelValue ? 'bg-accent-green/10 text-accent-green font-medium' : '',
-          option.disabled ? 'text-content-disabled cursor-not-allowed opacity-50' : 'hover:bg-overlay-light',
-          'first:rounded-t last:rounded-b',
-        ]"
-        @click="handleOptionClick(option)">
-        {{ option.label }}
-      </div>
-    </div>
-  </div>
+		<Transition name="fade">
+			<div v-if="isOpen && !disabled"
+				:class="['absolute left-0 right-0 z-[300] bg-surface-elevated border border-line-base rounded shadow-lg overflow-y-auto', sizeOptionsMap[props.size] || sizeOptionsMap.medium]">
+				<div v-for="(option, index) in options" :key="index"
+					class="px-3 py-2 cursor-pointer text-sm transition-colors duration-150 hover:bg-overlay-light"
+					:class="option.value === props.modelValue ? 'text-accent-green bg-overlay-light/50' : 'text-content-base'"
+					@click="handleSelect(option)">
+					{{ option.label }}
+				</div>
+			</div>
+		</Transition>
+	</div>
 </template>

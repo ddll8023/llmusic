@@ -18,28 +18,28 @@
         <form @submit.prevent="saveTags" class="flex flex-col gap-4">
           <div class="flex gap-4 max-md:flex-col">
             <div class="flex-1 flex flex-col">
-              <CustomInput :model-value="editingTags.title" @update:model-value="val => editingTags.title = val"
+              <CustomInput :model-value="editingTags.title" @update:model-value="(val: any) => editingTags.title = val"
                 type="text" label="标题 *" placeholder="请输入歌曲标题" :maxlength="255" :required="true"
                 :error="!!validationErrors.title" :error-message="validationErrors.title" />
             </div>
           </div>
           <div class="flex gap-4 max-md:flex-col">
             <div class="flex-1 flex flex-col">
-              <CustomInput :model-value="editingTags.artist" @update:model-value="val => editingTags.artist = val"
+              <CustomInput :model-value="editingTags.artist" @update:model-value="(val: any) => editingTags.artist = val"
                 type="text" label="艺术家" placeholder="请输入艺术家" :maxlength="255" :error="!!validationErrors.artist"
                 :error-message="validationErrors.artist" />
             </div>
           </div>
           <div class="flex gap-4 max-md:flex-col">
             <div class="flex-1 flex flex-col">
-              <CustomInput :model-value="editingTags.album" @update:model-value="val => editingTags.album = val"
+              <CustomInput :model-value="editingTags.album" @update:model-value="(val: any) => editingTags.album = val"
                 type="text" label="专辑" placeholder="请输入专辑名称" :maxlength="255" :error="!!validationErrors.album"
                 :error-message="validationErrors.album" />
             </div>
           </div>
           <div class="flex gap-4 max-md:flex-col">
             <div class="flex-1 flex flex-col">
-              <CustomInput :model-value="editingTags.year" @update:model-value="val => editingTags.year = val"
+              <CustomInput :model-value="editingTags.year" @update:model-value="(val: any) => editingTags.year = val"
                 type="number" label="年份" placeholder="年份" :min="1900" :max="new Date().getFullYear() + 1"
                 :error="!!validationErrors.year" :error-message="validationErrors.year" />
             </div>
@@ -80,7 +80,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue';
 import { useMediaStore } from '../../store/media';
 import FAIcon from './FAIcon.vue';
@@ -92,10 +92,10 @@ const mediaStore = useMediaStore();
 
 const showTagEditor = ref(false);
 const loading = ref(false);
-const currentSong = ref(null);
-const originalTags = ref(null);
+const currentSong = ref<any>(null);
+const originalTags = ref<any>(null);
 const editingTags = reactive({ title: '', artist: '', album: '', year: '' });
-const validationErrors = reactive({});
+const validationErrors = reactive<Record<string, string>>({});
 
 const isFormValid = computed(() => {
   return editingTags.title && editingTags.title.trim() !== '' &&
@@ -108,23 +108,23 @@ watch(editingTags, async (newTags) => {
   }
 }, { deep: true });
 
-const setEditingTagsFromObject = (tagsObject) => {
+const setEditingTagsFromObject = (tagsObject: any) => {
   editingTags.title = tagsObject.title || '';
   editingTags.artist = tagsObject.artist || '';
   editingTags.album = tagsObject.album || '';
   editingTags.year = tagsObject.year ? String(tagsObject.year) : '';
 };
 
-const convertReactiveToPlain = (reactiveObj) => ({ title: reactiveObj.title, artist: reactiveObj.artist, album: reactiveObj.album, year: reactiveObj.year });
+const convertReactiveToPlain = (reactiveObj: any) => ({ title: reactiveObj.title, artist: reactiveObj.artist, album: reactiveObj.album, year: reactiveObj.year });
 
-const clearObjectProperties = (obj) => { Object.keys(obj).forEach(key => { if (typeof obj[key] === 'string') obj[key] = ''; else delete obj[key]; }); };
+const clearObjectProperties = (obj: any) => { Object.keys(obj).forEach(key => { if (typeof obj[key] === 'string') obj[key] = ''; else delete obj[key]; }); };
 
-const handleTagOperationError = (error, operation) => {
+const handleTagOperationError = (error: any, operation: any) => {
   console.error(`${operation}过程中发生错误:`, error);
   if (!operation.includes('验证')) alert(`${operation}异常: ${error.message}`);
 };
 
-const openEditor = async (song) => {
+const openEditor = async (song: any) => {
   if (!song || !song.id) return;
   currentSong.value = song;
   loading.value = true;
@@ -141,7 +141,7 @@ const openEditor = async (song) => {
   finally { loading.value = false; }
 };
 
-const openEditorForFile = async (song) => {
+const openEditorForFile = async (song: any) => {
   if (!song || !song.filePath) return;
   currentSong.value = song;
   loading.value = true;
@@ -168,14 +168,14 @@ const closeEditor = () => {
 
 const resetTags = () => { if (originalTags.value) setEditingTagsFromObject(originalTags.value); };
 
-const validateTags = async (tags) => {
+const validateTags = async (tags: any) => {
   try {
     const plainTags = convertReactiveToPlain(tags);
-    const result = await window.electronAPI.validateTagChanges(plainTags);
+    const result: any = await (window.electronAPI as any).validateTagChanges(plainTags);
     if (result.success && result.validation) {
       clearObjectProperties(validationErrors);
       if (result.validation.errors && result.validation.errors.length > 0) {
-        result.validation.errors.forEach(error => {
+        result.validation.errors.forEach((error: any) => {
           if (error.includes('标题')) validationErrors.title = error;
           else if (error.includes('年份')) validationErrors.year = error;
           else if (error.includes('音轨号')) validationErrors.track = error;
@@ -191,11 +191,11 @@ const saveTags = async () => {
   loading.value = true;
   try {
     const plainTags = convertReactiveToPlain(editingTags);
-    let result;
+    let result: any;
     if (currentSong.value.filePath && !currentSong.value.id) {
-      result = await window.electronAPI.updateTagsToFile(currentSong.value.filePath, plainTags);
+      result = await (window.electronAPI as any).updateTagsToFile(currentSong.value.filePath, plainTags);
     } else {
-      result = await window.electronAPI.updateSongTags(currentSong.value.id, plainTags);
+      result = await (window.electronAPI as any).updateSongTags(currentSong.value.id, plainTags);
     }
     if (result.success) {
       if (!(currentSong.value.filePath && !currentSong.value.id)) await mediaStore.loadSongs();

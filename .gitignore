@@ -19,6 +19,7 @@ sys_vue/node_modules
 sys_vue/dist
 sys_electron/node_modules
 sys_electron/dist
+sys_electron/dist-ts
 sys_electron/release
 
 *.sh

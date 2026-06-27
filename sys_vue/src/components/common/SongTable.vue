@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed, reactive, nextTick, onMounted, watch } from 'vue';
 import { RecycleScroller } from 'vue-virtual-scroller';
 import { usePlayerStore } from '../../store/player';
@@ -9,104 +9,65 @@ import CustomCheckbox from '../custom/CustomCheckbox.vue';
 import LoadingSpinner from '../custom/LoadingSpinner.vue';
 import { formatDuration } from '../../utils/timeUtils';
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
+import type { Song } from '../../types/api';
+
+// Props 接口
+interface Props {
+    songs?: Song[]
+    loading?: boolean
+    showSortable?: boolean
+    showPlayCount?: boolean
+    showActionColumn?: boolean
+    actionColumnType?: string
+    showSelection?: boolean
+    selectedSongIds?: any[]
+    contextMenuType?: string
+    currentListId?: string
+    emptyText?: string
+    emptyIcon?: string
+    containerHeight?: string
+    externalCoverCache?: Record<string, string> | null
+}
 
 // Props 定义
-const props = defineProps({
-    // 歌曲数据
-    songs: {
-        type: Array,
-        default: () => []
-    },
-    // 加载状态
-    loading: {
-        type: Boolean,
-        default: false
-    },
-    // 是否显示排序功能
-    showSortable: {
-        type: Boolean,
-        default: false
-    },
-    // 是否显示播放次数列
-    showPlayCount: {
-        type: Boolean,
-        default: false
-    },
-    // 是否显示操作列
-    showActionColumn: {
-        type: Boolean,
-        default: false
-    },
-    // 操作列内容类型
-    actionColumnType: {
-        type: String,
-        default: 'none', // 'edit', 'metadata', 'remove', 'none'
-        validator: (value) => ['edit', 'metadata', 'remove', 'none'].includes(value)
-    },
-    // 是否显示选择框
-    showSelection: {
-        type: Boolean,
-        default: false
-    },
-    // 选中的歌曲ID数组
-    selectedSongIds: {
-        type: Array,
-        default: () => []
-    },
-    // 右键菜单类型
-    contextMenuType: {
-        type: String,
-        default: 'main', // 'main', 'playlist', 'metadata'
-        validator: (value) => ['main', 'playlist', 'metadata'].includes(value)
-    },
-    // 当前列表ID（用于播放队列）
-    currentListId: {
-        type: String,
-        default: 'default'
-    },
-    // 空状态文本
-    emptyText: {
-        type: String,
-        default: '暂无歌曲'
-    },
-    // 空状态图标
-    emptyIcon: {
-        type: String,
-        default: 'music'
-    },
-    // 表格高度（用于固定按钮定位）
-    containerHeight: {
-        type: String,
-        default: '100%'
-    },
-    // 外部封面缓存（用于MetadataManager等独立场景）
-    externalCoverCache: {
-        type: Object,
-        default: null
-    }
+const props = withDefaults(defineProps<Props>(), {
+    songs: () => [],
+    loading: false,
+    showSortable: false,
+    showPlayCount: false,
+    showActionColumn: false,
+    actionColumnType: 'none',
+    showSelection: false,
+    selectedSongIds: () => [],
+    contextMenuType: 'main',
+    currentListId: 'default',
+    emptyText: '暂无歌曲',
+    emptyIcon: 'music',
+    containerHeight: '100%',
+    externalCoverCache: null
 });
 
 // Events 定义
-const emit = defineEmits([
-    'play-song',
-    'sort-change',
-    'action-click',
-    'context-menu-action',
-    'scroll',
-    'song-info',
-    'selection-change'
-]);
+const emit = defineEmits<{
+    (e: 'play-song', payload: { song: Song; listId: string; songIds: any[] }): void
+    (e: 'sort-change', payload: { sortBy: string; sortDirection: string }): void
+    (e: 'action-click', payload: { action: string; song: Song }): void
+    (e: 'context-menu-action', payload: any): void
+    (e: 'scroll', payload: any): void
+    (e: 'song-info', payload: Song): void
+    (e: 'selection-change', payload: { song: Song; selected: boolean; selectedIds: any[] }): void
+}>();
 
 const playerStore = usePlayerStore();
 
 // 内部状态
-const hoveredSongId = ref(null);
-const scroller = ref(null);
+const hoveredSongId = ref<any>(null);
+const scroller = ref<any>(null);
 const showFixedButtons = ref(false);
 const placeholderCover = 'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==';
 
 // 歌曲封面缓存
-const songCovers = reactive({});
+const songCovers = reactive<Record<string, string>>({});
 
 // 排序状态
 const sortBy = ref('default');
@@ -117,12 +78,12 @@ const contextMenu = reactive({
     show: false,
     x: 0,
     y: 0,
-    song: null
+    song: null as any
 });
 
 // 歌曲信息对话框状态
 const songInfoDialogVisible = ref(false);
-const currentSongForInfo = ref(null);
+const currentSongForInfo = ref<any>(null);
 
 // 计算属性
 const currentSongId = computed(() => playerStore.currentSong?.id || null);
@@ -130,22 +91,22 @@ const isPlaying = computed(() => playerStore.playing);
 
 // 歌曲索引映射
 const songIndexMap = computed(() => {
-    const map = new Map();
-    props.songs.forEach((song, index) => {
+    const map = new Map<any, number>();
+    props.songs.forEach((song: any, index: number) => {
         map.set(song.id, index);
     });
     return map;
 });
 
 // 获取歌曲真实索引
-const getRealIndex = (song) => {
+const getRealIndex = (song: any) => {
     const index = songIndexMap.value.get(song.id);
     return index !== undefined ? index : -1;
 };
 
 // 表头配置
 const tableHeaders = computed(() => {
-    const headers = [];
+    const headers: any[] = [];
 
     // 添加选择框列
     if (props.showSelection) {
@@ -188,7 +149,7 @@ const tableHeaders = computed(() => {
 
 
 // 获取歌曲封面URL
-const getSongCoverUrl = (song) => {
+const getSongCoverUrl = (song: any) => {
     // 如果提供了外部封面缓存，优先使用
     if (props.externalCoverCache && props.externalCoverCache[song.id]) {
         return props.externalCoverCache[song.id];
@@ -198,14 +159,14 @@ const getSongCoverUrl = (song) => {
 };
 
 // 封面加载
-const loadSongCover = async (songId) => {
+const loadSongCover = async (songId: any) => {
     if (!songId || songCovers[songId]) return;
 
     // 如果使用外部封面缓存，跳过内部封面加载
     if (props.externalCoverCache) return;
 
     try {
-        const result = await window.electronAPI.getSongCover(songId);
+        const result = await (window.electronAPI.getSongCover as any)(songId);
         if (result.success && result.cover) {
             const imageFormat = result.format || 'image/jpeg';
             songCovers[songId] = `data:${imageFormat};base64,${result.cover}`;
@@ -216,15 +177,15 @@ const loadSongCover = async (songId) => {
 };
 
 // 事件处理
-const handleSongPlay = (song) => {
+const handleSongPlay = (song: any) => {
     emit('play-song', {
         song,
         listId: props.currentListId,
-        songIds: props.songs.map(s => s.id)
+        songIds: props.songs.map((s: any) => s.id)
     });
 };
 
-const handleSort = (field) => {
+const handleSort = (field: any) => {
     if (!props.showSortable) return;
 
     if (sortBy.value === field) {
@@ -240,7 +201,7 @@ const handleSort = (field) => {
     });
 };
 
-const handleActionClick = (action, song, event) => {
+const handleActionClick = (action: any, song: any, event: any) => {
     if (event) {
         event.stopPropagation();
     }
@@ -248,10 +209,10 @@ const handleActionClick = (action, song, event) => {
 };
 
 // 选择处理
-const handleSongSelection = (song) => {
+const handleSongSelection = (song: any) => {
     const isSelected = props.selectedSongIds.includes(song.id);
     const newSelectedIds = isSelected
-        ? props.selectedSongIds.filter(id => id !== song.id)
+        ? props.selectedSongIds.filter((id: any) => id !== song.id)
         : [...props.selectedSongIds, song.id];
 
     emit('selection-change', {
@@ -261,7 +222,7 @@ const handleSongSelection = (song) => {
     });
 };
 
-const handleContextMenu = (event, song) => {
+const handleContextMenu = (event: any, song: any) => {
     event.preventDefault();
     contextMenu.show = true;
     contextMenu.x = event.clientX;
@@ -273,7 +234,7 @@ const closeContextMenu = () => {
     contextMenu.show = false;
 };
 
-const handleMenuAction = (actionData) => {
+const handleMenuAction = (actionData: any) => {
     if (actionData.action === 'song-info') {
         showSongInfoDialog(actionData.song);
     } else {
@@ -281,7 +242,7 @@ const handleMenuAction = (actionData) => {
     }
 };
 
-const showSongInfoDialog = (song) => {
+const showSongInfoDialog = (song: any) => {
     currentSongForInfo.value = song;
     songInfoDialogVisible.value = true;
     emit('song-info', song);
@@ -292,7 +253,7 @@ const closeSongInfoDialog = () => {
 };
 
 // 滚动处理
-const handleScroll = (event) => {
+const handleScroll = (event: any) => {
     const scrollTop = event?.target?.scrollTop || 0;
     showFixedButtons.value = scrollTop > 0 && !playerStore.showLyrics;
     emit('scroll', event);
@@ -311,7 +272,7 @@ const scrollToCurrentSong = async () => {
     if (!playerStore.currentSong || !scroller.value) return;
 
     const currentSongId = playerStore.currentSong.id;
-    const index = props.songs.findIndex(song => song.id === currentSongId);
+    const index = props.songs.findIndex((song: any) => song.id === currentSongId);
 
     if (index !== -1) {
         await nextTick();
@@ -330,7 +291,7 @@ const scrollToCurrentSong = async () => {
 };
 
 // 虚拟滚动更新
-const onUpdate = (startIndex, endIndex) => {
+const onUpdate = (startIndex: any, endIndex: any) => {
     if (props.songs.length === 0) return;
     for (let i = startIndex; i <= endIndex; i++) {
         if (i >= 0 && i < props.songs.length && props.songs[i]) {
@@ -342,7 +303,7 @@ const onUpdate = (startIndex, endIndex) => {
 // 监听歌词页面状态变化
 watch(
     () => playerStore.showLyrics,
-    (newValue) => {
+    (newValue: any) => {
         if (scroller.value) {
             const scrollTop = scroller.value.$el?.scrollTop || 0;
             showFixedButtons.value = scrollTop > 0 && !newValue;
@@ -359,7 +320,7 @@ onMounted(() => {
 defineExpose({
     scrollToTop,
     scrollToCurrentSong,
-    scrollToItem: (index) => {
+    scrollToItem: (index: any) => {
         if (scroller.value) {
             scroller.value.scrollToItem(index);
         }

@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, computed, reactive, onUnmounted, nextTick, toRefs, watch } from 'vue';
 import { useMediaStore } from '../../store/media';
 import { usePlayerStore, PlayMode } from '../../store/player';
@@ -14,16 +14,16 @@ const playerStore = usePlayerStore();
 const localSearchTerm = ref('');
 
 // 防抖函数
-const debounce = (func, delay) => {
-  let timeout;
-  return (...args) => {
+const debounce = (func: (...args: any[]) => any, delay: number) => {
+  let timeout: ReturnType<typeof setTimeout>;
+  return (...args: any[]) => {
     clearTimeout(timeout);
     timeout = setTimeout(() => func.apply(this, args), delay);
   };
 };
 
 // 创建防抖版的 setSearchTerm action 调用
-const debouncedSetSearchTerm = debounce((term) => {
+const debouncedSetSearchTerm = debounce((term: string) => {
   mediaStore.setSearchTerm(term);
 }, 300);
 
@@ -33,7 +33,7 @@ watch(localSearchTerm, (newTerm) => {
 });
 
 // 处理搜索输入
-const handleSearchInput = (value) => {
+const handleSearchInput = (value: any) => {
   localSearchTerm.value = value;
 };
 
@@ -44,13 +44,13 @@ const headerActions = computed(() => [
     key: 'play-all',
     label: '播放全部',
     icon: 'play',
-    type: 'primary',
+    type: 'primary' as const,
     disabled: !mediaStore.songs.length
   }
 ]);
 
 // 处理头部操作按钮点击
-const handleHeaderAction = (actionKey) => {
+const handleHeaderAction = (actionKey: any) => {
   if (actionKey === 'play-all') {
     playAllSongs();
   }
@@ -101,8 +101,8 @@ const sortedSongs = computed(() => {
 
   if (sortBy.value !== 'default') {
     songs.sort((a, b) => {
-      let aValue = a[sortBy.value] || '';
-      let bValue = b[sortBy.value] || '';
+      let aValue = (a as any)[sortBy.value] || '';
+      let bValue = (b as any)[sortBy.value] || '';
 
       if (typeof aValue === 'string') {
         const result = aValue.localeCompare(bValue);
@@ -118,16 +118,16 @@ const sortedSongs = computed(() => {
 });
 
 // TagEditor组件引用
-const tagEditorRef = ref(null);
+const tagEditorRef = ref<any>(null);
 
 // 删除确认对话框状态
 const deleteConfirmVisible = ref(false);
-const songToDelete = ref(null);
+const songToDelete = ref<any>(null);
 
 // SongTable组件引用
-const songTableRef = ref(null);
+const songTableRef = ref<any>(null);
 
-const showDeleteConfirm = (song) => {
+const showDeleteConfirm = (song: any) => {
   songToDelete.value = song;
   deleteConfirmVisible.value = true;
 };
@@ -138,14 +138,15 @@ const closeDeleteConfirm = () => {
 };
 
 // 处理删除确认
-const handleDeleteConfirm = async (result) => {
+const handleDeleteConfirm = async (result: any) => {
   closeDeleteConfirm();
 
   if (result.success) {
     // 如果删除的是当前播放的歌曲，需要先处理播放状态
     if (playerStore.currentSong && playerStore.currentSong.id === result.deletedSong.id) {
       // 清除当前歌曲和播放状态
-      playerStore.clearCurrentSong();
+      playerStore.currentSong = null;
+      playerStore.playing = false;
     }
 
     // 刷新歌曲列表
@@ -154,7 +155,7 @@ const handleDeleteConfirm = async (result) => {
 };
 
 // 处理SongTable的播放事件
-const handlePlaySong = ({ song, listId, songIds }) => {
+const handlePlaySong = ({ song, listId, songIds }: { song: any; listId: any; songIds: any }) => {
   playerStore.playSongFromList({
     listId: listId,
     songIds: songIds,
@@ -163,13 +164,13 @@ const handlePlaySong = ({ song, listId, songIds }) => {
 };
 
 // 处理排序变化
-const handleSortChange = ({ sortBy: newSortBy, sortDirection: newSortDirection }) => {
+const handleSortChange = ({ sortBy: newSortBy, sortDirection: newSortDirection }: { sortBy: any; sortDirection: any }) => {
   sortBy.value = newSortBy;
   sortDirection.value = newSortDirection;
 };
 
 // 处理右键菜单操作
-const handleContextMenuAction = async ({ action, song }) => {
+const handleContextMenuAction = async ({ action, song }: { action: any; song: any }) => {
   if (!song) return;
 
   switch (action) {
@@ -211,7 +212,7 @@ const handleContextMenuAction = async ({ action, song }) => {
           console.warn('歌曲没有有效的文件路径');
           alert('该歌曲无有效的文件路径信息');
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('显示文件位置时出错:', error);
         alert(`操作失败: ${error.message || '未知错误'}`);
       }
@@ -221,7 +222,7 @@ const handleContextMenuAction = async ({ action, song }) => {
       try {
         const info = `${song.title || '未知歌曲'} - ${song.artist || '未知艺术家'} - ${song.album || '未知专辑'}`;
         await window.electronAPI.copyToClipboard(info);
-      } catch (error) {
+      } catch (error: any) {
         console.error('复制歌曲信息失败:', error);
         alert('复制歌曲信息失败');
       }
@@ -239,7 +240,7 @@ onMounted(async () => {
   // 使用setTimeout确保DOM完全加载后再清除焦点
   setTimeout(() => {
     if (document.activeElement) {
-      document.activeElement.blur();
+      (document.activeElement as HTMLElement)?.blur();
     }
   }, 100);
 
@@ -326,7 +327,7 @@ const forceRefreshTable = () => {
     <ContentHeader title="本地音乐" :show-search="true" :search-value="mediaStore.searchTerm"
       search-placeholder="筛选歌曲、专辑或艺术家" :actions="headerActions" @search-input="handleSearchInput"
       @action-click="handleHeaderAction" />
-    <SongTable ref="songTableRef" :songs="sortedSongs" :loading="mediaStore.isLoading" :show-sortable="true"
+    <SongTable ref="songTableRef" :songs="sortedSongs" :loading="mediaStore.loading" :show-sortable="true"
       :show-play-count="true" :show-action-column="false" :context-menu-type="'main'" :current-list-id="currentListId"
       :empty-text="'暂无歌曲'" :empty-icon="'music'" @play-song="handlePlaySong" @sort-change="handleSortChange"
       @context-menu-action="handleContextMenuAction" />

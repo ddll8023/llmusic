@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useUiStore } from '../../store/ui';
 import { usePlaylistStore } from '../../store/playlist';
@@ -18,7 +18,7 @@ onMounted(async () => {
     await mediaStore.loadLibraries();
 });
 
-const handleSetLibrary = (libraryId) => {
+const handleSetLibrary = (libraryId: any) => {
     mediaStore.setActiveLibrary(libraryId);
     uiStore.setView('main');
 };

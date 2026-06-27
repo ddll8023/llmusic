@@ -1,11 +1,11 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import FAIcon from '../common/FAIcon.vue';
 import CustomButton from '../custom/CustomButton.vue';
 import { useUiStore } from '../../store/ui';
 
 const isMaximized = ref(false);
-let removeListener = null;
+let removeListener: (() => void) | null = null;
 
 onMounted(async () => {
   isMaximized.value = await window.electronAPI.isWindowMaximized();

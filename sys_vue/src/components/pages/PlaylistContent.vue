@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { usePlaylistStore } from '../../store/playlist';
 import { usePlayerStore } from '../../store/player';
@@ -25,7 +25,7 @@ const isLoading = ref(false);
 const showDeleteConfirm = ref(false);
 
 // SongTable组件引用
-const songTableRef = ref(null);
+const songTableRef = ref<any>(null);
 
 // 获取当前歌单
 const currentPlaylist = computed(() => playlistStore.currentPlaylist);
@@ -34,24 +34,24 @@ const currentPlaylist = computed(() => playlistStore.currentPlaylist);
 const currentListId = computed(() => playlistStore.currentPlaylistId || 'playlist');
 
 // 处理SongTable的播放事件
-const handlePlaySong = ({ song }) => {
+const handlePlaySong = ({ song }: { song: any }) => {
     // 创建一个播放列表，包含所有歌单中的歌曲
     playerStore.playSongFromList({
-        listId: playlistStore.currentPlaylistId,
-        songIds: playlistStore.currentPlaylistSongs.map(s => s.id),
+        listId: playlistStore.currentPlaylistId || '',
+        songIds: (playlistStore.currentPlaylistSongs || []).map((s: any) => s.id),
         songToPlayId: song.id
     });
 };
 
 // 处理SongTable的操作按钮点击
-const handleActionClick = ({ action, song }) => {
+const handleActionClick = ({ action, song }: { action: any; song: any }) => {
     if (action === 'remove') {
         removeSongFromPlaylist(song.id);
     }
 };
 
 // 处理右键菜单操作
-const handleContextMenuAction = async ({ action, song }) => {
+const handleContextMenuAction = async ({ action, song }: { action: any; song: any }) => {
     if (!song) return;
 
     switch (action) {
@@ -88,7 +88,7 @@ const handleContextMenuAction = async ({ action, song }) => {
                     console.warn('歌曲没有有效的文件路径');
                     alert('该歌曲无有效的文件路径信息');
                 }
-            } catch (error) {
+            } catch (error: any) {
                 console.error('显示文件位置时出错:', error);
                 alert(`操作失败: ${error.message || '未知错误'}`);
             }
@@ -112,7 +112,7 @@ const handleContextMenuAction = async ({ action, song }) => {
 };
 
 // 从歌单中移除歌曲
-async function removeSongFromPlaylist(songId) {
+async function removeSongFromPlaylist(songId: any) {
     if (!playlistStore.currentPlaylistId) return;
 
     const result = await playlistStore.removeSongsFromPlaylist(
@@ -129,7 +129,7 @@ async function removeSongFromPlaylist(songId) {
 function playEntirePlaylist() {
     if (playlistStore.currentPlaylistSongs.length > 0) {
         playerStore.playSongFromList({
-            listId: playlistStore.currentPlaylistId,
+            listId: playlistStore.currentPlaylistId || '',
             songIds: playlistStore.currentPlaylistSongs.map(s => s.id),
             songToPlayId: playlistStore.currentPlaylistSongs[0].id
         });
@@ -161,7 +161,7 @@ function editPlaylist() {
 }
 
 // 头部操作按钮配置
-const headerActions = computed(() => [
+const headerActions: any = computed(() => [
     {
         key: 'play-all',
         label: '播放全部',
@@ -184,7 +184,7 @@ const headerActions = computed(() => [
 ]);
 
 // 处理头部操作按钮点击
-const handleHeaderAction = (actionKey) => {
+const handleHeaderAction = (actionKey: any) => {
     switch (actionKey) {
         case 'play-all':
             playEntirePlaylist();

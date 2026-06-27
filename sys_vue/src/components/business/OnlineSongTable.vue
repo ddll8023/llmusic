@@ -1,8 +1,8 @@
 <template>
 		<div class="flex flex-col w-full h-full relative">
 				<!-- 批量操作栏 -->
-				<div v-if="selectedIds.length > 0" class="flex items-center gap-3 px-4 py-2 bg-accent-green/10 border-b border-accent-green/20">
-					<span class="text-sm text-accent-green">已选择 {{ selectedIds.length }} 首</span>
+				<div v-if="selectedIds.size > 0" class="flex items-center gap-3 px-4 py-2 bg-accent-green/10 border-b border-accent-green/20">
+					<span class="text-sm text-accent-green">已选择 {{ selectedIds.size }} 首</span>
 					<CustomButton type="primary" size="small" icon="download" @click="handleBatchDownload">
 						批量下载
 					</CustomButton>
@@ -117,86 +117,111 @@
 			</div>
 		</template>
 
-		<script setup>
-		/**
-		 * OnlineSongTable
-		 * 通用在线歌曲表格组件
-		 * 依赖组件：CustomButton、FAIcon
-		 */
-		import { ref, computed } from 'vue'
+		<script setup lang="ts">
+/**
+ * OnlineSongTable
+ * 通用在线歌曲表格组件
+ * 依赖组件：CustomButton、FAIcon
+ */
+import { ref, computed } from 'vue'
+import type { OnlineSong } from '../../types/api'
 import CustomButton from '../custom/CustomButton.vue'
 import CustomCheckbox from '../custom/CustomCheckbox.vue'
 import FAIcon from '../common/FAIcon.vue'
 import LoadingSpinner from '../custom/LoadingSpinner.vue'
 
-		const props = defineProps({
-			songs: { type: Array, required: true },
-			startIndex: { type: Number, default: 1 },
-			downloadingIds: { type: Set, default: () => new Set() },
-			loading: { type: Boolean, default: false },
-			loadingText: { type: String, default: '' },
-			errorMsg: { type: String, default: '' },
-		})
+/** 表格行数据：在 OnlineSong 基础上补充模板使用的额外字段 */
+type SongTableItem = OnlineSong & {
+	duration?: string
+	album?: {
+		albumMid?: string
+		albumCoverUrl?: string
+		albumName?: string
+	}
+}
 
-		const emit = defineEmits(['play', 'download', 'batch-download', 'selection-change'])
+interface Props {
+	songs: SongTableItem[]
+	startIndex?: number
+	downloadingIds?: Set<string>
+	loading?: boolean
+	loadingText?: string
+	errorMsg?: string
+}
 
-		const selectedIds = ref(new Set())
+const props = withDefaults(defineProps<Props>(), {
+	songs: () => [],
+	startIndex: 1,
+	downloadingIds: () => new Set<string>(),
+	loading: false,
+	loadingText: '',
+	errorMsg: '',
+})
 
-		const gridTemplate = {
-			gridTemplateColumns: '40px 36px 44px minmax(120px, 2fr) minmax(80px, 1.5fr) minmax(80px, 1.5fr) 50px 50px 70px',
-		}
+const emit = defineEmits<{
+	(e: 'play', song: SongTableItem): void
+	(e: 'download', song: SongTableItem): void
+	(e: 'batch-download', songs: SongTableItem[]): void
+	(e: 'selection-change', songs: SongTableItem[]): void
+}>()
 
-		const isAllSelected = computed(() =>
-			props.songs.length > 0 && selectedIds.value.size === props.songs.length
-		)
+const selectedIds = ref(new Set<string>())
 
-		const isPartialSelected = computed(() =>
-			selectedIds.value.size > 0 && selectedIds.value.size < props.songs.length
-		)
+const gridTemplate = {
+	gridTemplateColumns: '40px 36px 44px minmax(120px, 2fr) minmax(80px, 1.5fr) minmax(80px, 1.5fr) 50px 50px 70px',
+}
 
-		function isSelected(song) {
-			return selectedIds.value.has(song.songMid || song.songId)
-		}
+const isAllSelected = computed(() =>
+	props.songs.length > 0 && selectedIds.value.size === props.songs.length
+)
 
-		function isDownloading(song) {
-			return props.downloadingIds.has(song.songMid || song.songId)
-		}
+const isPartialSelected = computed(() =>
+	selectedIds.value.size > 0 && selectedIds.value.size < props.songs.length
+)
 
-		function toggleSelect(song) {
-			const id = song.songMid || song.songId
-			if (selectedIds.value.has(id)) {
-				selectedIds.value.delete(id)
-			} else {
-				selectedIds.value.add(id)
-			}
-			selectedIds.value = new Set(selectedIds.value)
-			emitSelectionChange()
-		}
+function isSelected(song: SongTableItem): boolean {
+	return selectedIds.value.has(song.songMid || song.songId!)
+}
 
-		function toggleSelectAll() {
-			if (isAllSelected.value) {
-				selectedIds.value = new Set()
-			} else {
-				selectedIds.value = new Set(props.songs.map(s => s.songMid || s.songId))
-			}
-			emitSelectionChange()
-		}
+function isDownloading(song: SongTableItem): boolean {
+	return props.downloadingIds.has(song.songMid || song.songId!)
+}
 
-		function clearSelection() {
-			selectedIds.value = new Set()
-			emitSelectionChange()
-		}
+function toggleSelect(song: SongTableItem): void {
+	const id = song.songMid || song.songId!
+	if (selectedIds.value.has(id)) {
+		selectedIds.value.delete(id)
+	} else {
+		selectedIds.value.add(id)
+	}
+	selectedIds.value = new Set(selectedIds.value)
+	emitSelectionChange()
+}
 
-		function emitSelectionChange() {
-			const selected = props.songs.filter(s => isSelected(s))
-			emit('selection-change', selected)
-		}
+function toggleSelectAll(): void {
+	if (isAllSelected.value) {
+		selectedIds.value = new Set()
+	} else {
+		selectedIds.value = new Set(props.songs.map(s => s.songMid || s.songId!))
+	}
+	emitSelectionChange()
+}
 
-		function handleBatchDownload() {
-			const selected = props.songs.filter(s => isSelected(s))
-			emit('batch-download', selected)
-		}
-		</script>
+function clearSelection(): void {
+	selectedIds.value = new Set()
+	emitSelectionChange()
+}
+
+function emitSelectionChange(): void {
+	const selected = props.songs.filter(s => isSelected(s))
+	emit('selection-change', selected)
+}
+
+function handleBatchDownload(): void {
+	const selected = props.songs.filter(s => isSelected(s))
+	emit('batch-download', selected)
+}
+</script>
 
 		<style scoped>
 		/* 加载遮罩过渡 */

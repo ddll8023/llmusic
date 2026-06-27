@@ -95,7 +95,7 @@
 								:options="pageSizeOptions"
 								size="small"
 								placement="top"
-								@change="discoverStore.setPageSize"
+								@change="(v: any) => discoverStore.setPageSize(Number(v))"
 							/>
 						</div>
 						<span class="text-xs text-content-tertiary whitespace-nowrap">首/页</span>
@@ -115,7 +115,7 @@
 						<button v-if="p !== '...'"
 							class="page-btn"
 							:class="p === discoverStore.page ? 'page-btn--active' : 'page-btn--default'"
-							@click="discoverStore.setPage(p)">
+							@click="discoverStore.setPage(Number(p))">
 							{{ p }}
 						</button>
 						<span v-else class="px-1 text-xs text-content-disabled select-none">...</span>
@@ -140,7 +140,7 @@
 						size="small"
 						custom-class="!w-[52px]"
 						@enter="handleJumpPage"
-						@update:model-value="jumpPage = $event"
+						@update:model-value="jumpPage = String($event)"
 					/>
 					<span class="text-xs text-content-tertiary">页</span>
 				</div>
@@ -148,15 +148,15 @@
 		</div>
 		</template>
 
-		<script setup>
+		<script setup lang="ts">
 		/**
 		 * DiscoverMusic
 		 * 搜索下载主页面
 		 * 依赖组件：OnlineSongTable、CustomSelect、CustomInput、CustomButton、FAIcon
 		 */
 		import { computed, ref, watch } from 'vue'
-		import { useDiscoverStore } from '../../store/discover.js'
-		import { usePlayerStore } from '../../store/player.js'
+		import { useDiscoverStore } from '../../store/discover'
+		import { usePlayerStore } from '../../store/player'
 		import OnlineSongTable from '../business/OnlineSongTable.vue'
 		import CustomSelect from '../custom/CustomSelect.vue'
 		import CustomInput from '../custom/CustomInput.vue'
@@ -177,7 +177,7 @@
 			{ label: '50', value: 50 },
 		]
 
-		const stepTextMap = {
+		const stepTextMap: Record<string, string> = {
 			searching: '正在搜索歌曲...',
 			covers: '正在加载封面...',
 			urls: '正在获取下载链接...',
@@ -224,22 +224,22 @@
 			discoverStore.searchMode = discoverStore.searchMode === 'link' ? 'keyword' : 'link'
 		}
 
-		function handlePlay(song) {
+		function handlePlay(song: any) {
 			const info = discoverStore.playOnline(song)
 			playerStore.playOnlineSong(info)
 		}
 
-		async function handleDownload(song) {
+		async function handleDownload(song: any) {
 			await discoverStore.downloadSong(song)
 		}
 
 		const selectedSongs = ref([])
 
-		function handleSelectionChange(songs) {
+		function handleSelectionChange(songs: any) {
 			selectedSongs.value = songs
 		}
 
-		async function handleBatchDownload(songs) {
+		async function handleBatchDownload(songs: any) {
 			await discoverStore.batchDownload(songs)
 		}
 		</script>

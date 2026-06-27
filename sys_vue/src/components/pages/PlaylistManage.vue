@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { usePlaylistStore } from '../../store/playlist';
 import FAIcon from '../common/FAIcon.vue';
@@ -68,7 +68,7 @@ async function handleSavePlaylist() {
 
                     <div class="flex justify-end gap-3 mt-2">
                         <CustomButton type="secondary" @click="playlistStore.closePlaylistDialog()">取消</CustomButton>
-                        <CustomButton type="primary" :disabled="playlistStore.loading" @click="$event.target.closest('form').requestSubmit()">
+                        <CustomButton type="primary" :disabled="playlistStore.loading" @click="playlistStore.savePlaylist()">
                             <span v-if="playlistStore.loading">保存中...</span>
                             <span v-else>保存</span>
                         </CustomButton>

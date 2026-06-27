@@ -3,16 +3,20 @@
 	"productName": "LLMusic",
 	"version": "1.0.0",
 	"description": "",
-	"main": "main.js",
+	"main": "dist-ts/main.js",
 	"private": true,
 	"scripts": {
-		"dev": "concurrently \"npm --prefix ../sys_vue run dev\" \"wait-on http://127.0.0.1:9753 && electron .\"",
-		"dev:electron": "electron .",
+		"dev": "concurrently \"npm --prefix ../sys_vue run dev\" \"wait-on http://127.0.0.1:9753 && npm run tsc && electron ./dist-ts\"",
+		"dev:electron": "electron ./dist-ts",
+		"dev-runner": "tsc && node ./dist-ts/dev-runner.js",
+		"tsc": "tsc",
+		"tsc:watch": "tsc --watch",
+		"type-check": "tsc --noEmit",
 		"build": "npm --prefix ../sys_vue run build",
 		"build:backend": "uv run --directory ../backend pyinstaller --onefile --name backend --distpath ../backend/dist ../backend/entry.py",
 		"pack": "electron-builder",
-		"dist:dir": "npm run build && npm run build:backend && electron-builder --win dir",
-		"dist:win": "npm run build && npm run build:backend && electron-builder --win"
+		"dist:dir": "npm run build && npm run build:backend && tsc && electron-builder --win dir",
+		"dist:win": "npm run build && npm run build:backend && tsc && electron-builder --win"
 	},
 	"dependencies": {
 		"ffmpeg-static": "^5.2.0",
@@ -23,9 +27,11 @@
 		"uuid": "^11.1.0"
 	},
 	"devDependencies": {
+		"@types/node": "^26.0.1",
 		"concurrently": "^8.2.2",
 		"electron": "^36.5.0",
 		"electron-builder": "^26.0.12",
+		"typescript": "^6.0.3",
 		"wait-on": "^7.2.0"
 	},
 	"build": {

@@ -1,44 +1,64 @@
-<script setup>
+<script setup lang="ts">
 import { computed, ref } from 'vue';
 import FAIcon from '../common/FAIcon.vue';
 
-const props = defineProps({
-    type: {
-        type: String,
-        default: 'text',
-        validator: (value) => ['text', 'password', 'email', 'number', 'tel', 'url', 'search'].includes(value)
-    },
-    size: {
-        type: String,
-        default: 'medium',
-        validator: (value) => ['small', 'medium', 'large'].includes(value)
-    },
-    modelValue: { type: [String, Number], default: '' },
-    placeholder: { type: String, default: '' },
-    disabled: { type: Boolean, default: false },
-    readonly: { type: Boolean, default: false },
-    required: { type: Boolean, default: false },
-    autofocus: { type: Boolean, default: false },
-    error: { type: Boolean, default: false },
-    success: { type: Boolean, default: false },
-    loading: { type: Boolean, default: false },
-    prefixIcon: { type: String, default: '' },
-    suffixIcon: { type: String, default: '' },
-    clearable: { type: Boolean, default: false },
-    showPassword: { type: Boolean, default: false },
-    label: { type: String, default: '' },
-    helperText: { type: String, default: '' },
-    errorMessage: { type: String, default: '' },
-    min: { type: [String, Number], default: undefined },
-    max: { type: [String, Number], default: undefined },
-    step: { type: [String, Number], default: undefined },
-    maxlength: { type: [String, Number], default: undefined },
-    customClass: { type: String, default: '' }
-});
+const props = withDefaults(defineProps<{
+	type?: string
+	size?: 'small' | 'medium' | 'large'
+	modelValue?: string | number
+	placeholder?: string
+	disabled?: boolean
+	readonly?: boolean
+	required?: boolean
+	autofocus?: boolean
+	error?: boolean
+	success?: boolean
+	loading?: boolean
+	prefixIcon?: string
+	suffixIcon?: string
+	clearable?: boolean
+	showPassword?: boolean
+	label?: string
+	helperText?: string
+	errorMessage?: string
+	min?: string | number
+	max?: string | number
+	step?: string | number
+	maxlength?: string | number
+	customClass?: string
+}>(), {
+	type: 'text',
+	size: 'medium',
+	modelValue: '',
+	placeholder: '',
+	disabled: false,
+	readonly: false,
+	required: false,
+	autofocus: false,
+	error: false,
+	success: false,
+	loading: false,
+	prefixIcon: '',
+	suffixIcon: '',
+	clearable: false,
+	showPassword: false,
+	label: '',
+	helperText: '',
+	errorMessage: '',
+	customClass: '',
+})
 
-const emit = defineEmits(['update:modelValue', 'input', 'change', 'focus', 'blur', 'clear', 'enter']);
+const emit = defineEmits<{
+	(e: 'update:modelValue', value: string | number): void
+	(e: 'input', value: string | number, event: Event): void
+	(e: 'change', value: string, event: Event): void
+	(e: 'focus', event: Event): void
+	(e: 'blur', event: Event): void
+	(e: 'clear'): void
+	(e: 'enter', event: Event): void
+}>()
 
-const inputRef = ref(null);
+const inputRef = ref<any>(null);
 const isFocused = ref(false);
 const showPasswordToggle = ref(false);
 
@@ -49,10 +69,10 @@ const showPasswordButton = computed(() => props.showPassword && props.type === '
 const hasIcon = computed(() => props.prefixIcon || props.suffixIcon || showClearButton.value || showPasswordButton.value || props.loading);
 
 // 尺寸映射
-const sizeMap = { small: 'min-h-[32px] px-3', medium: 'min-h-[40px] px-4', large: 'min-h-[48px] px-5' };
-const prefixPaddingMap = { small: 'pl-1.5', medium: 'pl-2', large: 'pl-3' };
-const suffixPaddingMap = { small: 'pr-1.5', medium: 'pr-2', large: 'pr-3' };
-const iconSizeMap = { small: 'small', medium: 'small', large: 'medium' };
+const sizeMap: Record<string, string> = { small: 'min-h-[32px] px-3', medium: 'min-h-[40px] px-4', large: 'min-h-[48px] px-5' };
+const prefixPaddingMap: Record<string, string> = { small: 'pl-1.5', medium: 'pl-2', large: 'pl-3' };
+const suffixPaddingMap: Record<string, string> = { small: 'pr-1.5', medium: 'pr-2', large: 'pr-3' };
+const iconSizeMap: Record<string, "small"|"medium"> = { small: 'small', medium: 'small', large: 'medium' };
 
 // 状态类
 const stateClasses = computed(() => {
@@ -84,15 +104,15 @@ const inputWrapperClasses = computed(() => {
 // 图标颜色
 const iconColor = computed(() => props.error ? 'danger' : props.success ? 'accent' : 'secondary');
 
-const handleInput = (event) => {
+const handleInput = (event: any) => {
     const value = event.target.value;
     emit('update:modelValue', value);
     emit('input', value, event);
 };
-const handleChange = (event) => { emit('change', event.target.value, event); };
-const handleFocus = (event) => { isFocused.value = true; emit('focus', event); };
-const handleBlur = (event) => { isFocused.value = false; emit('blur', event); };
-const handleKeydown = (event) => { if (event.key === 'Enter') emit('enter', event); };
+const handleChange = (event: any) => { emit('change', event.target.value, event); };
+const handleFocus = (event: any) => { isFocused.value = true; emit('focus', event); };
+const handleBlur = (event: any) => { isFocused.value = false; emit('blur', event); };
+const handleKeydown = (event: any) => { if (event.key === 'Enter') emit('enter', event); };
 const handleClear = () => { emit('update:modelValue', ''); emit('clear'); inputRef.value?.focus(); };
 const togglePasswordVisibility = () => { showPasswordToggle.value = !showPasswordToggle.value; inputRef.value?.focus(); };
 const focus = () => inputRef.value?.focus();

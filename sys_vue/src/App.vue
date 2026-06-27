@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import SideBar from './components/system/SideBar.vue';
 import MusicLibrary from './components/pages/MusicLibrary.vue';
@@ -16,7 +16,7 @@ import { useUiStore } from './store/ui';
 import { usePlaylistStore } from './store/playlist';
 import { usePlayerStore } from './store/player';
 import { useMediaStore } from './store/media';
-import { useSidebarResize } from './composables/useSidebarResize.js';
+import { useSidebarResize } from './composables/useSidebarResize';
 
 const uiStore = useUiStore();
 const playlistStore = usePlaylistStore();
@@ -28,8 +28,8 @@ uiStore.initCloseBehavior();
 
 
 // 存储IPC事件监听器的引用
-let removeNavigateListener = null;
-let removeFileOpenListener = null;
+let removeNavigateListener: (() => void) | null = null;
+let removeFileOpenListener: (() => void) | null = null;
 
 onMounted(async () => {
     // 初始化CSS变量
@@ -38,7 +38,7 @@ onMounted(async () => {
     // 清除可能存在的任何焦点，防止元素在启动时自动高亮
     setTimeout(() => {
         if (document.activeElement) {
-            document.activeElement.blur();
+            (document.activeElement as HTMLElement).blur();
         }
     }, 200);
 
@@ -66,7 +66,7 @@ onMounted(async () => {
     });
 
     // 监听文件打开事件
-    removeFileOpenListener = window.electronAPI.onOpenAudioFile(async (filePath) => {
+    removeFileOpenListener = window.electronAPI.onOpenAudioFile(async (filePath: string) => {
         try {
             // 解析文件信息
             const parseResult = await window.electronAPI.parseSongFromFile(filePath);
@@ -97,7 +97,7 @@ onMounted(async () => {
 
 
 // 监听删除歌单事件并处理导航
-playlistStore.$subscribe((mutation, state) => {
+playlistStore.$subscribe((mutation: any, state) => {
     // 检测是否歌单被删除
     if (mutation.type === 'deletePlaylist' &&
         mutation.events &&
@@ -128,8 +128,8 @@ const updateLayoutVariables = () => {
 const { startResize, handleDoubleClick: handleResizeHandleDoubleClick } = useSidebarResize({
     minWidth: 60,
     maxWidth: 300,
-    onDragStart: null,
-    onDragEnd: null
+    onDragStart: undefined,
+    onDragEnd: undefined
 });
 
 // 监听侧边栏状态变化

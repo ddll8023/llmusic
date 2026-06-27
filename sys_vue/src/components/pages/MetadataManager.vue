@@ -1,5 +1,5 @@
-<script setup>
-import { ref, computed, onMounted, onUnmounted, watch, reactive } from 'vue';
+<script setup lang="ts">
+import { ref, computed, onMounted, reactive } from 'vue';
 import { useMediaStore } from '../../store/media';
 import FAIcon from '../common/FAIcon.vue';
 import SongTable from '../common/SongTable.vue';
@@ -8,7 +8,7 @@ import CustomButton from '../custom/CustomButton.vue';
 import CustomInput from '../custom/CustomInput.vue';
 import CustomModal from '../custom/CustomModal.vue';
 
-const selectedSongs = ref([]);
+const selectedSongs = ref<any[]>([]);
 const searchQuery = ref('');
 const isLoading = ref(false);
 
@@ -17,19 +17,19 @@ const showClearConfirm = ref(false);
 const isClearing = ref(false);
 
 // 标签编辑器相关
-const tagEditorRef = ref(null);
+const tagEditorRef = ref<any>(null);
 
 // 在线搜索状态
 const onlineSearchStatus = ref('idle'); // idle, loading, success, error
-const onlineSearchResults = ref([]);
-const selectedOnlineResult = ref(null);
-const currentSearchingSong = ref(null);
+const onlineSearchResults = ref<any[]>([]);
+const selectedOnlineResult = ref<any>(null);
+const currentSearchingSong = ref<any>(null);
 
 // MetadataManager专用的歌曲列表（只显示用户导入的歌曲）
-const localSongs = ref([]);
+const localSongs = ref<any[]>([]);
 
 // 工作区封面缓存（独立于数据库）
-const workspaceCoverCache = reactive({});
+const workspaceCoverCache = reactive<Record<string, any>>({});
 
 // 文件导入相关
 const isImporting = ref(false);
@@ -38,7 +38,7 @@ const importStatus = ref('idle'); // idle, importing, success, error
 const importResultMessage = ref('');
 
 // SongTable组件引用
-const songTableRef = ref(null);
+const songTableRef = ref<any>(null);
 
 // 计算属性：过滤后的歌曲列表（只显示localSongs中的歌曲）
 const filteredSongs = computed(() => {
@@ -55,15 +55,15 @@ const filteredSongs = computed(() => {
 });
 
 // 选中的歌曲ID数组
-const selectedSongIds = computed(() => selectedSongs.value.map(song => song.id));
+const selectedSongIds = computed<string[]>(() => selectedSongs.value.map(song => song.id));
 
 // 处理SongTable的选择变化
-const handleSelectionChange = ({ selectedIds }) => {
+const handleSelectionChange = ({ selectedIds }: { selectedIds: any[] }) => {
     selectedSongs.value = filteredSongs.value.filter(song => selectedIds.includes(song.id));
 };
 
 // 处理SongTable的操作按钮点击
-const handleActionClick = ({ action, song }) => {
+const handleActionClick = ({ action, song }: { action: any; song: any }) => {
     switch (action) {
         case 'edit':
             editSong(song);
@@ -75,7 +75,7 @@ const handleActionClick = ({ action, song }) => {
 };
 
 // 选择歌曲（保留原有方法供兼容）
-const toggleSelectSong = (song) => {
+const toggleSelectSong = (song: any) => {
     const index = selectedSongs.value.findIndex(s => s.id === song.id);
     if (index >= 0) {
         selectedSongs.value.splice(index, 1);
@@ -85,7 +85,7 @@ const toggleSelectSong = (song) => {
 };
 
 // 编辑单首歌曲（工作区模式）
-const editSong = (song) => {
+const editSong = (song: any) => {
     if (tagEditorRef.value) {
         // 使用工作区专用的编辑器方法
         tagEditorRef.value.openEditorForFile(song);
@@ -100,13 +100,13 @@ const importMusicFiles = async () => {
             throw new Error('electronAPI.showOpenDialog 方法未定义，请检查预加载脚本');
         }
 
-        const result = await window.electronAPI.showOpenDialog({
+        const result = await (window.electronAPI.showOpenDialog({
             title: '选择音乐文件',
             filters: [
                 { name: '音频文件', extensions: ['mp3', 'flac', 'wav', 'm4a', 'ogg', 'aac'] }
             ],
             properties: ['openFile', 'multiSelections']
-        });
+        }) as any);
 
         if (result.canceled || result.filePaths.length === 0) {
             return;
@@ -116,12 +116,12 @@ const importMusicFiles = async () => {
     } catch (error) {
         console.error('导入文件失败:', error);
         importStatus.value = 'error';
-        importResultMessage.value = `导入失败: ${error.message}`;
+        importResultMessage.value = `导入失败: ${(error as any).message}`;
     }
 };
 
 // 处理导入的文件
-const processImportFiles = async (filePaths) => {
+const processImportFiles = async (filePaths: any) => {
     if (!filePaths || filePaths.length === 0) return;
 
     isImporting.value = true;
@@ -141,7 +141,7 @@ const processImportFiles = async (filePaths) => {
                 if (parseResult.success && parseResult.song) {
                     // 检查是否已存在于工作区，避免重复
                     const existingIndex = localSongs.value.findIndex(song =>
-                        song.filePath === parseResult.song.filePath
+                        song.filePath === parseResult.song!.filePath
                     );
 
                     if (existingIndex === -1) {
@@ -183,31 +183,31 @@ const processImportFiles = async (filePaths) => {
     } catch (error) {
         console.error('处理导入文件失败:', error);
         importStatus.value = 'error';
-        importResultMessage.value = `处理失败: ${error.message}`;
+        importResultMessage.value = `处理失败: ${(error as any).message}`;
     } finally {
         isImporting.value = false;
     }
 };
 
 // 拖拽相关处理
-const handleDragOver = (event) => {
+const handleDragOver = (event: any) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'copy';
     isDragging.value = true;
 };
 
-const handleDragLeave = (event) => {
+const handleDragLeave = (event: any) => {
     event.preventDefault();
     if (!event.relatedTarget || !event.currentTarget.contains(event.relatedTarget)) {
         isDragging.value = false;
     }
 };
 
-const handleDrop = async (event) => {
+const handleDrop = async (event: any) => {
     event.preventDefault();
     isDragging.value = false;
 
-    const files = Array.from(event.dataTransfer.files);
+    const files = Array.from(event.dataTransfer.files) as any[];
     const audioFiles = files.filter(file => {
         const ext = file.name.split('.').pop().toLowerCase();
         return ['mp3', 'flac', 'wav', 'm4a', 'ogg', 'aac'].includes(ext);
@@ -230,7 +230,7 @@ const handleDrop = async (event) => {
 };
 
 // 搜索在线元数据
-const searchOnlineMetadata = async (song) => {
+const searchOnlineMetadata = async (song: any) => {
     if (!song) return;
 
     currentSearchingSong.value = song;
@@ -250,7 +250,7 @@ const searchOnlineMetadata = async (song) => {
         };
 
         // 调用Python API搜索
-        const result = await window.electronAPI.searchOnlineMetadata(searchParams);
+        const result = await (window.electronAPI.searchOnlineMetadata(searchParams as any) as any);
 
         if (result && result.code === 200 && result.data && result.data.length > 0) {
             onlineSearchResults.value = result.data;
@@ -265,7 +265,7 @@ const searchOnlineMetadata = async (song) => {
 };
 
 // 应用在线元数据
-const applyOnlineMetadata = async (song, onlineData) => {
+const applyOnlineMetadata = async (song: any, onlineData: any) => {
     if (!song || !onlineData) return;
 
     isLoading.value = true;
@@ -280,7 +280,7 @@ const applyOnlineMetadata = async (song, onlineData) => {
         };
 
         // 更新标签
-        const updateResult = await window.electronAPI.updateSongTags(song.id, newTags);
+        const updateResult = await (window.electronAPI.updateSongTags(song.id, newTags) as any);
 
         if (updateResult && updateResult.success) {
             alert('元数据更新成功！');
@@ -289,7 +289,7 @@ const applyOnlineMetadata = async (song, onlineData) => {
         }
     } catch (error) {
         console.error('应用在线元数据失败:', error);
-        alert('应用在线元数据失败: ' + error.message);
+        alert('应用在线元数据失败: ' + (error as any).message);
     } finally {
         isLoading.value = false;
     }
@@ -337,13 +337,13 @@ const showClearWorkspaceDialog = () => {
 };
 
 // 加载工作区歌曲封面
-const loadWorkspaceSongCover = async (song) => {
+const loadWorkspaceSongCover = async (song: any) => {
     if (!song || !song.filePath || workspaceCoverCache[song.id]) {
         return; // 如果已有缓存则跳过
     }
 
     try {
-        const result = await window.electronAPI.getCoverFromFile(song.filePath);
+        const result = await (window.electronAPI.getCoverFromFile(song.filePath) as any);
         if (result.success && result.cover) {
             const imageFormat = result.format || 'image/jpeg';
             workspaceCoverCache[song.id] = `data:${imageFormat};base64,${result.cover}`;
@@ -386,7 +386,7 @@ onMounted(async () => {
         <div class="flex justify-between items-center mb-4 max-md:flex-col max-md:items-start max-md:gap-3 max-md:mb-3">
             <h1 class="text-xl font-medium">音乐元数据管理</h1>
             <div class="w-[300px] max-md:w-full">
-                <CustomInput :model-value="searchQuery" @update:model-value="val => searchQuery = val" type="text"
+                <CustomInput :model-value="searchQuery" @update:model-value="(val: any) => searchQuery = (val as string)" type="text"
                     placeholder="搜索歌曲..." prefix-icon="search" size="medium" />
             </div>
         </div>
@@ -422,11 +422,12 @@ onMounted(async () => {
 
         <div class="flex-1 flex overflow-hidden relative">
             <!-- 歌曲表格 -->
-            <SongTable ref="songTableRef" :songs="filteredSongs" :loading="isLoading" :show-sortable="false"
+            <SongTable ref="songTableRef" :songs="filteredSongs as any" :loading="isLoading" :show-sortable="false"
                 :show-play-count="false" :show-action-column="true" :action-column-type="'metadata'"
                 :show-selection="true" :selected-song-ids="selectedSongIds" :context-menu-type="'metadata'"
                 :current-list-id="'metadata'" :empty-text="'请导入音乐文件或拖拽文件到此区域'" :empty-icon="'upload'"
-                :external-cover-cache="workspaceCoverCache" @action-click="handleActionClick"
+                container-height="100%" :external-cover-cache="workspaceCoverCache as any"
+                @action-click="handleActionClick"
                 @selection-change="handleSelectionChange" />
 
             <!-- 在线搜索面板 -->

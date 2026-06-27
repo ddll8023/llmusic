@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import { usePlayerStore, PlayMode } from '../../store/player';
 import { useUiStore } from '../../store/ui';
@@ -6,15 +6,35 @@ import defaultCoverImage from '../../assets/default_img.jpg';
 import CustomButton from '../custom/CustomButton.vue';
 import { formatTime } from '../../utils/timeUtils';
 
+// 扩展 Window 接口，声明自定义属性
+declare global {
+  interface Window {
+    sourceNode?: any;
+    isAudioPlaying?: any;
+    audioContext?: any;
+    decodedAudioBuffer?: any;
+    songStartTimeInAc?: any;
+    songStartOffset?: any;
+    gainNode?: any;
+    isPositionLocked?: any;
+    positionLockTimeout?: any;
+    isSeekingFromTimer?: any;
+    _onlineAudio?: any;
+    _onlineCoverUrl?: any;
+  }
+}
+
 const playerStore = usePlayerStore();
 const uiStore = useUiStore();
-const timelineRef = ref(null);
-const volumeRef = ref(null);
-const coverImage = ref(null);
+const timelineRef = ref<any>(null);
+const volumeRef = ref<any>(null);
+const coverImage = ref<any>(null);
 const isLoadingCover = ref(false);
 const coverLoadError = ref(false);
-const playbackError = ref(null);
+const playbackError = ref<any>(null);
 const isDraggingVolume = ref(false);
+
+const uiShowPlaylist = computed(() => (uiStore as any).showPlaylist);
 
 let scheduledTime = 0;
 
@@ -282,7 +302,7 @@ const volumePercentage = computed(() => {
 });
 
 // 点击进度条设置播放时间
-const setPlayTime = (event) => {
+const setPlayTime = (event: any) => {
     if (!timelineRef.value || !playerStore.currentSong) return;
 
     // 在线歌曲：使用 HTML5 Audio 的 duration
@@ -305,6 +325,7 @@ const setPlayTime = (event) => {
         }, 300);
 
         playerStore.seek(newTime);
+        if (audio) audio.currentTime = newTime;
         return;
     }
 
@@ -323,12 +344,23 @@ const setPlayTime = (event) => {
         window.isPositionLocked = false;
     }, 300);
 
-    // 直接使用seek方法，它会更新UI和音频状态
+    // 更新 store 状态 + 音频引擎 seek
     playerStore.seek(newTime);
+
+    // 实际音频引擎 seek
+    if (window.sourceNode && window.audioContext && window.decodedAudioBuffer && window.gainNode) {
+        try { window.sourceNode.onended = null; window.sourceNode.stop(); } catch {}
+        window.sourceNode = window.audioContext.createBufferSource();
+        window.sourceNode.buffer = window.decodedAudioBuffer;
+        window.sourceNode.connect(window.gainNode);
+        window.sourceNode.onended = handleAudioEnded;
+        window.sourceNode.start(0, newTime);
+        window.songStartTimeInAc = window.audioContext.currentTime;
+    }
 };
 
 // 点击音量条设置音量
-const setVolume = (event) => {
+const setVolume = (event: any) => {
     if (!volumeRef.value) return;
 
     const rect = volumeRef.value.getBoundingClientRect();
@@ -344,7 +376,7 @@ const toggleMute = () => {
 };
 
 // 开始音量拖动
-const startVolumeChange = (event) => {
+const startVolumeChange = (event: any) => {
     isDraggingVolume.value = true;
     updateVolume(event);
     document.addEventListener('mousemove', updateVolume);
@@ -352,7 +384,7 @@ const startVolumeChange = (event) => {
 };
 
 // 更新音量（用于点击和拖动）
-const updateVolume = (event) => {
+const updateVolume = (event: any) => {
     if (!volumeRef.value) return;
 
     const rect = volumeRef.value.getBoundingClientRect();
@@ -414,7 +446,7 @@ const playModeIconName = computed(() => {
 });
 
 // 加载歌曲封面
-const loadSongCover = async (songId) => {
+const loadSongCover = async (songId: any) => {
     if (!songId) {
         coverImage.value = null;
         coverLoadError.value = false;
@@ -425,7 +457,7 @@ const loadSongCover = async (songId) => {
     coverLoadError.value = false;
 
     try {
-        const result = await window.electronAPI.getSongCover(songId);
+        const result = await (window.electronAPI.getSongCover(songId) as any);
         if (result.success && result.cover) {
             const coverDetails = {
                 format: result.format,
@@ -622,7 +654,7 @@ watch(
 // 设置播放器事件监听器
 onMounted(async () => {
     // 声明清理资源的引用
-    let removeAudioDataListener, removeErrorListener, progressTimer;
+    let removeAudioDataListener: any, removeErrorListener: any, progressTimer: any;
 
     // 添加键盘事件监听器
     window.addEventListener('keydown', handleKeydown);
@@ -689,7 +721,7 @@ onMounted(async () => {
         updateMediaSessionPosition();
     }
 
-    removeAudioDataListener = window.electronAPI.onPlayerAudioData(async (buffer) => {
+    removeAudioDataListener = window.electronAPI.onPlayerAudioData(async (buffer: any) => {
         try {
             // 确保我们收到了有效数据
             if (!buffer || buffer.byteLength === 0) {
@@ -716,7 +748,7 @@ onMounted(async () => {
 
         } catch (error) {
             console.error("解码音频数据时出错:", error);
-            playbackError.value = `音频解码失败: ${error.message}`;
+            playbackError.value = `音频解码失败: ${(error as any).message}`;
             window.decodedAudioBuffer = null;
             playerStore.setPlaying(false);
         }
@@ -724,7 +756,7 @@ onMounted(async () => {
 
 
     // 监听播放错误事件
-    removeErrorListener = window.electronAPI.onPlayerError((error) => {
+    removeErrorListener = window.electronAPI.onPlayerError((error: any) => {
         console.error('播放器错误:', error);
         playbackError.value = `播放错误: ${error.error || '未知错误'}`;
         playerStore.setPlaying(false);
@@ -779,7 +811,7 @@ onMounted(async () => {
 
     // 获取当前播放状态
     try {
-        const status = await window.electronAPI.playerGetStatus();
+        const status = await (window.electronAPI.playerGetStatus() as any);
         if (status.success && status.state === 'playing') {
             // 同步状态
             playerStore.updateCurrentTime(status.position);
@@ -791,9 +823,9 @@ onMounted(async () => {
 
 
 // 键盘快捷键控制
-const handleKeydown = (event) => {
+const handleKeydown = (event: any) => {
     // 空格键：播放/暂停
-    if (event.key === ' ' && document.activeElement.tagName !== 'INPUT') {
+    if (event.key === ' ' && document.activeElement?.tagName !== 'INPUT') {
         event.preventDefault();
         playerStore.togglePlay();
     }
@@ -822,13 +854,13 @@ const showLyrics = async () => {
     try {
         // 如果还没有加载歌词，则先加载歌词
         if (!playerStore.hasLyrics) {
-            const success = await playerStore.loadLyrics();
+            const success = await (playerStore as any).loadLyrics();
         }
 
         // 显示歌词页面
         playerStore.showLyricsDisplay();
     } catch (err) {
-        console.error(`显示歌词时出错: ${err.message}`);
+        console.error(`显示歌词时出错: ${(err as any).message}`);
     }
 };
 
@@ -872,7 +904,7 @@ const showLyrics = async () => {
                         @click="togglePlayPause" />
                     <CustomButton type="icon-only" icon="step-forward" icon-size="large" title="下一首" @click="playerStore.playNext()" />
                     <CustomButton type="icon-only" icon="list" icon-size="medium" title="播放列表"
-                        :customClass="uiStore.showPlaylist ? 'text-accent-green!' : ''" @click="uiStore.togglePlaylist()" />
+                        :customClass="uiShowPlaylist ? 'text-accent-green!' : ''" @click="uiStore.togglePlaylist()" />
                 </div>
                 <div class="w-full flex items-center gap-3 max-sm:gap-2">
                     <span class="text-2xs text-content-secondary min-w-[40px] text-center font-medium max-sm:min-w-[35px]">{{ formatTime(playerStore.currentTime) }}</span>

@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 /**
  * CustomCheckbox - 自定义复选框组件
  * 功能描述：支持选中/半选/禁用状态、多尺寸、文本标签的自定义复选框
@@ -7,30 +7,37 @@
 import { computed, ref, watch, onMounted, nextTick } from 'vue'
 import FAIcon from '../common/FAIcon.vue'
 
-const props = defineProps({
-	modelValue: { type: Boolean, default: false },
-	checked: { type: Boolean, default: undefined },
-	indeterminate: { type: Boolean, default: false },
-	disabled: { type: Boolean, default: false },
-	size: {
-		type: String,
-		default: 'small',
-		validator: (value) => ['small', 'medium', 'large'].includes(value)
-	},
-	label: { type: String, default: '' },
-	customClass: { type: String, default: '' }
+const props = withDefaults(defineProps<{
+	modelValue?: boolean
+	checked?: boolean
+	indeterminate?: boolean
+	disabled?: boolean
+	size?: 'small' | 'medium' | 'large'
+	label?: string
+	customClass?: string
+}>(), {
+	modelValue: false,
+	checked: undefined,
+	indeterminate: false,
+	disabled: false,
+	size: 'small',
+	label: '',
+	customClass: '',
 })
 
-const emit = defineEmits(['update:modelValue', 'change'])
+const emit = defineEmits<{
+	(e: 'update:modelValue', value: boolean): void
+	(e: 'change', value: boolean): void
+}>()
 
-const inputRef = ref(null)
+const inputRef = ref<any>(null)
 
 const effectiveChecked = computed(() =>
 	props.checked !== undefined ? props.checked : props.modelValue
 )
 
-const sizeBoxMap = { small: 'w-4 h-4', medium: 'w-5 h-5', large: 'w-6 h-6' }
-const iconSizeMap = { small: 'small', medium: 'small', large: 'medium' }
+const sizeBoxMap: Record<string, string> = { small: 'w-4 h-4', medium: 'w-5 h-5', large: 'w-6 h-6' }
+const iconSizeMap: Record<string, "small"|"medium"> = { small: 'small', medium: 'small', large: 'medium' }
 
 const boxClasses = computed(() => {
 	const classes = [
