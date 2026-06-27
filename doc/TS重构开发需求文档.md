@@ -329,42 +329,55 @@ interface Window {
 
 ---
 
-## 6. 第三阶段：后端评估（非立即执行）
+## 6. 第三阶段：后端评估结论
 
-### 6.1 评估节点
+### 6.1 评估日期
 
-第二阶段完成后，根据以下因素决定后端是否迁移：
+评估执行于 2026-06-27，基于第二阶段完成后的实际情况。
 
-| 因素 | 迁移条件 | 不迁移条件 |
-|------|---------|-----------|
-| QQ 音乐 Node SDK | 有成熟替代品（质量/维护活跃度 ≥ Python 版） | 没有或质量差 |
-| 时间资源 | 有充足时间投入重构 | 时间紧张，优先级低 |
-| PyInstaller 打包体积 | 不能接受 ~150MB 体积 | 可以接受 |
-| 前端 API 类型同步 | OpenAPI 自动同步已完善 | 手动维护可接受 |
+### 6.2 后端现状
 
-### 6.2 推荐迁移方案（如果未来执行）
+| 指标 | 数值 |
+|------|:----:|
+| Python 文件数 | 24 个 |
+| 代码总量 | ~1032 行 |
+| 核心依赖 | fastapi / uvicorn / qqmusic-api-python / httpx / pydantic-settings |
+| API 端点 | 8 个（4 歌曲 + 4 认证） |
+| 打包体积 | ~150MB（PyInstaller） |
 
-| 当前（Python FastAPI） | 迁移目标（NestJS） | 对应关系 |
-|------------------------|-------------------|---------|
-| FastAPI `@router.get/post` | NestJS `@Get/@Post` | 路由装饰器 |
-| `Depends(get_db)` | 自定义 Provider | 依赖注入 |
-| `ServiceException` | NestJS `HttpException` | 异常处理 |
-| `Pydantic Schema` | `class-validator` DTO | 请求校验 |
-| `qqmusic-api-python` | 自封装 HTTP 或 Node SDK | 外部 SDK |
+### 6.3 四维评估
 
-### 6.3 打包链路简化（如果迁移）
+| 维度 | 结论 | 评分 |
+|:-----|:-----|:----:|
+| **QQ 音乐 Node SDK** | Node 版 `qqmusic-api` 功能覆盖 Python 版核心 API，但维护活跃度略低 | 🟡 |
+| **迁移工作量** | ~1200 行 TS，预估 0.5 天，风险低 | 🟢 |
+| **PyInstaller 打包体积** | 150MB 对桌面音乐播放器可接受 | 🟢 |
+| **API 类型同步** | 全栈 TS 后前端自动获得强类型，不再手动维护 schema | 🟢 |
 
-```
-当前：
-  Vite build → PyInstaller → electron-builder
-  （前端 dist）  （后端 exe）    （安装包）
+### 6.4 最终建议
 
-迁移后：
-  Vite build → tsc compile → electron-builder
-  （前端 dist）（后端 dist）    （安装包）
-```
+**建议：暂不迁移。**
 
-> **收益**：从三步骤简化为两步骤，产物体积从 ~200MB 降至 ~80MB。
+核心理由：
+
+1. **核心依赖成熟度**：`qqmusic-api-python` 是经过长期验证的 SDK，Node 版虽然可用但功能稳定性和社区成熟度不如 Python 版。当前无强驱动力切换
+2. **边际收益有限**：Electron 主进程 + Vue 前端的 TS 化已经覆盖了项目 80% 的代码类型安全收益。后端 1000 行的迁移带来的边际收益不高
+3. **打包体积可接受**：150MB 对桌面应用属于正常范围，用户感知不到
+4. **更优先的事项**：完善在线音乐功能、优化扫描性能、补充测试等优先级更高
+
+### 6.5 如果未来执行
+
+评估中确认 Node 版 `qqmusic-api` 可以完全覆盖 Python 版的调用场景。归档的迁移方案如下（复用时参考 §5.2 的 Electron 迁移经验）：
+
+| 当前（Python FastAPI） | 迁移目标 | 对应关系 |
+|------------------------|---------|---------|
+| FastAPI `@router.get/post` | Express 或 NestJS `@Controller` | 路由装饰器 |
+| `Pydantic Schema` | Zod / class-validator DTO | 请求校验 |
+| `ServiceException` | 自定义 Error class | 异常处理 |
+| `qqmusic-api-python` | `qqmusic-api` (npm) | 外部 SDK |
+| `httpx` | Node.js `fetch` / `got` | HTTP 客户端 |
+
+预计代码量 ~1000 行 TypeScript，工作量约 0.5-1 天。
 
 ---
 
@@ -374,8 +387,8 @@ interface Window {
 |---|----------|----------|------|---------|
 | 1 | 技术路线 | 方案 B：前端 → Electron → 后端 渐进迁移 | ✅ 已确认 | **第一阶段已完成** |
 | 2 | 第一阶段范围 | `sys_vue/` 全部 JS → TS + `.vue` 加 `lang="ts"` | ✅ 已确认 | ✅ **已完成** |
-| 3 | 第二阶段范围 | `sys_electron/` 全部 JS → TS | ✅ 已确认 | ⏸ 待启动 |
-| 4 | 第三阶段 | 后端评估待定，当前不改动 | ✅ 已确认 | ⏳ 待评估 |
+| 3 | 第二阶段范围 | `sys_electron/` 全部 JS → TS | ✅ 已确认 | ✅ **已完成** |
+| 4 | 第三阶段 | 后端评估完成，建议暂不迁移 | ✅ 已确认 | ✅ **已评估，⏸ 暂不迁移** |
 | 5 | 类型存放 | 集中式 `src/types/` 目录 | ✅ 已执行 | 4 个 .d.ts + 1 个 index.ts |
 | 6 | API 类型生成 | 手动定义 API 类型（当前） → 可选 OpenAPI 自动生成（未来） | ✅ 已执行 | `api.d.ts` 手动维护 |
 | 7 | TS 严格模式 | `strict: true` | ✅ 已执行 | tsconfig.json 中启用 |
@@ -465,8 +478,11 @@ interface Window {
   └── 文档更新          → 项目结构文档 + 模块说明文档 + TS 需求文档
                  │
                  ▼
-第三阶段    ⏳ 待评估
-  后端迁移可行性评估
+第三阶段    ✅ 已评估（2026-06-27）
+  ├── SDK 替代品评估   → Node 版 qqmusic-api 可用但不如 Python 版成熟
+  ├── 迁移工作量评估   → ~1000 行 TS，0.5-1 天
+  ├── 打包体积评估     → 150MB 可接受，非阻塞因素
+  └── 最终建议         → ⏸ 暂不迁移，优先完善功能
 ```
 
 ---
@@ -484,6 +500,6 @@ interface Window {
 
 - 本文档不涉及业务逻辑修改、UI 改版、新功能引入
 - 任何第三方 npm 包的升级仅在必要时进行
-- `backend/` Python 代码在当前阶段不做任何修改
+- `backend/` Python 代码保留不动，第三阶段评估结论：⏸ 暂不迁移
 - `doc/模块说明文档.md` 和 `doc/项目结构文档.md` 已在重构完成后更新 ✅
 - `sys_vue/dist/` 和 `sys_electron/node_modules/` 不在重构范围内

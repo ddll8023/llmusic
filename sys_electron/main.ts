@@ -340,29 +340,33 @@ function setCloseWindowBehavior(behavior: string): boolean {
 }
 
 /**
- * 处理文件打开请求
+ * 处理文件打开请求（防御性二次校验）
  */
 function handleFileOpen(filePath: string): void {
 	if (!filePath) return
 
+	// 路径归一化 + 目录遍历防护
+	const resolved = path.resolve(filePath)
+	if (resolved.includes("..")) return
+
 	const fs = require("fs") as typeof import("fs")
-	if (!fs.existsSync(filePath)) {
+	if (!fs.existsSync(resolved)) {
 		return
 	}
 
 	const supportedExtensions = [".mp3", ".flac", ".wav", ".m4a", ".ogg", ".aac"]
-	const ext = path.extname(filePath).toLowerCase()
+	const ext = path.extname(resolved).toLowerCase()
 
 	if (!supportedExtensions.includes(ext)) {
 		return
 	}
 
 	if (appState.mainWindow && !appState.mainWindow.isDestroyed()) {
-		appState.mainWindow.webContents.send("open-audio-file", filePath)
+		appState.mainWindow.webContents.send("open-audio-file", resolved)
 		appState.mainWindow.show()
 		appState.mainWindow.focus()
 	} else {
-		appState.pendingFileToOpen = filePath
+		appState.pendingFileToOpen = resolved
 	}
 }
 
