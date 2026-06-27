@@ -2,7 +2,7 @@ import { ipcMain, type IpcMainInvokeEvent } from "electron"
 import { CHANNELS } from "../../constants/ipcChannels"
 
 // 简化的节流函数实现
-const throttle = <T extends (...args: never[]) => void>(
+export const throttle = <T extends (...args: never[]) => void>(
 	fn: T,
 	wait: number = 100
 ): ((...args: Parameters<T>) => void) => {

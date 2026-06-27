@@ -2,32 +2,7 @@ import { scanMusic, cancelScan } from "./MusicScanner"
 import { CHANNELS } from "../../constants/ipcChannels"
 import type { IpcHandlerModule } from "../../types"
 
-// 简化的节流函数实现
-const throttle = <T extends (...args: never[]) => void>(
-	fn: T,
-	wait: number = 100
-): ((...args: Parameters<T>) => void) => {
-	let lastCallTime = 0
-	let timerId: ReturnType<typeof setTimeout> | null = null
-	return function throttled(this: unknown, ...args: Parameters<T>): void {
-		const now = Date.now()
-		const remaining = wait - (now - lastCallTime)
-		if (remaining <= 0 || remaining > wait) {
-			if (timerId) {
-				clearTimeout(timerId)
-				timerId = null
-			}
-			lastCallTime = now
-			fn.apply(this, args)
-		} else if (!timerId) {
-			timerId = setTimeout(() => {
-				lastCallTime = Date.now()
-				timerId = null
-				fn.apply(this, args)
-			}, remaining)
-		}
-	}
-}
+import { throttle } from "../../utils/ipc/ipcWrapper"
 
 // 扫描状态
 let _isScanActive = false

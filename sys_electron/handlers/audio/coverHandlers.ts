@@ -90,7 +90,7 @@ async function getCover(songId: string): Promise<CoverResult> {
 	}
 	const song = await getSongById(songId)
 	if (!song) return { success: false, error: "歌曲未找到" }
-	const filePath = song.filePath || (song as any).path
+	const filePath = song.filePath || song.path
 	if (!filePath) return { success: false, error: "歌曲路径缺失" }
 	let info = await extractCoverFromMusicFile(filePath)
 	if (!info) info = await findCoverInDirectory(filePath, song)

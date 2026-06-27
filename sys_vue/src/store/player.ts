@@ -267,7 +267,7 @@ export const usePlayerStore = defineStore('player', {
 				const mediaStore = useMediaStore()
 				const song = mediaStore.songs.find((s) => s.id === songId)
 				if (song?.filePath) {
-					const result = await window.electronAPI.getLyrics(song.filePath)
+					const result = await window.electronAPI.getLyrics(songId)
 					if (result) {
 						// 处理 IpcResult 包装
 						const lyricsData = 'success' in result && result.success ? (result as { lyrics?: Array<{ time: number; text: string }> }).lyrics : result
