@@ -145,7 +145,21 @@ export const usePlayerStore = defineStore('player', {
 		},
 
 		seek(time: number) {
-			this.currentTime = Math.max(0, time)
+			const t = Math.max(0, time)
+			this.currentTime = t
+			this._updateLyricsIndex(t)
+
+			if (window.sourceNode && window.audioContext && window.decodedAudioBuffer) {
+				try { window.sourceNode.onended = null; window.sourceNode.stop() } catch { /* ignore */ }
+				window.sourceNode = window.audioContext.createBufferSource()
+				window.sourceNode.buffer = window.decodedAudioBuffer
+				window.sourceNode.connect(window.gainNode)
+				window.sourceNode.onended = window.handleAudioEnded || null
+				window.sourceNode.start(0, Math.min(t, window.decodedAudioBuffer.duration))
+				window.songStartTimeInAc = window.audioContext.currentTime
+				window.songStartOffset = t
+				window.isAudioPlaying = true
+			}
 		},
 
 		playNext(auto = false) {
@@ -241,6 +255,25 @@ export const usePlayerStore = defineStore('player', {
 		// ── 时间管理 ──
 		updateCurrentTime(time: number) {
 			this.currentTime = time
+			this._updateLyricsIndex(time)
+		},
+
+		_updateLyricsIndex(time: number) {
+			const lyricsStore = useLyricsStore()
+			const lines = lyricsStore.displayLines
+			if (!lines.length) return
+			const ms = time * 1000 + lyricsStore.syncOffset
+			let newIndex = -1
+			for (let i = lines.length - 1; i >= 0; i--) {
+				if (lines[i].time <= ms) {
+					newIndex = i
+					break
+				}
+			}
+
+			if (newIndex !== lyricsStore.currentIndex) {
+				lyricsStore.setCurrentIndex(newIndex)
+			}
 		},
 
 		updateSongDuration(_id: string, _duration: number) {
@@ -295,8 +328,21 @@ export const usePlayerStore = defineStore('player', {
 			const lyricsStore = useLyricsStore()
 			const line = lyricsStore.displayLines[index]
 			if (line) {
-				// line.time 为毫秒，currentTime 为秒
-				this.currentTime = line.time / 1000
+				const seekTime = line.time / 1000
+				this.currentTime = seekTime
+				this._updateLyricsIndex(seekTime)
+
+				if (window.sourceNode && window.audioContext && window.decodedAudioBuffer) {
+					try { window.sourceNode.onended = null; window.sourceNode.stop() } catch { /* ignore */ }
+					window.sourceNode = window.audioContext.createBufferSource()
+					window.sourceNode.buffer = window.decodedAudioBuffer
+					window.sourceNode.connect(window.gainNode)
+					window.sourceNode.onended = window.handleAudioEnded || null
+					window.sourceNode.start(0, Math.min(seekTime, window.decodedAudioBuffer.duration))
+					window.songStartTimeInAc = window.audioContext.currentTime
+					window.songStartOffset = seekTime
+					window.isAudioPlaying = true
+				}
 			}
 		},
 

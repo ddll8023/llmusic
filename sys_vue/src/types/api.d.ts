@@ -148,3 +148,23 @@ export interface UserInfo {
 }
 
 export type QRStatus = '' | 'loading' | 'waiting' | 'scanned' | 'done' | 'expired' | 'error'
+
+/** 歌曲下载元数据包（平台无关） */
+export interface SongDownloadBundle {
+  songMid: string
+  songName: string
+  singer: string
+  album: {
+    albumName: string
+    albumMid: string
+    albumCoverUrl: string
+  }
+  trackNumber: number
+  genre: string
+  year: string
+  lyrics: string
+  songUrl: {
+    url: string
+    urlType: string
+  }
+}

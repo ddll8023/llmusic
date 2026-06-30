@@ -229,12 +229,13 @@ function createPlayerHandlers(mainWindow: Electron.BrowserWindow): IpcHandlerMod
 		{
 			channel: CHANNELS.PLAYER_SEEK,
 			handler: async (_event: Electron.IpcMainInvokeEvent, { position }: { position?: number }) => {
+				const fp = audioProcessor.filePath
+				if (!fp) return { success: false, error: "没有正在处理的音频" }
 				try {
-					if (audioProcessor.filePath) {
-						await audioProcessor.cancelProcessing()
-						return { success: true, action: "REPROCESS_NEEDED" }
-					}
-					return { success: false, error: "没有正在处理的音频" }
+					await audioProcessor.cancelProcessing()
+					const result = await audioProcessor.processAudio(fp, { position: position || 0 })
+					mainWindow.webContents.send(CHANNELS.PLAYER_AUDIO_DATA, result)
+					return { success: true }
 				} catch (err) {
 					const error = err as Error
 					return { success: false, error: error.message }

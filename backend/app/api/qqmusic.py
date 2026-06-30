@@ -9,6 +9,7 @@ from app.schemas.qqmusic import (
     LikedSongsResponse,
     PlaylistSongsResponse,
     SearchResponse,
+    SongDownloadBundleResponse,
     SongUrlResponse,
     UserPlaylistsResponse,
 )
@@ -61,6 +62,20 @@ async def get_song_urls(req: schemas_qqmusic.SongUrlRequest):
     try:
         result = await services_qqmusic.get_song_url_list_v2(
             song_mid_list=req.songIdList,
+            request_id=req.requestId,
+        )
+        return success(data=result)
+
+    except ServiceException as e:
+        return error(code=e.code, message=e.message)
+
+
+@router.post("/song/download-bundle", response_model=ApiResponse[SongDownloadBundleResponse])
+async def get_song_download_bundle(req: schemas_qqmusic.SongDownloadBundleRequest):
+    """获取歌曲下载元数据包（含详情、封面、歌词、下载链接）"""
+    try:
+        result = await services_qqmusic.get_song_download_bundle(
+            song_mid=req.songMid,
             request_id=req.requestId,
         )
         return success(data=result)

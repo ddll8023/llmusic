@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, nextTick } from 'vue'
-import { searchSongs, searchByKeyword, getAlbumImages, getSongUrls } from '@/api/qqmusic'
-import type { OnlineSong } from '@/types'
+import { searchSongs, searchByKeyword, getAlbumImages, getSongUrls, getSongDownloadBundle } from '@/api/qqmusic'
+import type { OnlineSong, SongDownloadBundle } from '@/types'
 
 type SearchMode = 'link' | 'keyword'
 type SearchStep = '' | 'searching' | 'covers' | 'urls' | 'done'
@@ -118,7 +118,46 @@ export const useDiscoverStore = defineStore('discover', () => {
 		try {
 			const ext = song.songUrl?.urlType || 'mp3'
 			const filename = `${song.songName?.replace(/[/:*?"<>|]/g, "_") || "未知"} - ${song.singer?.replace(/[/:*?"<>|]/g, "_") || "未知"}.${ext}`
-			const result = await window.electronAPI.downloadFile({ url: song.songUrl.url, filename })
+
+			let bundle
+			try {
+				const res = await getSongDownloadBundle(String(Date.now()), song.songMid)
+				bundle = (res as any).data as SongDownloadBundle
+			} catch {
+				// 元数据获取失败降级为裸下载
+				const result = await window.electronAPI.downloadSongWithMetadata({
+					url: song.songUrl.url,
+					filename,
+					metadata: {
+						title: song.songName || '',
+						artist: song.singer || '',
+						album: '',
+						trackNumber: 0,
+						genre: '',
+						year: '',
+						lyrics: '',
+						coverUrl: song.album?.albumCoverUrl || '',
+						format: ext,
+					},
+				})
+				return result
+			}
+
+			const result = await window.electronAPI.downloadSongWithMetadata({
+				url: bundle.songUrl.url || song.songUrl.url,
+				filename,
+				metadata: {
+					title: bundle.songName || '',
+					artist: bundle.singer || '',
+					album: bundle.album?.albumName || '',
+					trackNumber: bundle.trackNumber || 0,
+					genre: bundle.genre || '',
+					year: bundle.year || '',
+					lyrics: bundle.lyrics || '',
+					coverUrl: bundle.album?.albumCoverUrl || '',
+					format: ext,
+				},
+			})
 			return result
 		} finally {
 			if (id) downloadingIds.value.delete(id)
@@ -126,24 +165,9 @@ export const useDiscoverStore = defineStore('discover', () => {
 	}
 
 	async function batchDownload(songs: OnlineSong[]) {
-		const validSongs = songs.filter((s) => s.songUrl?.url)
-		if (validSongs.length === 0) return
-		validSongs.forEach((s) => {
-			const id = s.songMid || s.songId
-			if (id) downloadingIds.value.add(id)
-		})
-		try {
-			await window.electronAPI.batchDownloadFiles({
-				songs: validSongs.map((s) => ({
-					url: s.songUrl!.url,
-					filename: `${s.songName} - ${s.singer}.${s.songUrl!.urlType || 'mp3'}`,
-				})),
-			})
-		} finally {
-			validSongs.forEach((s) => {
-				const id = s.songMid || s.songId
-				if (id) downloadingIds.value.delete(id)
-			})
+		for (const song of songs) {
+			if (!song.songUrl?.url) continue
+			await downloadSong(song)
 		}
 	}
 

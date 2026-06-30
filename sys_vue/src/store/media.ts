@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { usePlayerStore } from './player'
 import type { Song, Library, ScanProgress, ScanPhase } from '@/types'
 
+let _scanProgressCleanup: (() => void) | null = null
+
 interface MediaState {
 	songs: Song[]
 	libraries: Library[]
@@ -99,9 +101,9 @@ export const useMediaStore = defineStore('media', {
 
 				const result = await window.electronAPI.addLibrary({ dirPath: selection.path })
 				if (result.success) {
-					await this.loadLibraries()
+					this.libraries = [...this.libraries, result.library].filter(Boolean)
 					if (result.library) this.setActiveLibrary(result.library.id)
-					if (result.library) this.scanMusic(result.library.id, true)
+					this.scanMusic(result.library.id, true)
 				}
 				return result
 			} catch (error) {
@@ -129,9 +131,10 @@ export const useMediaStore = defineStore('media', {
 				const result = await window.electronAPI.removeLibrary(libraryId)
 				if (result.success) {
 					if (this.activeLibraryId === libraryId) {
-						this.setActiveLibrary('all')
+						this.activeLibraryId = 'all'
 					}
 					this.libraries = this.libraries.filter((lib) => lib.id !== libraryId)
+					this.songs = this.songs.filter((s) => s.libraryId !== libraryId)
 				}
 				return result
 			} catch (error) {
@@ -187,6 +190,11 @@ export const useMediaStore = defineStore('media', {
 			this.scanning = true
 			this.scanProgress = { phase: 'starting' as ScanPhase, processed: 0, total: 0, message: '正在准备开始扫描...' }
 
+			_scanProgressCleanup?.()
+			_scanProgressCleanup = window.electronAPI.onScanProgress((progress: ScanProgress) => {
+				this.scanProgress = { ...this.scanProgress, ...progress }
+			})
+
 			try {
 				const result = await window.electronAPI.scanMusic({ libraryId, clearExisting })
 
@@ -212,6 +220,10 @@ export const useMediaStore = defineStore('media', {
 				return { success: false, error: (error as Error).message }
 			} finally {
 				this.scanning = false
+				if (_scanProgressCleanup) {
+					_scanProgressCleanup()
+					_scanProgressCleanup = null
+				}
 			}
 		},
 

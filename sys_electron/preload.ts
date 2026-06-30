@@ -125,8 +125,7 @@ const API = {
 	},
 
 	download: {
-		saveFile: (options: Record<string, unknown>) => ipcRenderer.invoke("download-file", options),
-		batchDownload: (options: Record<string, unknown>) => ipcRenderer.invoke("batch-download", options),
+		saveSongWithMetadata: (options: Record<string, unknown>) => ipcRenderer.invoke("download-song-with-metadata", options),
 	},
 }
 
@@ -217,9 +216,8 @@ const compatAPI: Record<string, unknown> = {
 	// 在线搜索
 	searchOnlineMetadata: API.online.searchMetadata,
 
-	// 文件下载
-	downloadFile: API.download.saveFile,
-	batchDownloadFiles: API.download.batchDownload,
+	// 文件下载（带元数据嵌入）
+	downloadSongWithMetadata: API.download.saveSongWithMetadata,
 }
 
 // 安全地暴露主进程的API给渲染进程

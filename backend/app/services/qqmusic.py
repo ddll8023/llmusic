@@ -16,6 +16,7 @@ from app.schemas.qqmusic import (
     PlaylistSongsResponse,
     QMPlaylistItem,
     SearchResponse,
+    SongDownloadBundleResponse,
     SongItem,
     SongUrlInfo,
     SongUrlItem,
@@ -194,6 +195,60 @@ async def get_user_liked_songs(page=1, page_size=20):
 
     items = [_build_songlist_item(song) for song in result.songs]
     return LikedSongsResponse(result=items, total=result.total)
+
+
+async def get_song_download_bundle(song_mid, request_id=""):
+    """获取歌曲下载元数据包（详情+歌词+下载链接）"""
+    client = await get_client()
+
+    try:
+        detail = await client.execute(client.song.get_detail(song_mid))
+    except ServiceException:
+        raise
+    except Exception:
+        logging.exception(f"获取歌曲详情失败: {song_mid}")
+        raise ServiceException(ErrorCode.AI_SERVICE_ERROR, "获取歌曲详情失败")
+
+    track = detail.track
+    album_info = _build_album_info(track)
+
+    lyrics = ""
+    try:
+        lyric_result = await client.execute(client.lyric.get_lyric(song_mid, trans=True, roma=True))
+        if lyric_result:
+            lyrics = lyric_result.decrypt().lyric or ""
+            trans = lyric_result.decrypt().trans or ""
+            roma = lyric_result.decrypt().roma or ""
+            if trans:
+                lyrics += "\n\n" + trans
+            if roma:
+                lyrics += "\n\n" + roma
+    except Exception:
+        logging.warning(f"获取歌词失败: {song_mid}")
+
+    song_url = SongUrlInfo()
+    try:
+        url_items = await get_song_url_list_v2([song_mid], request_id)
+        if url_items and url_items.result and url_items.result[0]:
+            song_url = SongUrlInfo(
+                url=url_items.result[0].url or "",
+                urlType=url_items.result[0].urlType or "mp3",
+            )
+    except Exception:
+        logging.warning(f"获取下载链接失败: {song_mid}")
+
+    return SongDownloadBundleResponse(
+        songMid=song_mid,
+        songName=track.title or "",
+        singer=_build_singer(track),
+        album=AlbumInfo(**album_info),
+        trackNumber=track.index_album or 0,
+        genre=_safe_get_genre(detail),
+        year=track.time_public or "",
+        duration=track.interval or 0,
+        lyrics=lyrics,
+        songUrl=song_url,
+    )
 
 
 """辅助函数"""

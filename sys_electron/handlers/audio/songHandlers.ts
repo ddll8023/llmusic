@@ -1,4 +1,5 @@
 import { net } from "electron"
+import fs from "fs"
 import { CHANNELS } from "../../constants/ipcChannels"
 import {
 	getSongsByLibrary,
@@ -91,6 +92,15 @@ function createSongHandlers(): IpcHandlerModule {
 					const result = await deleteSong(songId)
 					if (result.success) {
 						coverCache.delete(songId)
+						if (result.deletedSong?.filePath) {
+							try {
+								fs.unlinkSync(result.deletedSong.filePath)
+								const lrcPath = result.deletedSong.filePath.replace(/\.[^.]+$/, ".lrc")
+								try { fs.unlinkSync(lrcPath) } catch { /* LRC 文件不存在则忽略 */ }
+							} catch {
+								result.warning = "记录已删除，但本地文件删除失败，请手动清理"
+							}
+						}
 					}
 					return result
 				} catch (err) {

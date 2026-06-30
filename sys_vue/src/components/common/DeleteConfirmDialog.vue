@@ -23,7 +23,7 @@
 							<span>{{ song?.album || '未知专辑' }}</span>
 						</div>
 					</div>
-					<p class="text-xs text-content-tertiary">此操作将从音乐库中永久删除该歌曲记录，无法撤销。</p>
+					<p class="text-xs text-content-tertiary">此操作将从音乐库中移除并删除本地文件，无法撤销。</p>
 				</div>
 			</div>
 

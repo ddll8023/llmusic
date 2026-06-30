@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { getUserPlaylists, getUserLikedSongs, getPlaylistSongs, getSongUrls } from '@/api/qqmusic'
-import type { OnlineSong, QMPlaylistItem } from '@/types'
+import { getUserPlaylists, getUserLikedSongs, getPlaylistSongs, getSongUrls, getSongDownloadBundle } from '@/api/qqmusic'
+import type { OnlineSong, QMPlaylistItem, SongDownloadBundle } from '@/types'
 
 export const useQqmusicStore = defineStore('qqmusic', () => {
   // ========== 用户创建的歌单 ==========
@@ -109,7 +109,45 @@ export const useQqmusicStore = defineStore('qqmusic', () => {
     try {
       const ext = song.songUrl?.urlType || 'mp3'
       const filename = `${(song.songName || '未知').replace(/[/:*?"<>|]/g, '_')} - ${(song.singer || '未知').replace(/[/:*?"<>|]/g, '_')}.${ext}`
-      await window.electronAPI.downloadFile({ url: song.songUrl.url, filename })
+
+      let bundle
+      try {
+        const res = await getSongDownloadBundle(String(Date.now()), song.songMid)
+        bundle = (res as any).data as SongDownloadBundle
+      } catch {
+        await window.electronAPI.downloadSongWithMetadata({
+          url: song.songUrl.url,
+          filename,
+          metadata: {
+            title: song.songName || '',
+            artist: song.singer || '',
+            album: '',
+            trackNumber: 0,
+            genre: '',
+            year: '',
+            lyrics: '',
+            coverUrl: song.album?.albumCoverUrl || '',
+            format: ext,
+          },
+        })
+        return
+      }
+
+      await window.electronAPI.downloadSongWithMetadata({
+        url: bundle.songUrl.url || song.songUrl.url,
+        filename,
+        metadata: {
+          title: bundle.songName || '',
+          artist: bundle.singer || '',
+          album: bundle.album?.albumName || '',
+          trackNumber: bundle.trackNumber || 0,
+          genre: bundle.genre || '',
+          year: bundle.year || '',
+          lyrics: bundle.lyrics || '',
+          coverUrl: bundle.album?.albumCoverUrl || '',
+          format: ext,
+        },
+      })
     } finally {
       if (id) downloadingIds.value.delete(String(id))
     }

@@ -113,13 +113,28 @@ export interface LibraryUpdate {
 }
 
 // ---- 下载 ----
-export interface DownloadOptions {
-	url: string
-	filename: string
+export interface SongDownloadMetadata {
+	title: string
+	artist: string
+	album: string
+	trackNumber: number
+	genre: string
+	year: string
+	lyrics: string
+	coverUrl: string
+	format: string
 }
 
-export interface BatchDownloadOptions {
-	songs: { url: string; filename: string }[]
+export interface DownloadWithMetadataOptions {
+	url: string
+	filename: string
+	metadata: SongDownloadMetadata
+}
+
+export interface DownloadWithMetadataRequest {
+	url: string
+	filename: string
+	metadata: SongDownloadMetadata
 }
 
 // ---- 歌曲管理 ----

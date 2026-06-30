@@ -83,12 +83,7 @@ const handleRemoveLibrary = (library: any) => {
 };
 
 const handleRescanLibrary = async (library: any) => {
-  infoModalTitle.value = "开始扫描";
-  infoModalMessage.value = `正在重新扫描音乐库 "${library.name}"...`;
-  showInfoModal.value = true;
-
   await mediaStore.scanMusic(library.id, true);
-  // 扫描结果由 store 中的 watcher 或其他地方处理，这里只提示开始
 };
 
 

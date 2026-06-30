@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import { usePlayerStore, PlayMode } from '../../store/player';
+import { useMediaStore } from '../../store/media';
 import { useLyricsStore } from '../../store/lyrics';
 import { useUiStore } from '../../store/ui';
 import defaultCoverImage from '../../assets/default_img.jpg';
@@ -22,10 +23,12 @@ declare global {
     isSeekingFromTimer?: any;
     _onlineAudio?: any;
     _onlineCoverUrl?: any;
+    handleAudioEnded?: () => Promise<void>;
   }
 }
 
 const playerStore = usePlayerStore();
+const mediaStore = useMediaStore();
 const uiStore = useUiStore();
 const timelineRef = ref<any>(null);
 const volumeRef = ref<any>(null);
@@ -35,6 +38,12 @@ const coverLoadError = ref(false);
 const playbackError = ref<any>(null);
 const isDraggingVolume = ref(false);
 const onlineDuration = ref(0);
+
+const hasValidSong = computed(() => {
+  if (playerStore.isOnlineSong) return true
+  if (!playerStore.currentSong) return false
+  return mediaStore.songs.some((s) => s.id === playerStore.currentSong!.id)
+})
 
 const uiShowPlaylist = computed(() => (uiStore as any).showPlaylist);
 
@@ -90,6 +99,7 @@ if (!window.isSeekingFromTimer) window.isSeekingFromTimer = false; // 新增：�
 
 // 处理音频播放结束的通用逻辑
 const handleAudioEnded = async () => {
+window.handleAudioEnded = handleAudioEnded
     const wasPlaying = window.isAudioPlaying;
     const currentMode = playerStore.playMode;
 
@@ -395,19 +405,8 @@ const setPlayTime = (event: any) => {
         window.isPositionLocked = false;
     }, 300);
 
-    // 更新 store 状态 + 音频引擎 seek
+    // 更新 store 状态 + 音频引擎 seek（seek 内部已处理本地 seek）
     playerStore.seek(newTime);
-
-    // 实际音频引擎 seek
-    if (window.sourceNode && window.audioContext && window.decodedAudioBuffer && window.gainNode) {
-        try { window.sourceNode.onended = null; window.sourceNode.stop(); } catch {}
-        window.sourceNode = window.audioContext.createBufferSource();
-        window.sourceNode.buffer = window.decodedAudioBuffer;
-        window.sourceNode.connect(window.gainNode);
-        window.sourceNode.onended = handleAudioEnded;
-        window.sourceNode.start(0, newTime);
-        window.songStartTimeInAc = window.audioContext.currentTime;
-    }
 };
 
 // 点击音量条设置音量
@@ -534,7 +533,6 @@ const loadSongCover = async (songId: any) => {
             // 封面加载成功后更新媒体会话元数据
             updateMediaSessionMetadata();
         } else {
-            console.error("加载封面失败:", result.error);
             coverImage.value = null;
             coverLoadError.value = true;
         }
@@ -588,6 +586,21 @@ watch(
     },
     { deep: true }
 );
+
+// 监听歌曲库加载完成，恢复本地播放
+watch(
+    () => mediaStore.songs.length,
+    (newLen, oldLen) => {
+        if (oldLen === 0 && newLen > 0 && playerStore.currentSong && !playerStore.isOnlineSong) {
+            const song = mediaStore.songs.find((s) => s.id === playerStore.currentSong!.id)
+            if (song) {
+                loadSongCover(song.id)
+                window.electronAPI.playerPlay({ filePath: song.filePath })
+                updateMediaSessionMetadata()
+            }
+        }
+    }
+)
 
 // 监听播放状态的变化，更新媒体会话播放状态
 watch(
@@ -808,9 +821,14 @@ onMounted(async () => {
 
             // 如果状态是播放，则开始播放
             if (playerStore.playing) {
-                playAudioBuffer(playerStore.currentTime);
+                playAudioBuffer(0);
                 // 更新媒体会话播放状态
                 updateMediaSessionPlaybackState();
+            }
+
+            // 如果 currentTime > 0，说明是 seek 后的重处理，修正起始偏移
+            if (playerStore.currentTime > 0) {
+                window.songStartOffset = playerStore.currentTime;
             }
 
         } catch (error) {
@@ -942,7 +960,7 @@ const showLyrics = async () => {
         playbackError ? 'border-t-accent-danger' : ''
     ]">
         <!-- 有歌曲：正常三栏布局 -->
-        <template v-if="playerStore.currentSong || playerStore.isOnlineSong">
+        <template v-if="hasValidSong">
             <div class="flex items-center gap-4 min-w-0 max-sm:justify-center max-sm:order-1">
                 <img :src="coverImage || defaultCoverImage"
                     :class="[

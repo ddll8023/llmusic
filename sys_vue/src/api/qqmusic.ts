@@ -78,3 +78,10 @@ export function getUserLikedSongs(page = 1, pageSize = 20) {
 export function getPlaylistSongs(playlistId: number, page = 1, pageSize = 20) {
   return qqmusicClient.post<ApiResponse>(`/playlist/${playlistId}/songs`, { page, pageSize })
 }
+
+// ========== 下载元数据 ==========
+
+/** 获取歌曲下载元数据包（详情+封面+歌词+下载链接） */
+export function getSongDownloadBundle(requestId: string, songMid: string) {
+  return qqmusicClient.post<ApiResponse<{ songMid: string; songName: string; singer: string; album: { albumMid: string; albumCoverUrl: string }; trackNumber: number; genre: string; year: string; lyrics: string; songUrl: { url: string; urlType: string } }>>('/song/download-bundle', { requestId, songMid })
+}

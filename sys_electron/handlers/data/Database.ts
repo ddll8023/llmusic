@@ -698,7 +698,8 @@ interface DeleteSongResult {
 	success: boolean
 	message?: string
 	error?: string
-	deletedSong?: { id: string; title: string; artist: string }
+	warning?: string
+	deletedSong?: { id: string; title: string; artist: string; filePath: string }
 	removedFromPlaylists?: number
 }
 
@@ -746,6 +747,7 @@ async function deleteSong(songId: string): Promise<DeleteSongResult> {
 				id: songToDelete.id,
 				title: songToDelete.title,
 				artist: songToDelete.artist,
+				filePath: songToDelete.filePath,
 			},
 			removedFromPlaylists,
 		}

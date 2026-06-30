@@ -81,6 +81,12 @@ class CheckQRCodeRequest(BaseModel):
     session_id: str = Field(..., description="登录会话 ID")
 
 
+class SongDownloadBundleRequest(BaseModel):
+    """歌曲下载元数据包请求"""
+    requestId: str = Field(default="0", description="请求 ID")
+    songMid: str = Field(..., description="歌曲 MID")
+
+
 # ========== 响应类（Response）==========
 
 
@@ -131,5 +137,21 @@ class SongUrlItem(BaseModel):
 class SongUrlResponse(BaseModel):
     requestId: str = Field(default="", description="请求 ID")
     result: list[SongUrlItem] = Field(default=[], description="歌曲 URL 列表")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SongDownloadBundleResponse(BaseModel):
+    """歌曲下载元数据包，平台无关，各平台 Service 填充对应字段"""
+    songMid: str = Field(default="", description="歌曲 MID")
+    songName: str = Field(default="", description="歌曲名称")
+    singer: str = Field(default="", description="歌手")
+    album: AlbumInfo = Field(default_factory=AlbumInfo, description="专辑信息")
+    trackNumber: int = Field(default=0, description="专辑曲目号")
+    genre: str = Field(default="", description="流派")
+    year: str = Field(default="", description="发行年份")
+    duration: int = Field(default=0, description="时长（秒）")
+    lyrics: str = Field(default="", description="LRC 歌词文本（含翻译/音译）")
+    songUrl: SongUrlInfo = Field(default_factory=SongUrlInfo, description="歌曲下载链接")
 
     model_config = ConfigDict(from_attributes=True)

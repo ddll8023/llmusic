@@ -25,7 +25,7 @@ declare global {
 		getSongById: (id: string) => Promise<IpcResult<{ song?: import('./api').Song }>>
 		incrementPlayCount: (id: string) => Promise<IpcResult<{ song: import('./api').Song }>>
 		parseSongFromFile: (filePath: string) => Promise<IpcResult<{ song?: import('./api').Song }>>
-		deleteSong: (id: string) => Promise<IpcResult>
+		deleteSong: (id: string) => Promise<IpcResult<{ warning?: string }>>
 		clearAllSongs: () => Promise<IpcResult>
 
 		// ── 封面 & 歌词 ──
@@ -54,10 +54,22 @@ declare global {
 		addSongsToPlaylist: (playlistId: string, songIds: string[]) => Promise<IpcResult>
 		removeSongsFromPlaylist: (playlistId: string, songIds: string[]) => Promise<IpcResult>
 
-		// ── 下载 ──
-		downloadFile: (data: { url: string; filename: string }) => Promise<IpcResult<{ filePath?: string }>>
-		/** 调试：绕过 compatAPI 直接调 ipcRenderer.invoke */
-		batchDownloadFiles: (data: { songs: { url: string; filename: string }[] }) => Promise<IpcResult<{ results?: { filename: string; success: boolean }[] }>>
+		// ── 下载（带元数据嵌入） ──
+		downloadSongWithMetadata: (data: {
+			url: string
+			filename: string
+			metadata: {
+				title: string
+				artist: string
+				album: string
+				trackNumber: number
+				genre: string
+				year: string
+				lyrics: string
+				coverUrl: string
+				format: string
+			}
+		}) => Promise<IpcResult<{ filePath?: string }>>
 		showItemInFolder: (filePath: string) => Promise<IpcResult>
 		copyToClipboard: (text: string) => Promise<void>
 		showOpenDialog: (options?: Record<string, unknown>) => Promise<IpcResult<{ path?: string }>>

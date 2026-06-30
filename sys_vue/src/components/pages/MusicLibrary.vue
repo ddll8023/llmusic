@@ -138,19 +138,20 @@ const closeDeleteConfirm = () => {
 };
 
 // 处理删除确认
-const handleDeleteConfirm = async (result: any) => {
+const handleDeleteConfirm = async (song: any) => {
   closeDeleteConfirm();
+  if (!song?.id) return;
 
+  const result = await window.electronAPI.deleteSong(song.id)
   if (result.success) {
-    // 如果删除的是当前播放的歌曲，需要先处理播放状态
-    if (playerStore.currentSong && playerStore.currentSong.id === result.deletedSong.id) {
-      // 清除当前歌曲和播放状态
-      playerStore.currentSong = null;
-      playerStore.playing = false;
+    if (playerStore.currentSong?.id === song.id) {
+      playerStore.currentSong = null
+      playerStore.playing = false
     }
-
-    // 刷新歌曲列表
-    await mediaStore.loadSongs();
+    await mediaStore.loadSongs()
+    if (result.warning) {
+      console.warn(result.warning)
+    }
   }
 };
 

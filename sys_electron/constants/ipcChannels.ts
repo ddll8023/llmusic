@@ -78,9 +78,8 @@ export const CHANNELS = {
 	// --- 在线搜索 ---
 	SEARCH_ONLINE_METADATA: "search-online-metadata",
 
-	// --- 下载 ---
-	DOWNLOAD_FILE: "download-file",
-	BATCH_DOWNLOAD: "batch-download",
+	// --- 下载（带元数据嵌入） ---
+	DOWNLOAD_SONG_WITH_METADATA: "download-song-with-metadata",
 
 	// --- 文件路径获取 ---
 	GET_PATH_FOR_FILE: "get-path-for-file",
