@@ -110,6 +110,33 @@ export const useLyricsStore = defineStore("lyrics", {
 			this.isAutoScrolling = auto
 		},
 
+		/**
+		 * 从 LRC 文本加载歌词（用于在线歌曲）
+		 */
+		loadOnlineLyrics(lrcText: string) {
+			const parsed: LyricLine[] = lrcText.split('\n')
+				.map(line => line.trim())
+				.filter(line => /^\[\d{2}:\d{2}[\.\:]\d{2,3}\]/.test(line))
+				.map(line => {
+					const match = line.match(/^\[(\d{2}):(\d{2})[\.\:](\d{2,3})\](.*)/)
+					if (!match) return null
+					const ms = parseInt(match[1]) * 60000
+						+ parseInt(match[2]) * 1000
+						+ parseInt(match[3]) * (match[3].length === 3 ? 1 : 10)
+					const text = (match[4] || '').trim()
+					if (!text) return null
+					return { time: ms, text }
+				})
+				.filter((l): l is LyricLine => l !== null)
+			this.lines = parsed
+			this.hasLyrics = parsed.length > 0
+			this.currentIndex = -1
+			this.syncOffset = 0
+			this.isAutoScrolling = true
+			this.source = 'online'
+			this.format = 'lrc'
+		},
+
 		/** 重置歌词状态 */
 		reset() {
 			this.lines = []

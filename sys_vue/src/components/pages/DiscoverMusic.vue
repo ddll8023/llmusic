@@ -68,12 +68,18 @@
 
 			<!-- 搜索结果表格 -->
 			<main class="flex-1 overflow-hidden flex flex-col">
-				<OnlineSongTable :songs="discoverStore.searchResults"
+				<BaseSongTable mode="online" :songs="discoverStore.searchResults as any"
 					:start-index="(discoverStore.page - 1) * discoverStore.pageSize + 1"
 					:downloading-ids="discoverStore.downloadingIds"
 					:loading="discoverStore.loading"
 					:loading-text="stepText"
 					:error-msg="discoverStore.errorMsg"
+					:show-cover="true"
+					:show-format="true"
+					:show-action="true"
+					:show-checkbox="true"
+					empty-text="暂无搜索结果"
+					@click-song="handleClickSong"
 					@play="handlePlay"
 					@download="handleDownload"
 					@batch-download="handleBatchDownload"
@@ -152,12 +158,14 @@
 		/**
 		 * DiscoverMusic
 		 * 搜索下载主页面
-		 * 依赖组件：OnlineSongTable、CustomSelect、CustomInput、CustomButton、FAIcon
+		 * 依赖组件：BaseSongTable、CustomSelect、CustomInput、CustomButton、FAIcon
 		 */
 		import { computed, ref, watch } from 'vue'
 		import { useDiscoverStore } from '../../store/discover'
 		import { usePlayerStore } from '../../store/player'
-		import OnlineSongTable from '../business/OnlineSongTable.vue'
+		import { useLyricsStore } from '../../store/lyrics'
+		import { getSongDownloadBundle } from '../../api/qqmusic'
+		import BaseSongTable from '../business/BaseSongTable.vue'
 		import CustomSelect from '../custom/CustomSelect.vue'
 		import CustomInput from '../custom/CustomInput.vue'
 		import CustomButton from '../custom/CustomButton.vue'
@@ -190,6 +198,20 @@
 			if (discoverStore.searchMode === 'link') return discoverStore.searchUrl.trim()
 			return discoverStore.keyword.trim()
 		})
+
+		async function handleClickSong(song: any) {
+			handlePlay(song);
+			const lyricsStore = useLyricsStore();
+			lyricsStore.reset();
+			try {
+				const res = await getSongDownloadBundle(String(Date.now()), song.songMid)
+				const data = res.data as any
+				if (data.lyrics) {
+					lyricsStore.loadOnlineLyrics(data.lyrics)
+				}
+			} catch { /* 歌词加载失败不阻塞 */ }
+			playerStore.showLyricsDisplay()
+		}
 
 		const totalPages = computed(() => Math.ceil(discoverStore.total / discoverStore.pageSize))
 

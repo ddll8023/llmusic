@@ -332,7 +332,9 @@ export const usePlayerStore = defineStore('player', {
 				this.currentTime = seekTime
 				this._updateLyricsIndex(seekTime)
 
-				if (window.sourceNode && window.audioContext && window.decodedAudioBuffer) {
+				if (this.isOnlineSong && window._onlineAudio) {
+					window._onlineAudio.currentTime = seekTime
+				} else if (window.sourceNode && window.audioContext && window.decodedAudioBuffer) {
 					try { window.sourceNode.onended = null; window.sourceNode.stop() } catch { /* ignore */ }
 					window.sourceNode = window.audioContext.createBufferSource()
 					window.sourceNode.buffer = window.decodedAudioBuffer

@@ -22,7 +22,10 @@ declare global {
     positionLockTimeout?: any;
     isSeekingFromTimer?: any;
     _onlineAudio?: any;
+    _onlineAudioUrl?: string;
     _onlineCoverUrl?: any;
+    _seekLockTimeout?: any;
+    _onSeeked?: (() => void) | undefined;
     handleAudioEnded?: () => Promise<void>;
   }
 }
@@ -317,7 +320,11 @@ const handleOnlinePlayback = () => {
             }
         });
         window._onlineAudio.addEventListener('ended', () => {
-            playerStore.playNext(true);
+            if (playerStore.playlist.length === 0) {
+                playerStore.setPlaying(false);
+            } else {
+                playerStore.playNext(true);
+            }
         });
         window._onlineAudio.addEventListener('error', (e) => {
             console.error('在线播放出错:', e);
@@ -364,7 +371,8 @@ const volumePercentage = computed(() => {
 
 // 点击进度条设置播放时间
 const setPlayTime = (event: any) => {
-    if (!timelineRef.value || !playerStore.currentSong) return;
+    if (!timelineRef.value) return;
+    if (!playerStore.isOnlineSong && !playerStore.currentSong) return;
 
     // 在线歌曲：使用 HTML5 Audio 的 duration
     if (playerStore.isOnlineSong) {
@@ -372,25 +380,44 @@ const setPlayTime = (event: any) => {
         const percent = (event.clientX - rect.left) / rect.width;
         const audio = window._onlineAudio;
         if (!audio) return;
-        const duration = audio.duration || playerStore.currentSong.duration || 0;
+        const duration = audio.duration || onlineDuration.value || 0;
         if (duration <= 0) return;
         const newTime = percent * duration;
 
-        // 锁定位置，防止 timeupdate 回调立即覆盖
-        if (window.positionLockTimeout) {
-            clearTimeout(window.positionLockTimeout);
+        if (window._seekLockTimeout) {
+            clearTimeout(window._seekLockTimeout);
+        }
+        if (window._onSeeked) {
+            audio.removeEventListener('seeked', window._onSeeked);
         }
         window.isPositionLocked = true;
-        window.positionLockTimeout = setTimeout(() => {
-            window.isPositionLocked = false;
-        }, 300);
-
         playerStore.seek(newTime);
-        if (audio) audio.currentTime = newTime;
+        audio.currentTime = newTime;
+
+        window._onSeeked = () => {
+            window.isPositionLocked = false;
+            window._onSeeked = undefined;
+            if (window._seekLockTimeout) {
+                clearTimeout(window._seekLockTimeout);
+                window._seekLockTimeout = undefined;
+            }
+        };
+        audio.addEventListener('seeked', window._onSeeked);
+
+        window._seekLockTimeout = setTimeout(() => {
+            if (window.isPositionLocked) {
+                window.isPositionLocked = false;
+                audio.removeEventListener('seeked', window._onSeeked!);
+                window._onSeeked = undefined;
+                playerStore.updateCurrentTime(audio.currentTime);
+            }
+            window._seekLockTimeout = undefined;
+        }, 1000);
+
         return;
     }
 
-    if (!window.decodedAudioBuffer) return;
+    if (!playerStore.currentSong || !window.decodedAudioBuffer) return;
 
     const rect = timelineRef.value.getBoundingClientRect();
     const percent = (event.clientX - rect.left) / rect.width;
@@ -587,6 +614,18 @@ watch(
     { deep: true }
 );
 
+// 在线歌曲切歌时（currentSong不变）更新封面
+watch(
+    () => playerStore.onlineSongName,
+    (newName) => {
+        if (newName && playerStore.isOnlineSong) {
+            coverImage.value = window._onlineCoverUrl || null;
+            updateMediaSessionMetadata();
+            handleOnlinePlayback();
+        }
+    }
+);
+
 // 监听歌曲库加载完成，恢复本地播放
 watch(
     () => mediaStore.songs.length,
@@ -606,7 +645,7 @@ watch(
 watch(
     () => playerStore.playing,
     async (isPlaying) => {
-        if (!playerStore.currentSong) {
+        if (!playerStore.isOnlineSong && !playerStore.currentSong) {
             resetAudioPlayer();
             return;
         }
@@ -614,7 +653,19 @@ watch(
         // 在线歌曲由 HTML5 Audio 控制，跳过 Web Audio 操作
         if (playerStore.isOnlineSong) {
             const audio = window._onlineAudio;
-            if (!audio) return;
+            if (!audio) {
+                // 可能是切歌后 Audio 实例未创建，触发一次在线播放初始化
+                if (window._onlineAudioUrl && isPlaying) {
+                    handleOnlinePlayback();
+                    updateMediaSessionPlaybackState();
+                }
+                return;
+            }
+            const expectedUrl = window._onlineAudioUrl;
+            if (expectedUrl && audio.src !== expectedUrl && !audio.src.endsWith(expectedUrl)) {
+                audio.src = expectedUrl;
+                audio.load();
+            }
             if (isPlaying) {
                 audio.play().catch(e => console.error('在线播放失败:', e));
             } else {
@@ -918,12 +969,21 @@ const handleKeydown = (event: any) => {
     else if (event.key === 'ArrowLeft') {
         const newTime = Math.max(0, playerStore.currentTime - 5);
         playerStore.seek(newTime);
+        if (playerStore.isOnlineSong && window._onlineAudio) {
+            window._onlineAudio.currentTime = newTime;
+        }
     }
     // 右箭头：快进 5 秒
     else if (event.key === 'ArrowRight') {
-        if (playerStore.currentSong) {
-            const newTime = Math.min(playerStore.currentSong.duration, playerStore.currentTime + 5);
+        const maxDur = playerStore.isOnlineSong
+            ? onlineDuration.value
+            : (playerStore.currentSong?.duration || 0);
+        if (maxDur > 0) {
+            const newTime = Math.min(maxDur, playerStore.currentTime + 5);
             playerStore.seek(newTime);
+            if (playerStore.isOnlineSong && window._onlineAudio) {
+                window._onlineAudio.currentTime = newTime;
+            }
         }
     }
 };
@@ -932,18 +992,22 @@ const handleKeydown = (event: any) => {
 
 // 显示歌词
 const showLyrics = async () => {
-    if (!playerStore.currentSong) {
+    if (!playerStore.isOnlineSong && !playerStore.currentSong) {
         return;
     }
 
     try {
-        // 如果还没有加载歌词，则先加载歌词
+        if (playerStore.isOnlineSong) {
+            playerStore.showLyricsDisplay();
+            return;
+        }
+
+        if (!playerStore.currentSong) return;
         const lyricsStore = useLyricsStore()
         if (!lyricsStore.hasLyrics) {
             await lyricsStore.loadLyrics(playerStore.currentSong.id);
         }
 
-        // 显示歌词页面
         playerStore.showLyricsDisplay();
     } catch (err) {
         console.error(`显示歌词时出错: ${(err as any).message}`);

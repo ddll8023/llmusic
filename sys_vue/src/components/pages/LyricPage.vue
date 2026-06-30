@@ -139,10 +139,24 @@ const animationStyle = computed(() => uiStore.lyricsAnimationStyle)
 // 当前歌曲
 const currentSong = computed(() => playerStore.currentSong)
 
-// 监听当前歌曲变化，更新封面URL
+// 监听在线/本地状态，更新封面URL
+watch(() => playerStore.isOnlineSong, (isOnline) => {
+	if (isOnline) {
+		albumCoverUrl.value = window._onlineCoverUrl || ''
+	} else if (!playerStore.currentSong) {
+		albumCoverUrl.value = ''
+	}
+}, { immediate: true })
+
+// 在线歌曲切歌时更新封面
+watch(() => playerStore.onlineSongName, (newName) => {
+	if (newName && playerStore.isOnlineSong) {
+		albumCoverUrl.value = window._onlineCoverUrl || ''
+	}
+})
+
 watch(currentSong, async (newSong) => {
 	if (newSong && newSong.id) {
-		// 在线歌曲：直接从 window._onlineCoverUrl 读取
 		if (playerStore.isOnlineSong) {
 			albumCoverUrl.value = window._onlineCoverUrl || ''
 			return
@@ -159,7 +173,7 @@ watch(currentSong, async (newSong) => {
 			console.error('获取封面失败:', error)
 			albumCoverUrl.value = ''
 		}
-	} else {
+	} else if (!playerStore.isOnlineSong) {
 		albumCoverUrl.value = ''
 	}
 }, { immediate: true })
@@ -214,11 +228,13 @@ const resumeAutoScroll = () => {
 
 // 获取歌曲信息
 const songTitle = computed(() => {
-	return playerStore.currentSong ? playerStore.currentSong.title : '未知歌曲'
+	if (playerStore.isOnlineSong) return playerStore.onlineSongName
+	return playerStore.currentSong?.title || '未知歌曲'
 })
 
 const songArtist = computed(() => {
-	return playerStore.currentSong ? playerStore.currentSong.artist : '未知艺术家'
+	if (playerStore.isOnlineSong) return playerStore.onlineSinger
+	return playerStore.currentSong?.artist || '未知艺术家'
 })
 
 // 判断逐字歌词中的某个字是否应高亮
