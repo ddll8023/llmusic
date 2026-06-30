@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import { usePlayerStore, PlayMode } from '../../store/player';
+import { useLyricsStore } from '../../store/lyrics';
 import { useUiStore } from '../../store/ui';
 import defaultCoverImage from '../../assets/default_img.jpg';
 import CustomButton from '../custom/CustomButton.vue';
@@ -853,8 +854,9 @@ const showLyrics = async () => {
 
     try {
         // 如果还没有加载歌词，则先加载歌词
-        if (!playerStore.hasLyrics) {
-            const success = await (playerStore as any).loadLyrics();
+        const lyricsStore = useLyricsStore()
+        if (!lyricsStore.hasLyrics) {
+            await lyricsStore.loadLyrics(playerStore.currentSong.id);
         }
 
         // 显示歌词页面

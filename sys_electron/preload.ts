@@ -17,6 +17,7 @@ function createListener(channel: string, callback: (...args: unknown[]) => void,
 	}
 }
 
+
 // 按功能域分组的API
 const API = {
 	scan: {
@@ -131,7 +132,6 @@ const API = {
 
 // 创建扁平化API结构以保持向后兼容性
 const compatAPI: Record<string, unknown> = {
-	// 音乐扫描
 	scanMusic: API.scan.start,
 	cancelScan: API.scan.cancel,
 	onScanProgress: API.scan.onProgress,

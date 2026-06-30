@@ -6,6 +6,7 @@ import type { OnlineSong } from '@/types'
 type SearchMode = 'link' | 'keyword'
 type SearchStep = '' | 'searching' | 'covers' | 'urls' | 'done'
 
+
 export const useDiscoverStore = defineStore('discover', () => {
 	const searchUrl = ref('')
 	const urlType = ref('song')
@@ -88,10 +89,10 @@ export const useDiscoverStore = defineStore('discover', () => {
 			if (songMids.length > 0) {
 				try {
 					const urlRes = await getSongUrls(currentRequestId, songMids)
-					const urlList = (urlRes.data as { result?: string[] }).result || []
+					const urlList = (urlRes.data as { result?: Array<{ url: string; urlType?: string }> }).result || []
 					songs.forEach((song, idx) => {
 						if (urlList[idx]) {
-							song.songUrl = { url: urlList[idx], urlType: 'mp3' }
+							song.songUrl = { url: urlList[idx].url, urlType: urlList[idx].urlType || 'mp3' }
 						}
 					})
 				} catch {

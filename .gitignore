@@ -23,3 +23,5 @@ sys_electron/dist-ts
 sys_electron/release
 
 *.sh
+
+测试数据

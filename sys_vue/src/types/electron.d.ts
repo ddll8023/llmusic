@@ -55,8 +55,9 @@ declare global {
 		removeSongsFromPlaylist: (playlistId: string, songIds: string[]) => Promise<IpcResult>
 
 		// ── 下载 ──
-		downloadFile: (data: { url: string; filename: string }) => Promise<string>
-		batchDownloadFiles: (data: { songs: { url: string; filename: string }[] }) => Promise<string[]>
+		downloadFile: (data: { url: string; filename: string }) => Promise<IpcResult<{ filePath?: string }>>
+		/** 调试：绕过 compatAPI 直接调 ipcRenderer.invoke */
+		batchDownloadFiles: (data: { songs: { url: string; filename: string }[] }) => Promise<IpcResult<{ results?: { filename: string; success: boolean }[] }>>
 		showItemInFolder: (filePath: string) => Promise<IpcResult>
 		copyToClipboard: (text: string) => Promise<void>
 		showOpenDialog: (options?: Record<string, unknown>) => Promise<IpcResult<{ path?: string }>>

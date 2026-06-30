@@ -74,6 +74,16 @@ export type PlayMode = 'sequence' | 'random' | 'repeat_one'
 export interface LyricLine {
   time: number
   text: string
+  timeText?: string
+  translation?: string
+  roma?: string
+  words?: LyricWord[]
+}
+
+export interface LyricWord {
+  word: string
+  time: number
+  duration: number
 }
 
 export interface LyricMetadata {

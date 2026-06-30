@@ -2,11 +2,13 @@ import { promises as fs } from "fs"
 import { CHANNELS } from "../../constants/ipcChannels"
 import { getSongById } from "../data/Database"
 import type { IpcHandlerModule } from "../../types"
-import type { LyricLine, Song } from "../../types/song"
+import type { LyricLine, LyricWord, Song } from "../../types/song"
 
 const TIMESTAMP_REGEX = /\[(\d{2}):(\d{2})[.:]([\d]{2,3})\]/g
 const METADATA_REGEX = /\[([a-zA-Z]+):(.*?)\]/
 const KNOWN_METADATA_TAGS = new Set(["ar", "ti", "al", "by", "offset"])
+/** 逐字歌词格式：<mm:ss.xx>字 */
+const WORD_LEVEL_REGEX = /<(\d{2}):(\d{2})[.:](\d{2,3})>([^<]+)/g
 
 interface ParsedLrc {
 	metadata: Record<string, string>
@@ -60,7 +62,53 @@ function formatTime(ms: number): string {
 }
 
 /**
- * 解析LRC格式的歌词文本
+ * 解析逐字歌词格式，返回 LyricWord[] 和纯文本
+ *
+ * 输入：[00:12.34] <00:00.12>素<00:00.08>敵<00:00.10>な<00:00.09>世<00:00.08>界
+ * 输出：words=[{word:'素',time:12340,duration:120}, ...], text='素敵な世界'
+ *
+ * @param lineText 移除时间戳后的文本行内容
+ * @param lineStartTime 该行的起始时间 (ms)
+ */
+function parseWordLevel(lineText: string, lineStartTime: number): { words: LyricWord[]; cleanText: string } | null {
+	const words: LyricWord[] = []
+	let match: RegExpExecArray | null
+
+	WORD_LEVEL_REGEX.lastIndex = 0
+	while ((match = WORD_LEVEL_REGEX.exec(lineText)) !== null) {
+		const wordOffset = _parseTimestamp(match)
+		if (wordOffset === null) continue
+		words.push({
+			word: match[4].trim(),
+			time: lineStartTime + wordOffset,
+			duration: 0, // 由后续字的时间差推算
+		})
+	}
+
+	if (words.length === 0) return null
+
+	// 推算每个字的持续时间：本字的 duration = 下字 time - 本字 time
+	for (let i = 0; i < words.length - 1; i++) {
+		words[i].duration = words[i + 1].time - words[i].time
+	}
+	// 最后一个字使用默认时长 200ms
+	if (words.length > 0) {
+		words[words.length - 1].duration = 200
+	}
+
+	// 提取纯文本
+	const cleanText = words.map((w) => w.word).join("")
+
+	return { words, cleanText }
+}
+
+/**
+ * 解析并增强的LRC格式歌词文本
+ *
+ * 增强功能：
+ * 1. 标准 LRC 时间戳解析
+ * 2. 同时间戳多行自动合并翻译（第二行→translation，第三行→roma）
+ * 3. 逐字歌词解析（<time>字 格式）
  */
 function parseLrc(lrcText: string): ParsedLrc {
 	if (typeof lrcText !== "string") {
@@ -69,7 +117,8 @@ function parseLrc(lrcText: string): ParsedLrc {
 
 	const lines = lrcText.split(/\r?\n/)
 	const metadata: Record<string, string> = {}
-	const lyrics: LyricLine[] = []
+	/** 按时间戳分组：key 为时间戳 ms，value 为对应行的文本列表 */
+	const timeMap = new Map<number, string[]>()
 
 	for (const line of lines) {
 		const trimmedLine = line.trim()
@@ -82,7 +131,6 @@ function parseLrc(lrcText: string): ParsedLrc {
 		}
 
 		const timestamps: number[] = []
-		let lyricText = trimmedLine
 		let match: RegExpExecArray | null
 
 		TIMESTAMP_REGEX.lastIndex = 0
@@ -94,16 +142,37 @@ function parseLrc(lrcText: string): ParsedLrc {
 		}
 
 		if (timestamps.length > 0) {
-			lyricText = trimmedLine.replace(TIMESTAMP_REGEX, "").trim()
-
+			const lyricText = trimmedLine.replace(TIMESTAMP_REGEX, "").trim()
 			for (const time of timestamps) {
-				lyrics.push({
-					time,
-					text: lyricText,
-					timeText: formatTime(time),
-				})
+				if (!timeMap.has(time)) {
+					timeMap.set(time, [])
+				}
+				timeMap.get(time)!.push(lyricText)
 			}
 		}
+	}
+
+	// 将 timeMap 转为 LyricLine[]，合并同时间戳的多行
+	const lyrics: LyricLine[] = []
+	for (const [time, texts] of timeMap) {
+		const primary = texts[0] || ""
+
+		// 检测逐字歌词格式
+		const wordResult = parseWordLevel(primary, time)
+		const text = wordResult ? wordResult.cleanText : primary
+		const words = wordResult ? wordResult.words : undefined
+
+		const line: LyricLine = {
+			time,
+			text,
+			timeText: formatTime(time),
+			words,
+			// 第二行文本较短时视为翻译
+			translation: texts.length > 1 && texts[1].length < 200 ? texts[1] : undefined,
+			// 第三行视为罗马音/音译
+			roma: texts.length > 2 && texts[2].length < 200 ? texts[2] : undefined,
+		}
+		lyrics.push(line)
 	}
 
 	lyrics.sort((a, b) => a.time - b.time)

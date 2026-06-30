@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import type { Song } from '@/types'
 import { useMediaStore } from './media'
+import { useLyricsStore } from './lyrics'
 
 export type PlayMode = 'sequence' | 'random' | 'repeat_one'
 
@@ -33,15 +34,7 @@ export const usePlayerStore = defineStore('player', {
 		shuffleQueue: [] as string[],
 		shuffleIndex: -1,
 		playHistory: [] as string[],
-		lyrics: [] as Array<{ time: number; text: string }>,
-		currentLyricIndex: -1,
-		hasLyrics: false,
-		lyricsSyncOffset: 0,
 		showLyrics: false,
-		lyricMetadata: {} as Record<string, string>,
-		lyricsFormat: null as string | null,
-		lyricsSource: null as string | null,
-		isAutoScrolling: true,
 		accumulatedPlayTime: 0,
 		hasBeenCounted: false,
 		isOnlineSong: false,
@@ -104,7 +97,11 @@ export const usePlayerStore = defineStore('player', {
 			this.playing = true
 			this.currentIndex = index
 			this.savePlayerState()
-			this.loadLyrics(song.id)
+
+			// 委托歌词 Store 加载歌词
+			const lyricsStore = useLyricsStore()
+			lyricsStore.loadLyrics(song.id)
+			lyricsStore.setCurrentIndex(-1)
 
 			if (this.playMode === PlayMode.RANDOM) {
 				const posInQueue = this.shuffleQueue.indexOf(song.id)
@@ -261,31 +258,7 @@ export const usePlayerStore = defineStore('player', {
 			}
 		},
 
-		// ── 歌词 ──
-		async loadLyrics(songId: string) {
-			try {
-				const mediaStore = useMediaStore()
-				const song = mediaStore.songs.find((s) => s.id === songId)
-				if (song?.filePath) {
-					const result = await window.electronAPI.getLyrics(songId)
-					if (result) {
-						// 处理 IpcResult 包装
-						const lyricsData = 'success' in result && result.success ? (result as { lyrics?: Array<{ time: number; text: string }> }).lyrics : result
-						if (lyricsData && Array.isArray(lyricsData)) {
-							this.lyrics = lyricsData
-							this.hasLyrics = true
-							return
-						}
-					}
-				}
-				this.lyrics = []
-				this.hasLyrics = false
-			} catch {
-				this.lyrics = []
-				this.hasLyrics = false
-			}
-		},
-
+		// ── 歌词显隐 ──
 		showLyricsDisplay() {
 			this.showLyrics = true
 		},
@@ -312,8 +285,11 @@ export const usePlayerStore = defineStore('player', {
 		},
 
 		seekToLyricPosition(index: number) {
-			if (index >= 0 && index < this.lyrics.length) {
-				this.currentTime = this.lyrics[index].time
+			const lyricsStore = useLyricsStore()
+			const line = lyricsStore.displayLines[index]
+			if (line) {
+				// line.time 为毫秒，currentTime 为秒
+				this.currentTime = line.time / 1000
 			}
 		},
 

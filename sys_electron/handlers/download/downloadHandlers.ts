@@ -26,7 +26,9 @@ function createDownloadHandlers(mainWindow: Electron.BrowserWindow): IpcHandlerM
 					}
 					const buffer = Buffer.from(await response.arrayBuffer())
 					fs.writeFileSync(saveResult.filePath!, buffer)
-					return { success: true, filePath: saveResult.filePath }
+					// JSON round-trip 确保返回值可被 contextBridge 结构化克隆
+					const _result = { success: true, filePath: saveResult.filePath ?? null }
+					return JSON.parse(JSON.stringify(_result))
 				} catch {
 					return { success: false, error: "下载失败" }
 				}
