@@ -5,6 +5,7 @@
  */
 import { ref, computed, onMounted } from 'vue';
 import { useUiStore } from '../../store/ui';
+import { useQqmusicStore } from '../../store/qqmusic';
 import { usePlaylistStore } from '../../store/playlist';
 import { useMediaStore } from '../../store/media';
 import { useAuthStore } from '../../store/auth';
@@ -14,6 +15,7 @@ import FAIcon from '../common/FAIcon.vue';
 import CustomButton from '../custom/CustomButton.vue';
 
 const uiStore = useUiStore();
+const qqmusicStore = useQqmusicStore();
 const playlistStore = usePlaylistStore();
 const mediaStore = useMediaStore();
 const authStore = useAuthStore();
@@ -47,6 +49,11 @@ onMounted(async () => {
 
   // 监听平台可见性变化
   window.addEventListener('platform-visibility-change', loadPlatformVisibility);
+
+  // 加载 QQ 音乐歌单
+  if (authStore.isLoggedIn) {
+    qqmusicStore.loadUserPlaylists();
+  }
 });
 
 const handleSetLibrary = (libraryId: any) => {
@@ -135,6 +142,39 @@ const handlePlatformNav = (view: string) => {
         <span v-if="!isCollapsed">{{ navItem.label }}</span>
       </div>
     </template>
+
+    <!-- QQ 音乐歌单列表 -->
+    <template v-if="qqmusicStore.userPlaylists.length > 0">
+      <div
+        v-for="playlist in qqmusicStore.userPlaylists" :key="playlist.id"
+        @click="qqmusicStore.setCurrentPlaylistId(playlist.id); uiStore.setView('qq-playlist-detail')"
+        class="group relative flex items-center cursor-pointer whitespace-nowrap overflow-hidden text-sm leading-normal rounded transition-[background-color,color] duration-150 hover:bg-surface-overlay hover:text-content-base"
+        :class="[
+          isCollapsed ? 'justify-center px-1 py-2.5' : 'px-2 py-2.5 pr-[30px]',
+          qqmusicStore.currentPlaylistId === playlist.id ? 'bg-surface-overlay text-content-base' : ''
+        ]"
+      >
+        <FAIcon
+          :name="playlist.id === qqmusicStore.likedPlaylistId ? 'heart' : 'list'" size="medium" color="primary" :clickable="true"
+          :class="isCollapsed ? 'mr-0' : 'mr-4'"
+        />
+        <span v-if="!isCollapsed" class="flex-1 truncate" :title="playlist.title">{{ playlist.title }}</span>
+        <span v-if="!isCollapsed" class="text-[10px] text-content-tertiary shrink-0 ml-1">{{ playlist.songCount }}首</span>
+        <div
+          v-if="!isCollapsed"
+          class="absolute right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-[opacity,transform] duration-150 translate-x-1 group-hover:translate-x-0"
+          @click.stop
+        >
+          <CustomButton type="icon-only" size="small" icon="play" title="播放全部" circle @click="qqmusicStore.loadPlaylistSongs(playlist.id); /* TODO: play all */" />
+        </div>
+      </div>
+    </template>
+    <div v-else-if="!authStore.isLoggedIn && !isCollapsed" class="text-xs text-content-tertiary pl-2 py-2">
+      登录后展示歌单
+    </div>
+    <div v-else-if="qqmusicStore.playlistsLoading && !isCollapsed" class="text-xs italic text-content-disabled pl-2 py-2">
+      加载中...
+    </div>
 
     <!-- 本地音乐 -->
     <div

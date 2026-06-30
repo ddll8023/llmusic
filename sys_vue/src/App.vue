@@ -12,8 +12,6 @@ import TitleBar from './components/system/TitleBar.vue';
 import GlobalScanProgress from './components/system/GlobalScanProgress.vue';
 import LyricPage from './components/pages/LyricPage.vue';
 import DiscoverMusic from './components/pages/DiscoverMusic.vue';
-import QQMusicLiked from './components/pages/QQMusicLiked.vue';
-import QQMusicPlaylists from './components/pages/QQMusicPlaylists.vue';
 import QQMusicPlaylistDetail from './components/pages/QQMusicPlaylistDetail.vue';
 import { useUiStore } from './store/ui';
 import { usePlaylistStore } from './store/playlist';
@@ -174,8 +172,6 @@ onUnmounted(() => {
                 <Settings v-else-if="uiStore.currentView === 'settings'" />
                 <PlaylistContent v-else-if="uiStore.currentView === 'playlist'"
                     :navigate-to-main="() => uiStore.setView('main')" />
-                <QQMusicLiked v-else-if="uiStore.currentView === 'qq-liked'" />
-                <QQMusicPlaylists v-else-if="uiStore.currentView === 'qq-playlists'" />
                 <QQMusicPlaylistDetail v-else-if="uiStore.currentView === 'qq-playlist-detail'" />
             </div>
         </div>

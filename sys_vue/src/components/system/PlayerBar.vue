@@ -34,6 +34,7 @@ const isLoadingCover = ref(false);
 const coverLoadError = ref(false);
 const playbackError = ref<any>(null);
 const isDraggingVolume = ref(false);
+const onlineDuration = ref(0);
 
 const uiShowPlaylist = computed(() => (uiStore as any).showPlaylist);
 
@@ -288,13 +289,62 @@ const resetAudioPlayer = () => {
 
 };
 
+// 在线歌曲 HTML5 Audio 播放
+const handleOnlinePlayback = () => {
+    const url = window._onlineAudioUrl;
+    if (!url) return;
+
+    if (!window._onlineAudio) {
+        window._onlineAudio = new Audio();
+        window._onlineAudio.addEventListener('timeupdate', () => {
+            if (!window.isPositionLocked && window._onlineAudio) {
+                playerStore.updateCurrentTime(window._onlineAudio.currentTime);
+            }
+        });
+        window._onlineAudio.addEventListener('loadedmetadata', () => {
+            if (window._onlineAudio && isFinite(window._onlineAudio.duration)) {
+                onlineDuration.value = window._onlineAudio.duration;
+            }
+        });
+        window._onlineAudio.addEventListener('ended', () => {
+            playerStore.playNext(true);
+        });
+        window._onlineAudio.addEventListener('error', (e) => {
+            console.error('在线播放出错:', e);
+            playbackError.value = '在线播放失败';
+        });
+    }
+
+    if (window._onlineAudio.src !== url) {
+        window._onlineAudio.src = url;
+    }
+    window._onlineAudio.play().catch(e => console.error('在线播放启动失败:', e));
+};
+
 
 // 进度条百分比
 const progressPercentage = computed(() => {
-    if (playerStore.currentSong && playerStore.currentSong.duration) {
-        return `${(playerStore.currentTime / playerStore.currentSong.duration) * 100}%`;
+    const dur = playerStore.isOnlineSong
+        ? onlineDuration.value
+        : (playerStore.currentSong?.duration || 0);
+    if (dur > 0) {
+        return `${(playerStore.currentTime / dur) * 100}%`;
     }
     return '0%';
+});
+
+// 在线歌曲显示用
+const displaySongTitle = computed(() =>
+    playerStore.isOnlineSong ? playerStore.onlineSongName : (playerStore.currentSong?.title || '')
+);
+const displaySongArtist = computed(() =>
+    playerStore.isOnlineSong ? playerStore.onlineSinger : (playerStore.currentSong?.artist || '')
+);
+const displayDuration = computed(() => {
+    if (playerStore.isOnlineSong) {
+        return formatTime(onlineDuration.value);
+    }
+    return formatTime(playerStore.currentSong?.duration || 0);
 });
 
 // 音量条百分比
@@ -402,7 +452,7 @@ const endVolumeChange = () => {
 
 // 切换播放/暂停
 const togglePlayPause = async () => {
-    if (!playerStore.currentSong) {
+    if (!playerStore.currentSong && !playerStore.isOnlineSong) {
         playerStore.setPlaying(false);
         return;
     }
@@ -525,6 +575,12 @@ watch(
             // 更新媒体会话元数据
             updateMediaSessionMetadata();
         } else if (!newSong) {
+            if (playerStore.isOnlineSong) {
+                coverImage.value = window._onlineCoverUrl || null;
+                handleOnlinePlayback();
+                updateMediaSessionMetadata();
+                return;
+            }
             resetAudioPlayer();
             coverImage.value = null;
             playerStore.setPlaying(false);
@@ -543,7 +599,17 @@ watch(
         }
 
         // 在线歌曲由 HTML5 Audio 控制，跳过 Web Audio 操作
-        if (playerStore.isOnlineSong) return;
+        if (playerStore.isOnlineSong) {
+            const audio = window._onlineAudio;
+            if (!audio) return;
+            if (isPlaying) {
+                audio.play().catch(e => console.error('在线播放失败:', e));
+            } else {
+                audio.pause();
+            }
+            updateMediaSessionPlaybackState();
+            return;
+        }
 
         if (isPlaying) {
             initAudioContext();
@@ -876,7 +942,7 @@ const showLyrics = async () => {
         playbackError ? 'border-t-accent-danger' : ''
     ]">
         <!-- 有歌曲：正常三栏布局 -->
-        <template v-if="playerStore.currentSong">
+        <template v-if="playerStore.currentSong || playerStore.isOnlineSong">
             <div class="flex items-center gap-4 min-w-0 max-sm:justify-center max-sm:order-1">
                 <img :src="coverImage || defaultCoverImage"
                     :class="[
@@ -887,8 +953,8 @@ const showLyrics = async () => {
                     ]"
                     alt="cover" @click="showLyrics" @error="onCoverImageError" title="点击查看歌词" />
                 <div class="flex flex-col min-w-0 flex-1">
-                    <span class="text-sm font-medium text-content-base truncate mb-0.5 max-sm:text-xs max-sm:text-center">{{ playerStore.currentSong.title }}</span>
-                    <span class="text-xs text-content-secondary truncate max-sm:text-2xs max-sm:text-center">{{ playerStore.currentSong.artist }}</span>
+                    <span class="text-sm font-medium text-content-base truncate mb-0.5 max-sm:text-xs max-sm:text-center">{{ displaySongTitle }}</span>
+                    <span class="text-xs text-content-secondary truncate max-sm:text-2xs max-sm:text-center">{{ displaySongArtist }}</span>
                 </div>
                 <CustomButton type="icon-only" icon="heart" icon-size="medium" customClass="max-sm:hidden! text-accent-green"
                     title="收藏歌曲" />
@@ -919,7 +985,7 @@ const showLyrics = async () => {
                                 max-sm:w-2.5 max-sm:h-2.5"></span>
                         </div>
                     </div>
-                    <span class="text-2xs text-content-secondary min-w-[40px] text-center font-medium max-sm:min-w-[35px]">{{ formatTime(playerStore.currentSong.duration) }}</span>
+                    <span class="text-2xs text-content-secondary min-w-[40px] text-center font-medium max-sm:min-w-[35px]">{{ displayDuration }}</span>
                 </div>
             </div>
 

@@ -29,6 +29,7 @@ declare global {
 		isSeekingFromTimer?: boolean
 		_onlineAudio?: HTMLAudioElement | null
 		_onlineCoverUrl?: string
+		_onlineAudioUrl?: string
 		webkitAudioContext?: typeof AudioContext
 	}
 }

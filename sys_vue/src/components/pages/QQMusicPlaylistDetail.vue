@@ -3,27 +3,25 @@
  * QQ 音乐歌单详情页面
  * 展示歌单内的歌曲列表，支持试听
  */
-import { onMounted, computed } from 'vue';
+import { watch, computed } from 'vue';
 import { useQqmusicStore } from '../../store/qqmusic';
 import { usePlayerStore } from '../../store/player';
-import { useUiStore } from '../../store/ui';
 import FAIcon from '../common/FAIcon.vue';
 import CustomButton from '../custom/CustomButton.vue';
 import LoadingSpinner from '../custom/LoadingSpinner.vue';
 
 const qqmusicStore = useQqmusicStore();
 const playerStore = usePlayerStore();
-const uiStore = useUiStore();
 
 const currentPlaylist = computed(() =>
   qqmusicStore.userPlaylists.find((p) => p.id === qqmusicStore.currentPlaylistId)
 );
 
-onMounted(() => {
-  if (qqmusicStore.currentPlaylistId && qqmusicStore.currentPlaylistSongs.length === 0) {
-    qqmusicStore.loadPlaylistSongs(qqmusicStore.currentPlaylistId);
+watch(() => qqmusicStore.currentPlaylistId, (newId) => {
+  if (newId) {
+    qqmusicStore.loadPlaylistSongs(newId);
   }
-});
+}, { immediate: true })
 
 const handlePlay = (song: any) => {
   const playable = {
@@ -36,9 +34,8 @@ const handlePlay = (song: any) => {
   playerStore.playOnlineSong(playable);
 };
 
-const handleBack = () => {
-  qqmusicStore.clearCurrentPlaylist();
-  uiStore.setView('qq-playlists');
+const handleDownload = async (song: any) => {
+  await qqmusicStore.downloadSong(song);
 };
 
 const handlePageChange = (page: number) => {
@@ -50,13 +47,8 @@ const handlePageChange = (page: number) => {
 
 <template>
   <div class="p-6 text-content-base h-full overflow-y-auto max-md:p-4">
-    <!-- 返回按钮 + 标题 -->
+    <!-- 标题 -->
     <div class="flex items-center gap-3 mb-6">
-      <CustomButton
-        type="icon-only" size="small" icon="arrow-left" circle
-        @click="handleBack"
-        title="返回歌单列表"
-      />
       <div>
         <h2 class="text-xl font-bold max-md:text-lg">{{ currentPlaylist?.title || '歌单详情' }}</h2>
         <span v-if="currentPlaylist" class="text-xs text-content-secondary">{{ currentPlaylist.songCount }} 首歌曲</span>
@@ -108,6 +100,14 @@ const handlePageChange = (page: number) => {
               :disabled="!song.songUrl?.url"
               @click="handlePlay(song)"
               title="试听"
+            />
+            <CustomButton
+              type="icon-only" size="small"
+              :icon="qqmusicStore.downloadingIds.has(String(song.songMid || song.songId)) ? 'spinner' : 'download'"
+              :loading="qqmusicStore.downloadingIds.has(String(song.songMid || song.songId))"
+              :disabled="!song.songUrl?.url || qqmusicStore.downloadingIds.has(String(song.songMid || song.songId))"
+              title="下载"
+              @click="handleDownload(song)"
             />
           </div>
         </div>

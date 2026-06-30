@@ -38,6 +38,8 @@ export const usePlayerStore = defineStore('player', {
 		accumulatedPlayTime: 0,
 		hasBeenCounted: false,
 		isOnlineSong: false,
+		onlineSongName: '',
+		onlineSinger: '',
 	}),
 
 	getters: {
@@ -274,9 +276,12 @@ export const usePlayerStore = defineStore('player', {
 			this.accumulatedPlayTime = 0
 			this.hasBeenCounted = false
 			this.isOnlineSong = true
+			this.onlineSongName = info.songName
+			this.onlineSinger = info.singer
 			this.currentSong = null
 			this.playing = true
 			window._onlineCoverUrl = info.coverUrl || ''
+			window._onlineAudioUrl = info.url || ''
 		},
 
 		addToPlaylist(songId: string) {

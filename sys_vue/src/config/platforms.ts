@@ -34,10 +34,7 @@ export const musicPlatforms: MusicPlatform[] = [
     name: 'QQ音乐',
     icon: 'qq',
     requireLogin: true,
-    navItems: [
-      { id: 'liked', label: '我喜欢的音乐', icon: 'heart', view: 'qq-liked' },
-      { id: 'playlists', label: '创建的歌单', icon: 'list', view: 'qq-playlists' },
-    ],
+    navItems: [],
   },
   // 新增平台只需在此注册：
   // {
