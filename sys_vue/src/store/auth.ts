@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { getLoginStatus, createQRCode, checkQRCode, logout as logoutApi } from '@/api/auth'
+import { getLoginStatus, createQRCode, checkQRCode, logout as logoutApi } from '@/api/qqmusic'
 import type { UserInfo, QRStatus } from '@/types'
 
 export const useAuthStore = defineStore('auth', () => {

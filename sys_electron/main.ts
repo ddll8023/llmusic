@@ -300,35 +300,6 @@ function createTray(): Tray {
 }
 
 /**
- * 设置内容安全策略 (CSP)
- */
-function setupContentSecurityPolicy(): void {
-	const ses = session.defaultSession
-
-	ses.webRequest.onHeadersReceived((details, callback) => {
-		const csp = [
-			"default-src 'self'",
-			"script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-			"style-src 'self' 'unsafe-inline' https://rsms.me",
-			"font-src 'self' data: https://rsms.me",
-			"connect-src 'self' http://localhost:* ws://localhost:*",
-			"img-src 'self' data: blob: https:",
-			"media-src 'self' https:",
-		].join("; ")
-
-		const responseHeaders = { ...details.responseHeaders }
-		delete responseHeaders["content-security-policy"]
-
-		callback({
-			responseHeaders: {
-				...responseHeaders,
-				"Content-Security-Policy": [csp],
-			},
-		})
-	})
-}
-
-/**
  * 设置窗口关闭行为
  */
 function setCloseWindowBehavior(behavior: string): boolean {
@@ -467,8 +438,6 @@ async function initializeApp(): Promise<void> {
 		validateSongFiles().catch((err: Error) => {
 			console.error("文件验证失败:", err)
 		})
-
-		setupContentSecurityPolicy()
 
 		appState.tray = createTray()
 

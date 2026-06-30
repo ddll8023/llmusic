@@ -29,8 +29,8 @@ declare global {
 		clearAllSongs: () => Promise<IpcResult>
 
 		// ── 封面 & 歌词 ──
-		getSongCover: (songId: string) => Promise<string>
-		getCoverFromFile: (filePath: string) => Promise<string>
+		getSongCover: (songId: string) => Promise<IpcResult<{ cover: string; format: string; source: string }>>
+		getCoverFromFile: (filePath: string) => Promise<IpcResult<{ cover: string; format: string; source: string }>>
 		getLyrics: (songId: string) => Promise<IpcResult<{ lyrics: import('./api').LyricLine[] }>>
 		forceExtractCover: (songId: string) => Promise<IpcResult<{ cover: string; format: string; source: string }>>
 		getPathForFile: (file: File) => Promise<IpcResult<{ filePath: string }>>

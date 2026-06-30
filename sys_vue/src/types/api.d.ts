@@ -128,6 +128,15 @@ export interface ScanProgress {
   message: string
 }
 
+/** QQ 音乐用户歌单项 */
+export interface QMPlaylistItem {
+  id: number
+  title: string
+  coverUrl: string
+  songCount: number
+  createTime: string
+}
+
 // ========================================
 // QQ 音乐登录
 // ========================================

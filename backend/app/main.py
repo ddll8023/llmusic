@@ -4,8 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.auth import router as auth_router
-from app.api.song import router as song_router
+from app.api.qqmusic import router as qqmusic_router
 from app.core.config import settings
 from app.schemas.common import ErrorCode
 from app.schemas.response import error
@@ -20,8 +19,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(song_router, prefix="/api/v1/song")
-app.include_router(auth_router, prefix="/api/v1/auth")
+app.include_router(qqmusic_router, prefix="/api/v1/qqmusic")
 
 
 @app.get("/health")

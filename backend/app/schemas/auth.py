@@ -1,4 +1,4 @@
-"""QQ 音乐登录认证 Schema"""
+"""QQ音乐登录认证 Schema"""
 from pydantic import BaseModel, Field
 
 

@@ -85,6 +85,7 @@ export const usePlayerStore = defineStore('player', {
 			this.accumulatedPlayTime = 0
 			this.hasBeenCounted = false
 			this.isOnlineSong = false
+			window._onlineCoverUrl = ''
 
 			let index = this.playlist.findIndex((id) => id === song.id)
 			if (index === -1) {
@@ -275,6 +276,7 @@ export const usePlayerStore = defineStore('player', {
 			this.isOnlineSong = true
 			this.currentSong = null
 			this.playing = true
+			window._onlineCoverUrl = info.coverUrl || ''
 		},
 
 		addToPlaylist(songId: string) {

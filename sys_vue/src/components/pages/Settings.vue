@@ -9,6 +9,7 @@ import CustomButton from '../custom/CustomButton.vue';
 import CustomInput from '../custom/CustomInput.vue';
 import CustomModal from '../custom/CustomModal.vue';
 import CustomSelect from '../custom/CustomSelect.vue';
+import { musicPlatforms, PLATFORM_VISIBILITY_PREFIX } from '../../config/platforms';
 
 const mediaStore = useMediaStore();
 const playerStore = usePlayerStore();
@@ -149,6 +150,20 @@ const handleLogout = () => {
   };
   showConfirmModal.value = true;
 };
+
+// --- 平台管理 Actions ---
+// 从 localStorage 读取平台可见性
+function getPlatformVisibility(platformId: string): boolean {
+  const stored = localStorage.getItem(`${PLATFORM_VISIBILITY_PREFIX}${platformId}`);
+  return stored === null ? true : stored === 'true';
+}
+
+function togglePlatformVisibility(platformId: string) {
+  const current = getPlatformVisibility(platformId);
+  localStorage.setItem(`${PLATFORM_VISIBILITY_PREFIX}${platformId}`, String(!current));
+  // 通知同窗口内的侧边栏更新
+  window.dispatchEvent(new CustomEvent('platform-visibility-change'));
+}
 </script>
 
 <template>
@@ -190,37 +205,85 @@ const handleLogout = () => {
       </div>
     </div>
 
+    <!-- 平台管理 -->
     <div class="mb-6 max-md:mb-4">
-      <h3 class="text-sm text-content-secondary mb-4 border-b border-line-base pb-2 font-medium max-md:text-[13px]">账号</h3>
-      <div v-if="authStore.isLoggedIn" class="flex justify-between items-center py-3 max-md:flex-col max-md:items-start max-md:gap-2">
-        <div class="flex items-center gap-3">
-          <FAIcon name="user" size="xl" color="secondary" />
-          <div class="flex flex-col">
-            <span class="text-xs text-content-base font-medium">QQ 音乐用户</span>
-            <span class="text-[10px] text-content-secondary">ID: {{ authStore.userInfo.encrypt_uin }}</span>
+      <h3 class="text-sm text-content-secondary mb-4 border-b border-line-base pb-2 font-medium max-md:text-[13px]">平台管理</h3>
+      <div class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-5 mt-4 max-md:grid-cols-1 max-md:gap-4">
+        <div
+          v-for="platform in musicPlatforms" :key="platform.id"
+          class="bg-surface-overlay rounded-lg p-4 flex flex-col border border-transparent transition-all duration-200 min-h-[140px] max-md:min-h-[110px] max-md:p-3 hover:border-overlay-light hover:-translate-y-0.5"
+        >
+          <!-- 头部：平台图标 + 名称 + Toggle -->
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex items-center gap-3">
+              <FAIcon :name="platform.icon" size="lg" color="primary" />
+              <div>
+                <span class="text-sm font-semibold text-content-base block">{{ platform.name }}</span>
+                <span class="text-[10px] text-content-secondary">在线音乐平台</span>
+              </div>
+            </div>
+            <button
+              @click="togglePlatformVisibility(platform.id)"
+              class="relative w-10 h-5 rounded-full transition-colors duration-200 focus:outline-none shrink-0"
+              :class="getPlatformVisibility(platform.id) ? 'bg-accent-green' : 'bg-surface-overlay border border-line-base'"
+            >
+              <span
+                class="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200"
+                :class="getPlatformVisibility(platform.id) ? 'translate-x-5' : 'translate-x-0'"
+              />
+            </button>
           </div>
-          <span v-if="authStore.isExpired" class="text-[10px] text-accent-danger ml-2">凭证已过期</span>
+
+          <!-- 导航项标签 -->
+          <div class="flex flex-wrap gap-2 mb-3">
+            <span
+              v-for="item in platform.navItems" :key="item.id"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] bg-surface-elevated text-content-secondary"
+            >
+              <FAIcon :name="item.icon" size="small" color="secondary" />
+              {{ item.label }}
+            </span>
+          </div>
+
+          <!-- 底部：登录状态 -->
+          <div class="flex items-center justify-between mt-auto pt-2 border-t border-line-base">
+            <div class="flex items-center gap-2">
+              <span
+                class="w-2 h-2 rounded-full"
+                :class="authStore.isLoggedIn ? 'bg-accent-green' : 'bg-content-disabled'"
+              />
+              <span class="text-[10px] text-content-secondary">
+                {{ authStore.isLoggedIn ? '已登录' : '未登录' }}
+              </span>
+              <span v-if="authStore.isLoggedIn && authStore.userInfo.encrypt_uin" class="text-[10px] text-content-tertiary ml-1">
+                ID: {{ authStore.userInfo.encrypt_uin }}
+              </span>
+              <span v-if="authStore.isExpired" class="text-[10px] text-accent-danger ml-1">凭证已过期</span>
+            </div>
+            <div class="flex gap-1">
+              <CustomButton
+                v-if="authStore.isLoggedIn"
+                type="secondary" size="small"
+                customClass="text-[10px]! px-2 py-1!"
+                @click="handleLogout"
+              >
+                退出
+              </CustomButton>
+              <CustomButton
+                v-else
+                type="primary" size="small"
+                customClass="text-[10px]! px-2 py-1!"
+                @click="handleOpenLoginModal"
+              >
+                登录
+              </CustomButton>
+            </div>
+          </div>
         </div>
-        <div class="flex gap-2">
-          <CustomButton v-if="authStore.isExpired" type="primary" size="medium" @click="handleOpenLoginModal">
-            重新登录
-          </CustomButton>
-          <CustomButton type="danger" size="medium" @click="handleLogout">
-            退出登录
-          </CustomButton>
-        </div>
-      </div>
-      <div v-else class="flex justify-between items-center py-3 max-md:flex-col max-md:items-start max-md:gap-2">
-        <span class="text-xs text-content-base max-md:text-[10px]">未登录 QQ 音乐</span>
-        <CustomButton type="primary" size="medium" @click="handleOpenLoginModal">
-          登录
-        </CustomButton>
-      </div>
-      <div class="text-[10px] text-content-secondary -mt-2 pb-4 leading-normal max-md:mt-0 max-md:pb-3">
-        登录后可使用在线搜索、试听和下载功能。
       </div>
     </div>
 
+    <!-- 界面 -->
     <div class="mb-6 max-md:mb-4">
       <h3 class="text-sm text-content-secondary mb-4 border-b border-line-base pb-2 font-medium max-md:text-[13px]">界面</h3>
       <div class="flex justify-between items-center py-3 max-md:flex-col max-md:items-start max-md:gap-2">

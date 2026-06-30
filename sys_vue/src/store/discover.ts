@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, nextTick } from 'vue'
-import { searchSongs, searchByKeyword, getAlbumImages, getSongUrls } from '@/api/song'
+import { searchSongs, searchByKeyword, getAlbumImages, getSongUrls } from '@/api/qqmusic'
 import type { OnlineSong } from '@/types'
 
 type SearchMode = 'link' | 'keyword'
