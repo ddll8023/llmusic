@@ -557,6 +557,8 @@ export const usePlayerStore = defineStore('player', {
 
 		// ── 持久化 ──
 		savePlayerState() {
+			// 在线歌曲不跨会话持久化（URL 过期后无法恢复）
+			if (this.isOnlineSong) return
 			try {
 				const state = {
 					currentSong: this.currentSong,
@@ -589,28 +591,30 @@ export const usePlayerStore = defineStore('player', {
 				const saved = localStorage.getItem('playerState')
 				if (saved) {
 					const state = JSON.parse(saved)
-					this.currentSong = state.currentSong || null
-					this.currentTime = state.currentTime || 0
-					this.volume = state.volume ?? 0.7
-					this.muted = state.muted || false
-					this.playMode = state.playMode || PlayMode.SEQUENCE
-					this.playlist = state.playlist || []
-					this.currentListId = state.currentListId || null
-					this.currentIndex = state.currentIndex ?? -1
-					this.shuffleQueue = state.shuffleQueue || []
-					this.shuffleIndex = state.shuffleIndex ?? -1
-					this.isOnlineSong = state.isOnlineSong || false
-					this.onlineSongName = state.onlineSongName || ''
-					this.onlineSinger = state.onlineSinger || ''
-					this.onlineSongMid = state.onlineSongMid || ''
-			this.onlinePlayQueue = state.onlinePlayQueue || []
-				this.onlinePlayIndex = state.onlinePlayIndex ?? -1
-				this.onlineShuffleQueue = state.onlineShuffleQueue || []
-				this.onlineShuffleIndex = state.onlineShuffleIndex ?? -1
-				if (this.isOnlineSong && this.onlineSongMid) {
-					const lyricsStore = useLyricsStore()
-					lyricsStore.loadOnlineLyricsByMid(this.onlineSongMid)
-				}
+					// 在线歌曲不跨会话恢复（URL 已失效）
+					if (state.isOnlineSong) {
+						this.isOnlineSong = false
+						this.onlineSongName = ''
+						this.onlineSinger = ''
+						this.onlineSongMid = ''
+						this.onlinePlayQueue = []
+						this.onlinePlayIndex = -1
+						this.onlineShuffleQueue = []
+						this.onlineShuffleIndex = -1
+						this.currentSong = null
+						this.playing = false
+					} else {
+						this.currentSong = state.currentSong || null
+						this.currentTime = state.currentTime || 0
+						this.volume = state.volume ?? 0.7
+						this.muted = state.muted || false
+						this.playMode = state.playMode || PlayMode.SEQUENCE
+						this.playlist = state.playlist || []
+						this.currentListId = state.currentListId || null
+						this.currentIndex = state.currentIndex ?? -1
+						this.shuffleQueue = state.shuffleQueue || []
+						this.shuffleIndex = state.shuffleIndex ?? -1
+					}
 				}
 			} catch {
 				// 解析失败时使用默认值

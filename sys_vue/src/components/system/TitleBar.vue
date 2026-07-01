@@ -29,6 +29,10 @@ const uiStore = useUiStore();
           <FAIcon name="music" size="medium" color="accent" />
         </div>
         <span class="text-xs font-medium leading-normal text-content-base truncate transition-colors duration-200 max-md:text-2xs">LLMusic</span>
+        <div style="-webkit-app-region: no-drag">
+          <CustomButton type="icon-only" size="small" icon="cog" icon-size="small"
+            customClass="title-bar__button" @click="uiStore.setView('settings')" title="设置" />
+        </div>
       </div>
 
       <div class="flex shrink-0" style="-webkit-app-region: no-drag">

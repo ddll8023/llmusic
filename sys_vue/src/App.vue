@@ -160,7 +160,7 @@ onUnmounted(() => {
         <!-- 全局扫描进度 -->
         <GlobalScanProgress />
 
-        <div class="flex h-[calc(100vh-122px)] overflow-hidden" :class="layoutClasses">
+        <div class="flex flex-1 overflow-hidden" :class="layoutClasses">
             <div class="sidebar-container">
                 <SideBar />
                 <div class="w-1 bg-transparent cursor-col-resize shrink-0 hover:bg-overlay-light" @mousedown="startResize" @dblclick="handleResizeHandleDoubleClick"></div>
@@ -175,7 +175,7 @@ onUnmounted(() => {
                 <QQMusicPlaylistDetail v-else-if="uiStore.currentView === 'qq-playlist-detail'" />
             </div>
         </div>
-        <div class="playlist-container" :class="{ 'is-visible': uiStore.isPlaylistVisible }">
+        <div class="playlist-container" :class="{ 'is-visible': uiStore.isPlaylistVisible, 'playerbar-collapsed': uiStore.playerBarCollapsed }">
             <Playlist />
         </div>
         <PlayerBar />
@@ -210,7 +210,7 @@ onUnmounted(() => {
     position: fixed;
     top: 32px;
     right: 0;
-    bottom: 90px;
+    bottom: 130px;
     width: 350px;
     z-index: 150;
     transform: translateX(100%);
@@ -219,6 +219,10 @@ onUnmounted(() => {
 
 .playlist-container.is-visible {
     transform: translateX(0);
+}
+
+.playlist-container.playerbar-collapsed {
+    bottom: 90px;
 }
 
 @media (max-width: 1024px) {

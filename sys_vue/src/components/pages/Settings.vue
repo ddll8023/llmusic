@@ -200,6 +200,23 @@ function togglePlatformVisibility(platformId: string) {
       </div>
     </div>
 
+    <!-- 元数据管理 -->
+    <div class="mb-6 max-md:mb-4">
+      <h3 class="text-sm text-content-secondary mb-4 border-b border-line-base pb-2 font-medium max-md:text-[13px]">元数据管理</h3>
+      <div class="flex justify-between items-center py-3">
+        <div>
+          <span class="text-xs text-content-base">标签编辑器</span>
+          <div class="text-[10px] text-content-secondary mt-1 leading-normal">批量编辑歌曲标签、封面图片和歌词</div>
+        </div>
+        <CustomButton type="secondary" size="small" @click="uiStore.setView('metadata')">
+          打开
+        </CustomButton>
+      </div>
+      <div class="text-[10px] text-content-secondary -mt-2 pb-4 leading-normal">
+        编辑本地音乐文件的元数据信息，包括标题、歌手、专辑、封面和歌词。
+      </div>
+    </div>
+
     <!-- 平台管理 -->
     <div class="mb-6 max-md:mb-4">
       <h3 class="text-sm text-content-secondary mb-4 border-b border-line-base pb-2 font-medium max-md:text-[13px]">平台管理</h3>

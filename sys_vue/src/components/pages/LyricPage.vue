@@ -1,7 +1,8 @@
 <template>
 	<div class="lyric-page" :class="[
 		'lyric-page--' + animationStyle,
-		{ 'lyric-page--show': playerStore.showLyrics }
+		{ 'lyric-page--show': playerStore.showLyrics,
+		  'playerbar-collapsed': uiStore.playerBarCollapsed }
 	]" @click="handleBackgroundClick">
 		<div class="lyric-page__container flex w-full max-w-[1400px] h-full mx-auto px-8 box-border items-stretch max-md:flex-col max-md:px-4">
 			<!-- 左侧专辑封面区域 -->
@@ -325,7 +326,7 @@ onUnmounted(() => {
 /* 歌词页面动画系统 */
 .lyric-page {
 	position: fixed;
-	left: 0; right: 0; top: 32px; bottom: 90px;
+	left: 0; right: 0; top: 32px; bottom: 0;
 	z-index: 100;
 	pointer-events: none;
 	overflow: hidden;
@@ -350,6 +351,15 @@ onUnmounted(() => {
 	transform: translateY(0); visibility: visible;
 	transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s;
 	pointer-events: all;
+}
+
+/* 内容区底部留白，避开悬浮 PlayerBar */
+.lyric-page__content-section {
+  padding-bottom: 90px;
+  transition: padding-bottom 0.35s cubic-bezier(.16,1,.3,1);
+}
+.lyric-page.playerbar-collapsed .lyric-page__content-section {
+  padding-bottom: 76px;
 }
 
 /* 歌词行 active 状态 */

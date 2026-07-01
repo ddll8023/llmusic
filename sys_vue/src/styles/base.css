@@ -112,8 +112,21 @@
     width: 100vw;
     overflow: hidden;
     background-color: #121212;
-    --player-bar-height: 90px;
     --title-bar-height: 32px;
+  }
+
+  /* 悬浮 PlayerBar 背后的渐变光晕 — 让玻璃效果有内容可透视 */
+  #app-container::after {
+    content: '';
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 200px;
+    background: var(--album-glow, radial-gradient(ellipse 70% 50% at 50% 100%, rgba(76,175,80,.15), rgba(18,18,18,.06), transparent 65%));
+    pointer-events: none;
+    z-index: -1;
+    transition: background 1.2s ease;
   }
 
   /* 自定义滚动条 */

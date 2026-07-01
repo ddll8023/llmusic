@@ -44,6 +44,11 @@
   --color-accent-danger: #f44336;
   --color-accent-warning: #ff9800;
   --color-accent-info: #2196f3;
+  --color-accent-blue: #3257F7;
+  --color-accent-blue-hover: #4A6AF7;
+  --color-accent-blue-active: #1A3FE0;
+  --color-accent-blue-bg: rgba(50,87,247,.12);
+  --color-accent-blue-glow: rgba(50,87,247,.30);
 
   /* 半透明覆盖色 — 源自 $overlay-light / $overlay-medium / $overlay-dark */
   --color-overlay-light: rgba(255, 255, 255, 0.1);
@@ -77,6 +82,33 @@
   --shadow-custom: 0 2px 8px rgba(0, 0, 0, 0.15);
   --shadow-custom-hover: 0 4px 12px rgba(0, 0, 0, 0.2);
   --shadow-custom-active: 0 1px 4px rgba(0, 0, 0, 0.1);
+
+  /* ========== 玻璃质感系统 ========== */
+  /* 玻璃原子值 — 由 useGlassStyles 消费，请勿直接使用 — 见对抗审查 F-DESIGN-001 */
+  --glass-bg: rgba(0,0,0,.10);
+  --glass-radius: 50px;
+  --glass-blur: 12px;
+  --glass-saturate: 1.8;
+  --glass-brightness: 1.16;
+
+  /* 玻璃阴影原子值 */
+  --glass-highlight: inset 0 0 2px 1px rgba(255,255,255,.35);
+  --glass-glow: inset 0 0 10px 4px rgba(255,255,255,.15);
+  --glass-outer-sm: 0 4px 16px rgba(17,17,26,.05);
+  --glass-outer-md: 0 8px 24px rgba(17,17,26,.05);
+  --glass-outer-lg: 0 16px 56px rgba(17,17,26,.05);
+  --glass-inset-sm: inset 0 4px 16px rgba(17,17,26,.05);
+  --glass-inset-md: inset 0 8px 24px rgba(17,17,26,.05);
+  --glass-inset-lg: inset 0 16px 56px rgba(17,17,26,.05);
+
+  /* 按钮玻璃阴影 */
+  --glass-btn-shadow: inset 0 0 2px 1px rgba(255,255,255,.34), inset 0 0 10px 4px rgba(255,255,255,.13), 0 10px 30px rgba(0,0,0,.18);
+  --glass-btn-hover-bg: rgba(255,255,255,.055);
+  --glass-btn-hover-shadow: inset 0 0 2px 1px rgba(255,255,255,.42), inset 0 0 12px 5px rgba(255,255,255,.17), 0 12px 34px rgba(0,0,0,.22), 0 0 18px rgba(255,255,255,.06);
+
+  /* 浅色主题玻璃占位（后续切换主题时启用） */
+  /* --glass-light-bg: rgba(255,255,255,.30); */
+  /* --glass-light-highlight: rgba(255,255,255,.60); */
 
   /* ========== 动画时长 ========== */
 

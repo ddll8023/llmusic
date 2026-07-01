@@ -9,6 +9,7 @@ import { useQqmusicStore } from '../../store/qqmusic';
 import { usePlaylistStore } from '../../store/playlist';
 import { useMediaStore } from '../../store/media';
 import { useAuthStore } from '../../store/auth';
+import { usePlayerStore } from '../../store/player';
 import { musicPlatforms, PLATFORM_VISIBILITY_PREFIX } from '../../config/platforms';
 import type { MusicPlatform } from '../../config/platforms';
 import FAIcon from '../common/FAIcon.vue';
@@ -19,6 +20,7 @@ const qqmusicStore = useQqmusicStore();
 const playlistStore = usePlaylistStore();
 const mediaStore = useMediaStore();
 const authStore = useAuthStore();
+const playerStore = usePlayerStore();
 
 const isCollapsed = computed(() => uiStore.isSidebarCollapsed);
 const collapseIcon = computed(() => isCollapsed.value ? 'chevron-right' : 'chevron-left');
@@ -252,31 +254,8 @@ const handlePlatformNav = (view: string) => {
 
     <div class="flex-grow min-h-5"></div>
 
-    <!-- 底部功能 -->
-    <div
-      @click="uiStore.setView('metadata')"
-      :class="[
-        'flex items-center rounded cursor-pointer whitespace-nowrap overflow-hidden text-sm leading-normal transition-[background-color,color] duration-150',
-        isCollapsed ? 'justify-center px-1 py-2.5' : 'px-2 py-2.5',
-        uiStore.currentView === 'metadata' ? 'bg-surface-overlay text-content-base' : '',
-        'hover:bg-surface-overlay hover:text-content-base'
-      ]"
-    >
-      <FAIcon name="edit" size="medium" color="primary" :clickable="true" :class="isCollapsed ? 'mr-0' : 'mr-4'" />
-      <span v-if="!isCollapsed">元数据管理</span>
-    </div>
-
-    <div
-      @click="uiStore.setView('settings')"
-      :class="[
-        'flex items-center rounded cursor-pointer whitespace-nowrap overflow-hidden text-sm leading-normal transition-[background-color,color] duration-150',
-        isCollapsed ? 'justify-center px-1 py-2.5' : 'px-2 py-2.5',
-        uiStore.currentView === 'settings' ? 'bg-surface-overlay text-content-base' : '',
-        'hover:bg-surface-overlay hover:text-content-base'
-      ]"
-    >
-      <FAIcon name="cog" size="medium" color="primary" :clickable="true" :class="isCollapsed ? 'mr-0' : 'mr-4'" />
-      <span v-if="!isCollapsed">设置</span>
+    <div v-if="!isCollapsed && !playerStore.showLyrics" class="text-[10px] text-content-disabled text-center py-2 select-none leading-normal border-t border-line-base pt-3 mt-1">
+      LLMusic
     </div>
   </div>
 </template>

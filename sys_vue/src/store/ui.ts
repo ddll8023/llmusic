@@ -10,6 +10,8 @@ interface UiState {
 	currentView: string
 	lyricsAnimationStyle: string
 	closeBehavior: string
+	playerBarCollapsed: boolean
+	playerBarAutoHide: boolean
 }
 
 type CloseBehavior = 'exit' | 'minimize'
@@ -48,6 +50,8 @@ export const useUiStore = defineStore('ui', {
 		currentView: 'main',
 		lyricsAnimationStyle: loadState().lyricsAnimationStyle,
 		closeBehavior: loadState().closeBehavior,
+		playerBarCollapsed: false,
+		playerBarAutoHide: false,
 	}),
 
 	getters: {
@@ -178,6 +182,22 @@ export const useUiStore = defineStore('ui', {
 				return true
 			}
 			return false
+		},
+
+		collapsePlayerBar() {
+			this.playerBarCollapsed = true
+		},
+
+		expandPlayerBar() {
+			this.playerBarCollapsed = false
+		},
+
+		togglePlayerBarCollapse() {
+			this.playerBarCollapsed = !this.playerBarCollapsed
+		},
+
+		togglePlayerBarAutoHide() {
+			this.playerBarAutoHide = !this.playerBarAutoHide
 		},
 
 		async initCloseBehavior() {

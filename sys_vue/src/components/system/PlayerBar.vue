@@ -5,10 +5,10 @@ import { useMediaStore } from '../../store/media';
 import { useLyricsStore } from '../../store/lyrics';
 import { useUiStore } from '../../store/ui';
 import defaultCoverImage from '../../assets/default_img.jpg';
-import CustomButton from '../custom/CustomButton.vue';
 import { formatTime } from '../../utils/timeUtils';
+import { useAlbumColors } from '../../composables/useAlbumColors';
+import { useAutoHideTimer } from '../../composables/useAutoHideTimer';
 
-// 扩展 Window 接口，声明自定义属性
 declare global {
   interface Window {
     sourceNode?: any;
@@ -42,6 +42,27 @@ const coverLoadError = ref(false);
 const playbackError = ref<any>(null);
 const isDraggingVolume = ref(false);
 const onlineDuration = ref(0);
+const { extractFromImage, defaultGlow } = useAlbumColors();
+
+const isCollapsed = computed(() => uiStore.playerBarCollapsed)
+const progressPct = computed(() => {
+  const dur = playerStore.isOnlineSong ? onlineDuration.value : (playerStore.currentSong?.duration || 0)
+  return dur > 0 ? Math.min(1, playerStore.currentTime / dur) : 0
+})
+const progressDeg = computed(() => progressPct.value * 360)
+
+// 自动隐藏定时器
+const autoHide = useAutoHideTimer(5000)
+watch(isCollapsed, (v) => { if (!v) autoHide.reset() })
+
+
+
+// 切歌时自动展开
+watch(() => playerStore.currentSong, (newSong, oldSong) => {
+  if (newSong && newSong.id !== (oldSong ? oldSong.id : null)) {
+    uiStore.expandPlayerBar()
+  }
+})
 
 const hasValidSong = computed(() => {
   if (playerStore.isOnlineSong) return true
@@ -53,11 +74,9 @@ const uiShowPlaylist = computed(() => (uiStore as any).showPlaylist);
 
 let scheduledTime = 0;
 
-// 单曲循环重新播放的通用逻辑
 const handleRepeatOneReplay = async () => {
     const currentSongId = playerStore.currentSong?.id;
     const currentSongTitle = playerStore.currentSong?.title;
-    
     if (currentSongId) {
         console.log(`单曲循环: 歌曲 ${currentSongTitle} (ID: ${currentSongId}) 重新播放，增加播放次数`);
         try {
@@ -70,7 +89,6 @@ const handleRepeatOneReplay = async () => {
     }
 };
 
-// 安全停止音频源的通用逻辑
 const safeStopAudioSource = () => {
     if (window.sourceNode) {
         try {
@@ -86,53 +104,38 @@ const safeStopAudioSource = () => {
     }
 };
 
-// Web Audio API 相关状态
-// 将这些变量暴露到window对象，以便其他组件可以访问
-// 如果已经存在，则不重新创建，避免多个组件初始化时出现问题
 if (!window.audioContext) window.audioContext = null;
-if (!window.sourceNode) window.sourceNode = null; // 当前的音频源
-if (!window.decodedAudioBuffer) window.decodedAudioBuffer = null; // 解码后的完整音频缓冲区
-if (!window.songStartTimeInAc) window.songStartTimeInAc = 0; // 歌曲在AudioContext时间线中开始播放的时间
-if (!window.songStartOffset) window.songStartOffset = 0; // 歌曲开始播放的偏移量（用于跳转或暂停）
-if (!window.isAudioPlaying) window.isAudioPlaying = false; // 自定义一个播放状态，因为AudioContext的state不完全同步
+if (!window.sourceNode) window.sourceNode = null;
+if (!window.decodedAudioBuffer) window.decodedAudioBuffer = null;
+if (!window.songStartTimeInAc) window.songStartTimeInAc = 0;
+if (!window.songStartOffset) window.songStartOffset = 0;
+if (!window.isAudioPlaying) window.isAudioPlaying = false;
 if (!window.gainNode) window.gainNode = null;
-if (!window.isPositionLocked) window.isPositionLocked = false; // 新增：防止播放位置被意外重置的锁
-if (!window.positionLockTimeout) window.positionLockTimeout = null; // 新增：用于清除位置锁定的定时器
-if (!window.isSeekingFromTimer) window.isSeekingFromTimer = false; // 新增：用于防止定时器重复触发seek
+if (!window.isPositionLocked) window.isPositionLocked = false;
+if (!window.positionLockTimeout) window.positionLockTimeout = null;
+if (!window.isSeekingFromTimer) window.isSeekingFromTimer = false;
 
-
-// 处理音频播放结束的通用逻辑
 const handleAudioEnded = async () => {
 window.handleAudioEnded = handleAudioEnded
     const wasPlaying = window.isAudioPlaying;
     const currentMode = playerStore.playMode;
-
     if (wasPlaying) {
         window.isAudioPlaying = false;
-
-        // 保存当前歌曲信息，避免异步操作中丢失
         const currentSongId = playerStore.currentSong?.id;
         const currentSongTitle = playerStore.currentSong?.title;
-
         console.log(`onended: 歌曲 ${currentSongTitle} (ID: ${currentSongId}) 播放完成`);
-
         try {
-            // 检查是否是单曲循环模式
             if (currentMode === PlayMode.REPEAT_ONE) {
-                // 延迟一小段时间再重新开始播放，避免可能的竞态条件
                 setTimeout(() => {
                     if (playerStore.playing && playerStore.playMode === PlayMode.REPEAT_ONE) {
                         playerStore.seek(0);
                     }
                 }, 50);
             } else {
-                // 非单曲循环模式，播放下一首
-                // 注意：playNext内部会增加播放次数，所以这里不需要再调用incrementCurrentSongPlayCount
                 await playerStore.playNext(true);
             }
         } catch (error) {
             console.error(`处理歌曲播放完成时出错:`, error);
-            // 即使出错也尝试继续播放
             if (currentMode === PlayMode.REPEAT_ONE) {
                 setTimeout(() => playerStore.seek(0), 50);
             } else {
@@ -142,98 +145,53 @@ window.handleAudioEnded = handleAudioEnded
     }
 };
 
-// MediaSession API 相关代码
 const initMediaSession = () => {
     if ('mediaSession' in navigator) {
-        // 设置MediaSession事件处理
         navigator.mediaSession.setActionHandler('play', () => {
-            if (!playerStore.playing) {
-                playerStore.setPlaying(true);
-            }
+            if (!playerStore.playing) { playerStore.setPlaying(true); }
         });
-
         navigator.mediaSession.setActionHandler('pause', () => {
-            if (playerStore.playing) {
-                playerStore.setPlaying(false);
-            }
+            if (playerStore.playing) { playerStore.setPlaying(false); }
         });
-
-        navigator.mediaSession.setActionHandler('previoustrack', () => {
-            playerStore.playPrevious();
-        });
-
-        navigator.mediaSession.setActionHandler('nexttrack', () => {
-            playerStore.playNext();
-        });
-
+        navigator.mediaSession.setActionHandler('previoustrack', () => { playerStore.playPrevious(); });
+        navigator.mediaSession.setActionHandler('nexttrack', () => { playerStore.playNext(); });
         navigator.mediaSession.setActionHandler('seekto', (details) => {
-            if (details.seekTime !== undefined) {
-                playerStore.seek(details.seekTime);
-            }
+            if (details.seekTime !== undefined) { playerStore.seek(details.seekTime); }
         });
-
-        // 尝试设置其他可选的媒体会话处理程序
         try {
             navigator.mediaSession.setActionHandler('seekbackward', (details) => {
                 const skipTime = details.seekOffset || 10;
-                const newTime = Math.max(0, playerStore.currentTime - skipTime);
-                playerStore.seek(newTime);
+                playerStore.seek(Math.max(0, playerStore.currentTime - skipTime));
             });
-
             navigator.mediaSession.setActionHandler('seekforward', (details) => {
                 const skipTime = details.seekOffset || 10;
-                const newTime = Math.min(
-                    playerStore.currentSong ? playerStore.currentSong.duration : 0,
-                    playerStore.currentTime + skipTime
-                );
-                playerStore.seek(newTime);
+                const maxDur = playerStore.currentSong ? playerStore.currentSong.duration : 0;
+                playerStore.seek(Math.min(maxDur, playerStore.currentTime + skipTime));
             });
-        } catch (error) {
-            console.log('不支持的媒体会话操作:', error);
-        }
+        } catch (error) { console.log('不支持的媒体会话处理程序:', error); }
     }
 };
 
-// 更新媒体会话元数据
 const updateMediaSessionMetadata = () => {
     if (!('mediaSession' in navigator) || !playerStore.currentSong) return;
-
     const song = playerStore.currentSong;
-
     try {
         navigator.mediaSession.metadata = new MediaMetadata({
             title: song.title || '未知歌曲',
             artist: song.artist || '未知艺术家',
             album: song.album || '未知专辑',
-            artwork: [
-                {
-                    src: coverImage.value || defaultCoverImage,
-                    sizes: '512x512',
-                    type: 'image/jpeg'
-                }
-            ]
+            artwork: [{ src: coverImage.value || defaultCoverImage, sizes: '512x512', type: 'image/jpeg' }]
         });
-    } catch (error) {
-        console.error('更新媒体会话元数据失败:', error);
-    }
+    } catch (error) { console.error('更新媒体会话元数据失败:', error); }
 };
 
-// 更新媒体会话播放状态
 const updateMediaSessionPlaybackState = () => {
     if (!('mediaSession' in navigator)) return;
-
-    // 设置播放状态
-    if (playerStore.playing) {
-        navigator.mediaSession.playbackState = 'playing';
-    } else {
-        navigator.mediaSession.playbackState = 'paused';
-    }
+    navigator.mediaSession.playbackState = playerStore.playing ? 'playing' : 'paused';
 };
 
-// 更新媒体会话播放位置
 const updateMediaSessionPosition = () => {
     if (!('mediaSession' in navigator) || !playerStore.currentSong) return;
-
     try {
         if ('setPositionState' in navigator.mediaSession) {
             navigator.mediaSession.setPositionState({
@@ -242,12 +200,9 @@ const updateMediaSessionPosition = () => {
                 playbackRate: 1.0
             });
         }
-    } catch (error) {
-        console.error('更新媒体会话播放位置失败:', error);
-    }
+    } catch (error) { console.error('更新媒体会话播放位置失败:', error); }
 };
 
-// 初始化Web Audio API
 const initAudioContext = () => {
     if (!window.audioContext) {
         try {
@@ -255,7 +210,6 @@ const initAudioContext = () => {
             window.gainNode = window.audioContext.createGain();
             window.gainNode.connect(window.audioContext.destination);
             scheduledTime = window.audioContext.currentTime;
-
         } catch (e) {
             console.error("Web Audio API is not supported in this browser.", e);
             playbackError.value = "浏览器不支持音频播放";
@@ -264,35 +218,25 @@ const initAudioContext = () => {
 };
 
 const playAudioBuffer = (offset = 0) => {
-    if (!window.decodedAudioBuffer || !window.audioContext) {
-        return;
-    }
-
-    // 如果有正在播放的，先停掉
+    if (!window.decodedAudioBuffer || !window.audioContext) return;
     if (window.sourceNode) {
         window.sourceNode.onended = null;
         window.sourceNode.stop();
     }
-
     window.sourceNode = window.audioContext.createBufferSource();
     window.sourceNode.buffer = window.decodedAudioBuffer;
     window.sourceNode.connect(window.gainNode);
-
     window.sourceNode.onended = handleAudioEnded;
-
     const clippedOffset = Math.max(0, Math.min(offset, window.decodedAudioBuffer.duration));
     window.sourceNode.start(0, clippedOffset);
-
     window.songStartTimeInAc = window.audioContext.currentTime;
     window.songStartOffset = clippedOffset;
     window.isAudioPlaying = true;
-
 };
 
-// 重置音频播放器状态
 const resetAudioPlayer = () => {
     if (window.sourceNode) {
-        window.isAudioPlaying = false; // 标记为手动停止
+        window.isAudioPlaying = false;
         window.sourceNode.onended = null;
         window.sourceNode.stop();
         window.sourceNode = null;
@@ -300,14 +244,11 @@ const resetAudioPlayer = () => {
     window.decodedAudioBuffer = null;
     window.songStartTimeInAc = 0;
     window.songStartOffset = 0;
-
 };
 
-// 在线歌曲 HTML5 Audio 播放
 const handleOnlinePlayback = () => {
     const url = window._onlineAudioUrl;
     if (!url) return;
-
     if (!window._onlineAudio) {
         window._onlineAudio = new Audio();
         window._onlineAudio.addEventListener('timeupdate', () => {
@@ -334,14 +275,12 @@ const handleOnlinePlayback = () => {
             playbackError.value = '在线播放失败';
         });
     }
-
     if (window._onlineAudio.src !== url) {
         window._onlineAudio.src = url;
     }
     window._onlineAudio.play().catch(e => console.error('在线播放启动失败:', e));
 };
 
-// 暴露给 playerStore 直接调用，绕过 watcher 时序问题
 window._playOnlineUrl = (url: string) => {
     if (!url) return;
     if (!window._onlineAudio) {
@@ -370,26 +309,17 @@ window._playOnlineUrl = (url: string) => {
             playbackError.value = '在线播放失败';
         });
     }
-
     if (window._onlineAudio.src !== url && !window._onlineAudio.src.endsWith(url)) {
         window._onlineAudio.src = url;
     }
     window._onlineAudio.play().catch(e => console.error('在线播放启动失败:', e));
 };
 
-
-// 进度条百分比
 const progressPercentage = computed(() => {
-    const dur = playerStore.isOnlineSong
-        ? onlineDuration.value
-        : (playerStore.currentSong?.duration || 0);
-    if (dur > 0) {
-        return `${(playerStore.currentTime / dur) * 100}%`;
-    }
-    return '0%';
+    if (progressPct.value <= 0) return '2%'
+    return `${Math.round(progressPct.value * 100)}%`
 });
 
-// 在线歌曲显示用
 const displaySongTitle = computed(() =>
     playerStore.isOnlineSong ? playerStore.onlineSongName : (playerStore.currentSong?.title || '')
 );
@@ -397,23 +327,15 @@ const displaySongArtist = computed(() =>
     playerStore.isOnlineSong ? playerStore.onlineSinger : (playerStore.currentSong?.artist || '')
 );
 const displayDuration = computed(() => {
-    if (playerStore.isOnlineSong) {
-        return formatTime(onlineDuration.value);
-    }
+    if (playerStore.isOnlineSong) return formatTime(onlineDuration.value);
     return formatTime(playerStore.currentSong?.duration || 0);
 });
 
-// 音量条百分比
-const volumePercentage = computed(() => {
-    return `${playerStore.volume * 100}%`;
-});
+const volumePercentage = computed(() => `${playerStore.volume * 100}%`);
 
-// 点击进度条设置播放时间
 const setPlayTime = (event: any) => {
     if (!timelineRef.value) return;
     if (!playerStore.isOnlineSong && !playerStore.currentSong) return;
-
-    // 在线歌曲：使用 HTML5 Audio 的 duration
     if (playerStore.isOnlineSong) {
         const rect = timelineRef.value.getBoundingClientRect();
         const percent = (event.clientX - rect.left) / rect.width;
@@ -422,27 +344,17 @@ const setPlayTime = (event: any) => {
         const duration = audio.duration || onlineDuration.value || 0;
         if (duration <= 0) return;
         const newTime = percent * duration;
-
-        if (window._seekLockTimeout) {
-            clearTimeout(window._seekLockTimeout);
-        }
-        if (window._onSeeked) {
-            audio.removeEventListener('seeked', window._onSeeked);
-        }
+        if (window._seekLockTimeout) { clearTimeout(window._seekLockTimeout); }
+        if (window._onSeeked) { audio.removeEventListener('seeked', window._onSeeked); }
         window.isPositionLocked = true;
         playerStore.seek(newTime);
         audio.currentTime = newTime;
-
         window._onSeeked = () => {
             window.isPositionLocked = false;
             window._onSeeked = undefined;
-            if (window._seekLockTimeout) {
-                clearTimeout(window._seekLockTimeout);
-                window._seekLockTimeout = undefined;
-            }
+            if (window._seekLockTimeout) { clearTimeout(window._seekLockTimeout); window._seekLockTimeout = undefined; }
         };
         audio.addEventListener('seeked', window._onSeeked);
-
         window._seekLockTimeout = setTimeout(() => {
             if (window.isPositionLocked) {
                 window.isPositionLocked = false;
@@ -452,576 +364,117 @@ const setPlayTime = (event: any) => {
             }
             window._seekLockTimeout = undefined;
         }, 1000);
-
         return;
     }
-
     if (!playerStore.currentSong || !window.decodedAudioBuffer) return;
-
     const rect = timelineRef.value.getBoundingClientRect();
     const percent = (event.clientX - rect.left) / rect.width;
     const newTime = percent * window.decodedAudioBuffer.duration;
-
-    // 锁定位置，防止定时器立即覆盖
-    if (window.positionLockTimeout) {
-        clearTimeout(window.positionLockTimeout);
-    }
+    if (window.positionLockTimeout) { clearTimeout(window.positionLockTimeout); }
     window.isPositionLocked = true;
-    window.positionLockTimeout = setTimeout(() => {
-        window.isPositionLocked = false;
-    }, 300);
-
-    // 更新 store 状态 + 音频引擎 seek（seek 内部已处理本地 seek）
+    window.positionLockTimeout = setTimeout(() => { window.isPositionLocked = false; }, 300);
     playerStore.seek(newTime);
 };
 
-// 点击音量条设置音量
 const setVolume = (event: any) => {
     if (!volumeRef.value) return;
-
     const rect = volumeRef.value.getBoundingClientRect();
     const percent = (event.clientX - rect.left) / rect.width;
-    const newVolume = Math.max(0, Math.min(1, percent));
-
-    playerStore.setVolume(newVolume);
+    playerStore.setVolume(Math.max(0, Math.min(1, percent)));
 };
 
-// 切换静音状态
-const toggleMute = () => {
-    playerStore.setMuted(!playerStore.muted);
-};
+const toggleMute = () => { playerStore.setMuted(!playerStore.muted); };
 
-// 开始音量拖动
 const startVolumeChange = (event: any) => {
     isDraggingVolume.value = true;
+    autoHide.pauseOnDrag();
     updateVolume(event);
     document.addEventListener('mousemove', updateVolume);
     document.addEventListener('mouseup', endVolumeChange);
 };
 
-// 更新音量（用于点击和拖动）
-const updateVolume = (event: any) => {
-    if (!volumeRef.value) return;
+function calcVolumeFromEvent(event: any): number {
+    const target = volumeRef.value
+    if (!target) return playerStore.volume
+    const rect = target.getBoundingClientRect()
+    if (rect.width <= 0) return playerStore.volume
+    return Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width))
+}
 
-    const rect = volumeRef.value.getBoundingClientRect();
-    const percent = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
-    playerStore.setVolume(percent);
+const updateVolume = (event: any) => {
+    const vol = calcVolumeFromEvent(event)
+    playerStore.setVolume(vol)
 };
 
-// 结束音量拖动
 const endVolumeChange = () => {
     isDraggingVolume.value = false;
     document.removeEventListener('mousemove', updateVolume);
     document.removeEventListener('mouseup', endVolumeChange);
+    autoHide.resumeAfterDrag();
 };
 
-// 切换播放/暂停
 const togglePlayPause = async () => {
-    if (!playerStore.currentSong && !playerStore.isOnlineSong) {
-        playerStore.setPlaying(false);
-        return;
-    }
+    if (!playerStore.currentSong && !playerStore.isOnlineSong) { playerStore.setPlaying(false); return; }
     if (!playerStore.isOnlineSong) initAudioContext();
-    const targetState = !playerStore.playing;
-    playerStore.setPlaying(targetState);
+    playerStore.setPlaying(!playerStore.playing);
 };
 
-// 切换播放模式
 const togglePlayMode = () => {
     const modes = [PlayMode.SEQUENCE, PlayMode.RANDOM, PlayMode.REPEAT_ONE];
     const currentIndex = modes.indexOf(playerStore.playMode);
     const nextIndex = (currentIndex + 1) % modes.length;
-    const newMode = modes[nextIndex];
-    playerStore.setPlayMode(newMode);
+    playerStore.setPlayMode(modes[nextIndex]);
 };
 
-// 获取播放模式的文本和图标
-const playModeText = computed(() => {
-    switch (playerStore.playMode) {
-        case PlayMode.RANDOM:
-            return "随机播放";
-        case PlayMode.REPEAT_ONE:
-            return "单曲循环";
-        case PlayMode.SEQUENCE:
-        default:
-            return "顺序播放";
-    }
-});
-
-// 播放模式图标的计算属性
 const playModeIconName = computed(() => {
     switch (playerStore.playMode) {
-        case PlayMode.RANDOM:
-            return 'random';
-        case PlayMode.REPEAT_ONE:
-            return 'repeat';
-        case PlayMode.SEQUENCE:
-        default:
-            return 'refresh';
+        case PlayMode.RANDOM: return 'random';
+        case PlayMode.REPEAT_ONE: return 'repeat';
+        case PlayMode.SEQUENCE: default: return 'refresh';
     }
 });
 
-// 加载歌曲封面
 const loadSongCover = async (songId: any) => {
-    if (!songId) {
-        coverImage.value = null;
-        coverLoadError.value = false;
-        return;
-    }
-
+    if (!songId) { coverImage.value = null; coverLoadError.value = false; return; }
     isLoadingCover.value = true;
     coverLoadError.value = false;
-
     try {
         const result = await (window.electronAPI.getSongCover(songId) as any);
         if (result.success && result.cover) {
-            const coverDetails = {
-                format: result.format,
-                fromCache: result.fromCache,
-                dataLength: result.cover ? result.cover.length : 0,
-            };
-
-            if (!result.cover || result.cover.length === 0) {
-                console.error("封面数据为空");
-                coverImage.value = null;
-                coverLoadError.value = true;
-                return;
-            }
-
-            if (!/^[A-Za-z0-9+/=]+$/.test(result.cover)) {
-                console.error("封面数据不是有效的Base64字符串");
-                coverImage.value = null;
-                coverLoadError.value = true;
-                return;
-            }
+            if (!result.cover || result.cover.length === 0) { coverImage.value = null; coverLoadError.value = true; return; }
+            if (!/^[A-Za-z0-9+/=]+$/.test(result.cover)) { coverImage.value = null; coverLoadError.value = true; return; }
             coverImage.value = `data:${result.format};base64,${result.cover}`;
-
-            // 封面加载成功后更新媒体会话元数据
             updateMediaSessionMetadata();
-        } else {
-            coverImage.value = null;
-            coverLoadError.value = true;
-        }
+        } else { coverImage.value = null; coverLoadError.value = true; }
     } catch (error) {
         console.error("加载封面时发生异常:", error);
-        coverImage.value = null;
-        coverLoadError.value = true;
-    } finally {
-        isLoadingCover.value = false;
-    }
+        coverImage.value = null; coverLoadError.value = true;
+    } finally { isLoadingCover.value = false; }
 };
 
 const onCoverImageError = () => {
     coverLoadError.value = true;
     if (coverImage.value !== defaultCoverImage) {
         coverImage.value = defaultCoverImage;
-        // 当封面图片加载失败时，使用默认封面更新媒体会话元数据
         updateMediaSessionMetadata();
     }
 };
 
-// 监听当前歌曲变化，更新媒体会话元数据
-watch(
-    () => playerStore.currentSong,
-    (newSong, oldSong) => {
-        if (newSong && newSong.id !== (oldSong ? oldSong.id : null)) {
-            playbackError.value = null;
-            resetAudioPlayer();
+// 节奏脉冲状态
+const isPulsing = ref(false);
+let pulseTimer: any = null;
 
-            // 在线试听：设置封面 URL，跳过本地播放
-            if (playerStore.isOnlineSong) {
-                coverImage.value = window._onlineCoverUrl || null;
-            } else {
-                loadSongCover(newSong.id);
-                window.electronAPI.playerPlay({ filePath: newSong.filePath });
-            }
+// 更新专辑封面背景光晕
+function updateAlbumGlow(src: string | null) {
+  if (!src || src === defaultCoverImage) {
+    document.documentElement.style.setProperty('--album-glow', defaultGlow);
+    return;
+  }
+  extractFromImage(src);
+}
 
-            // 更新媒体会话元数据
-            updateMediaSessionMetadata();
-        } else if (!newSong) {
-            if (playerStore.isOnlineSong) {
-                coverImage.value = window._onlineCoverUrl || null;
-                handleOnlinePlayback();
-                updateMediaSessionMetadata();
-                return;
-            }
-            resetAudioPlayer();
-            coverImage.value = null;
-            playerStore.setPlaying(false);
-        }
-    },
-    { deep: true }
-);
-
-// 在线歌曲切歌时更新封面和媒体会话（不操作音频，由 _playOnlineUrl 负责）
-watch(
-    () => playerStore.onlineSongName,
-    (newName) => {
-        if (newName && playerStore.isOnlineSong) {
-            coverImage.value = window._onlineCoverUrl || null;
-            updateMediaSessionMetadata();
-        }
-    }
-);
-
-// 监听歌曲库加载完成，恢复本地播放
-watch(
-    () => mediaStore.songs.length,
-    (newLen, oldLen) => {
-        if (oldLen === 0 && newLen > 0 && playerStore.currentSong && !playerStore.isOnlineSong) {
-            const song = mediaStore.songs.find((s) => s.id === playerStore.currentSong!.id)
-            if (song) {
-                loadSongCover(song.id)
-                window.electronAPI.playerPlay({ filePath: song.filePath })
-                updateMediaSessionMetadata()
-            }
-        }
-    }
-)
-
-// 监听播放状态的变化
-watch(
-    () => playerStore.playing,
-    async (isPlaying) => {
-        if (!playerStore.isOnlineSong && !playerStore.currentSong) {
-            resetAudioPlayer();
-            return;
-        }
-
-        // 在线歌曲：仅处理暂停/恢复，切歌由 _applyOnlineSong 直接调用 _playOnlineUrl
-        if (playerStore.isOnlineSong) {
-            if (!isPlaying) {
-                const audio = window._onlineAudio;
-                if (audio) audio.pause();
-            } else {
-                const audio = window._onlineAudio;
-                if (audio) audio.play().catch(e => console.error('在线恢复播放失败:', e));
-            }
-            updateMediaSessionPlaybackState();
-            return;
-        }
-
-        if (isPlaying) {
-            initAudioContext();
-            if (window.audioContext.state === 'suspended') {
-                await window.audioContext.resume();
-            }
-
-            // 无论之前的AudioContext状态如何，只要开始播放就重新创建音频源并从当前位置开始播放
-            if (window.decodedAudioBuffer) {
-                // 如果有正在播放的音源，先停止
-                safeStopAudioSource();
-
-                // 创建新的音频源
-                window.sourceNode = window.audioContext.createBufferSource();
-                window.sourceNode.buffer = window.decodedAudioBuffer;
-                if (window.gainNode) window.sourceNode.connect(window.gainNode);
-
-                // 设置回调
-                window.sourceNode.onended = handleAudioEnded;
-
-                // 从当前时间开始播放
-                const currentPosition = playerStore.currentTime; // 使用store中的currentTime
-                window.sourceNode.start(0, currentPosition);
-                window.songStartTimeInAc = window.audioContext.currentTime;
-                window.songStartOffset = currentPosition;
-                window.isAudioPlaying = true;
-
-            }
-        } else {
-            // 暂停播放
-            if (window.audioContext && window.audioContext.state === 'running') {
-                // 如果位置被锁定，我们使用锁定的位置而不是计算当前位置
-                let currentPosition;
-
-                if (window.isPositionLocked) {
-                    // 使用playerStore中的currentTime作为当前位置
-                    currentPosition = playerStore.currentTime;
-                } else {
-                    // 计算当前实际播放位置
-                    const elapsedTime = window.audioContext.currentTime - window.songStartTimeInAc;
-                    currentPosition = window.songStartOffset + elapsedTime;
-                }
-
-                // 停止当前音源，但需要检查它是否已经开始
-                safeStopAudioSource();
-
-                // 更新偏移量，为下次播放做准备
-                window.songStartOffset = currentPosition;
-                window.isAudioPlaying = false;
-
-                // 更新播放器状态
-                playerStore.updateCurrentTime(currentPosition);
-            }
-        }
-
-        // 更新媒体会话播放状态
-        updateMediaSessionPlaybackState();
-    }
-);
-
-watch(
-    () => playerStore.volume,
-    (newVolume) => {
-        if (window.gainNode && !playerStore.muted) {
-            window.gainNode.gain.value = newVolume;
-        }
-    }
-);
-
-watch(
-    () => playerStore.muted,
-    (newMuted) => {
-        if (window.gainNode) {
-            window.gainNode.gain.value = newMuted ? 0 : playerStore.volume;
-        }
-    }
-);
-
-// 监听播放模式变化
-watch(
-    () => playerStore.playMode,
-    (newMode) => {
-        // 如果是单曲循环模式，且当前歌曲即将结束，则重新开始播放
-        if (newMode === PlayMode.REPEAT_ONE && playerStore.currentSong) {
-            const remainingTime = playerStore.currentSong.duration - playerStore.currentTime;
-            if (remainingTime < 0.5) {
-                playerStore.seek(0);
-            }
-        }
-    }
-);
-
-// 监听封面图片变化，更新媒体会话元数据
-watch(
-    () => coverImage.value,
-    () => {
-        updateMediaSessionMetadata();
-    }
-);
-
-// 监听播放位置变化，更新媒体会话播放位置
-watch(
-    () => playerStore.currentTime,
-    () => {
-        updateMediaSessionPosition();
-    }
-);
-
-// 设置播放器事件监听器
-onMounted(async () => {
-    // 声明清理资源的引用
-    let removeAudioDataListener: any, removeErrorListener: any, progressTimer: any;
-
-    // 添加键盘事件监听器
-    window.addEventListener('keydown', handleKeydown);
-
-    // 在任何await之前注册onUnmounted钩子
-    onUnmounted(() => {
-        // 移除键盘事件监听器
-        window.removeEventListener('keydown', handleKeydown);
-
-        // 确保清理音量拖动的事件监听器
-        if (isDraggingVolume.value) {
-            document.removeEventListener('mousemove', updateVolume);
-            document.removeEventListener('mouseup', endVolumeChange);
-        }
-        // 清理事件监听器
-        if (removeErrorListener) removeErrorListener();
-        if (removeAudioDataListener) removeAudioDataListener();
-
-        // 清理定时器
-        if (progressTimer) clearInterval(progressTimer);
-
-        // 清理音频上下文
-        if (window.audioContext) {
-            window.audioContext.close();
-            window.audioContext = null;
-        }
-
-        // 清理MediaSession处理程序
-        if ('mediaSession' in navigator) {
-            try {
-                navigator.mediaSession.setActionHandler('play', null);
-                navigator.mediaSession.setActionHandler('pause', null);
-                navigator.mediaSession.setActionHandler('previoustrack', null);
-                navigator.mediaSession.setActionHandler('nexttrack', null);
-                navigator.mediaSession.setActionHandler('seekto', null);
-                navigator.mediaSession.setActionHandler('seekbackward', null);
-                navigator.mediaSession.setActionHandler('seekforward', null);
-
-                // 清除元数据
-                navigator.mediaSession.metadata = null;
-            } catch (error) {
-                console.error('清理媒体会话处理程序失败:', error);
-            }
-        }
-
-        // 停止播放
-        window.electronAPI.playerStop().catch(error => {
-            console.error('停止播放失败:', error);
-        });
-    });
-
-    // 加载保存的播放器状态
-    playerStore.loadPlayerState();
-
-    initAudioContext();
-
-    // 初始化媒体会话
-    initMediaSession();
-
-    // 如果有当前歌曲，更新媒体会话元数据
-    if (playerStore.currentSong) {
-        updateMediaSessionMetadata();
-        updateMediaSessionPlaybackState();
-        updateMediaSessionPosition();
-    }
-
-    removeAudioDataListener = window.electronAPI.onPlayerAudioData(async (buffer: any) => {
-        try {
-            // 确保我们收到了有效数据
-            if (!buffer || buffer.byteLength === 0) {
-                throw new Error("Received an empty audio buffer.");
-            }
-            const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
-            window.decodedAudioBuffer = await window.audioContext.decodeAudioData(arrayBuffer);
-
-            // 使用解码出的准确时长更新store
-            if (playerStore.currentSong) {
-                playerStore.updateSongDuration(playerStore.currentSong.id, window.decodedAudioBuffer.duration);
-
-                // 音频加载完成后更新媒体会话元数据和播放位置
-                updateMediaSessionMetadata();
-                updateMediaSessionPosition();
-            }
-
-            // 如果状态是播放，则开始播放
-            if (playerStore.playing) {
-                playAudioBuffer(0);
-                // 更新媒体会话播放状态
-                updateMediaSessionPlaybackState();
-            }
-
-            // 如果 currentTime > 0，说明是 seek 后的重处理，修正起始偏移
-            if (playerStore.currentTime > 0) {
-                window.songStartOffset = playerStore.currentTime;
-            }
-
-        } catch (error) {
-            console.error("解码音频数据时出错:", error);
-            playbackError.value = `音频解码失败: ${(error as any).message}`;
-            window.decodedAudioBuffer = null;
-            playerStore.setPlaying(false);
-        }
-    });
-
-
-    // 监听播放错误事件
-    removeErrorListener = window.electronAPI.onPlayerError((error: any) => {
-        console.error('播放器错误:', error);
-        playbackError.value = `播放错误: ${error.error || '未知错误'}`;
-        playerStore.setPlaying(false);
-    });
-
-    // 启动一个定时器来更新UI进度
-    progressTimer = setInterval(async () => {
-        if (playerStore.playing && window.isAudioPlaying && window.audioContext && window.audioContext.state === 'running') {
-            // 如果位置被锁定，跳过更新
-            if (window.isPositionLocked) {
-                return;
-            }
-
-            const elapsedTime = window.audioContext.currentTime - window.songStartTimeInAc;
-            const newCurrentTime = window.songStartOffset + elapsedTime;
-
-            if (window.decodedAudioBuffer && newCurrentTime < window.decodedAudioBuffer.duration) {
-                // 使用updateCurrentTime方法更新时间，这样会同时更新歌词索引
-                playerStore.updateCurrentTime(newCurrentTime);
-
-                // 检查是否即将结束，且处于单曲循环模式
-                // 提前0.2秒检测，避免可能的延迟导致切换到下一首
-                const remainingTime = window.decodedAudioBuffer.duration - newCurrentTime;
-                if (playerStore.playMode === PlayMode.REPEAT_ONE && remainingTime < 0.2) {
-                    // 单曲循环模式下，提前准备重新开始播放
-                    window.isAudioPlaying = false;
-
-                    // 保存当前歌曲信息，避免异步操作中丢失
-                    const currentSongId = playerStore.currentSong?.id;
-                    const currentSongTitle = playerStore.currentSong?.title;
-
-                    if (currentSongId) {
-                        await handleRepeatOneReplay();
-                    }
-                }
-            } else if (window.decodedAudioBuffer && newCurrentTime >= window.decodedAudioBuffer.duration) {
-                window.isAudioPlaying = false;
-                const currentSongId = playerStore.currentSong?.id;
-                const currentSongTitle = playerStore.currentSong?.title;
-                console.log(`检测到歌曲 ${currentSongTitle} (ID: ${currentSongId}) 播放完成，触发播放完成逻辑`);
-
-                // 直接调用 playNext(true) 即可，它内部会处理播放次数增加
-                if (playerStore.playMode !== PlayMode.REPEAT_ONE) {
-                    playerStore.playNext(true);
-                } else {
-                    // 单曲循环模式下，单独处理
-                    await handleRepeatOneReplay();
-                }
-            }
-        }
-    }, 100);
-
-    // 获取当前播放状态
-    try {
-        const status = await (window.electronAPI.playerGetStatus() as any);
-        if (status.success && status.state === 'playing') {
-            // 同步状态
-            playerStore.updateCurrentTime(status.position);
-        }
-    } catch (error) {
-        console.error('获取播放状态失败:', error);
-    }
-});
-
-
-// 键盘快捷键控制
-const handleKeydown = (event: any) => {
-    // 空格键：播放/暂停
-    if (event.key === ' ' && document.activeElement?.tagName !== 'INPUT') {
-        event.preventDefault();
-        playerStore.togglePlay();
-    }
-    // 左箭头：快退 5 秒
-    else if (event.key === 'ArrowLeft') {
-        const newTime = Math.max(0, playerStore.currentTime - 5);
-        playerStore.seek(newTime);
-        if (playerStore.isOnlineSong && window._onlineAudio) {
-            window._onlineAudio.currentTime = newTime;
-        }
-    }
-    // 右箭头：快进 5 秒
-    else if (event.key === 'ArrowRight') {
-        const maxDur = playerStore.isOnlineSong
-            ? onlineDuration.value
-            : (playerStore.currentSong?.duration || 0);
-        if (maxDur > 0) {
-            const newTime = Math.min(maxDur, playerStore.currentTime + 5);
-            playerStore.seek(newTime);
-            if (playerStore.isOnlineSong && window._onlineAudio) {
-                window._onlineAudio.currentTime = newTime;
-            }
-        }
-    }
-};
-
-
-
-// 显示歌词
 const showLyrics = async () => {
-    if (!playerStore.isOnlineSong && !playerStore.currentSong) {
-        return;
-    }
-
+    if (!playerStore.isOnlineSong && !playerStore.currentSong) return;
     try {
         if (playerStore.isOnlineSong) {
             const lyricsStore = useLyricsStore()
@@ -1031,97 +484,803 @@ const showLyrics = async () => {
             playerStore.showLyricsDisplay();
             return;
         }
-
         if (!playerStore.currentSong) return;
         const lyricsStore = useLyricsStore()
-        if (!lyricsStore.hasLyrics) {
-            await lyricsStore.loadLyrics(playerStore.currentSong.id);
-        }
-
+        if (!lyricsStore.hasLyrics) { await lyricsStore.loadLyrics(playerStore.currentSong.id); }
         playerStore.showLyricsDisplay();
-    } catch (err) {
-        console.error(`显示歌词时出错: ${(err as any).message}`);
+    } catch (err) { console.error(`显示歌词时出错: ${(err as any).message}`); }
+};
+
+// === Watchers (audio logic - unchanged) ===
+watch(() => playerStore.currentSong, (newSong, oldSong) => {
+    if (newSong && newSong.id !== (oldSong ? oldSong.id : null)) {
+        playbackError.value = null;
+        resetAudioPlayer();
+        if (playerStore.isOnlineSong) {
+            coverImage.value = window._onlineCoverUrl || null;
+        } else {
+            loadSongCover(newSong.id);
+            window.electronAPI.playerPlay({ filePath: newSong.filePath });
+        }
+        updateMediaSessionMetadata();
+    } else if (!newSong) {
+        if (playerStore.isOnlineSong) {
+            coverImage.value = window._onlineCoverUrl || null;
+            handleOnlinePlayback();
+            updateMediaSessionMetadata();
+            return;
+        }
+        resetAudioPlayer();
+        coverImage.value = null;
+        playerStore.setPlaying(false);
+    }
+}, { deep: true });
+
+watch(() => playerStore.onlineSongName, (newName) => {
+    if (newName && playerStore.isOnlineSong) {
+        coverImage.value = window._onlineCoverUrl || null;
+        updateMediaSessionMetadata();
+    }
+});
+
+watch(() => mediaStore.songs.length, (newLen, oldLen) => {
+    if (oldLen === 0 && newLen > 0 && playerStore.currentSong && !playerStore.isOnlineSong) {
+        const song = mediaStore.songs.find((s) => s.id === playerStore.currentSong!.id)
+        if (song) {
+            loadSongCover(song.id)
+            window.electronAPI.playerPlay({ filePath: song.filePath })
+            updateMediaSessionMetadata()
+        }
+    }
+})
+
+watch(() => playerStore.playing, async (isPlaying) => {
+    if (!playerStore.isOnlineSong && !playerStore.currentSong) { resetAudioPlayer(); return; }
+    if (playerStore.isOnlineSong) {
+        const audio = window._onlineAudio;
+        if (!isPlaying) { if (audio) audio.pause(); }
+        else { if (audio) audio.play().catch(e => console.error('在线恢复播放失败:', e)); }
+        updateMediaSessionPlaybackState();
+        return;
+    }
+    if (isPlaying) {
+        initAudioContext();
+        if (window.audioContext.state === 'suspended') { await window.audioContext.resume(); }
+        if (window.decodedAudioBuffer) {
+            safeStopAudioSource();
+            window.sourceNode = window.audioContext.createBufferSource();
+            window.sourceNode.buffer = window.decodedAudioBuffer;
+            if (window.gainNode) window.sourceNode.connect(window.gainNode);
+            window.sourceNode.onended = handleAudioEnded;
+            const currentPosition = playerStore.currentTime;
+            window.sourceNode.start(0, currentPosition);
+            window.songStartTimeInAc = window.audioContext.currentTime;
+            window.songStartOffset = currentPosition;
+            window.isAudioPlaying = true;
+        }
+    } else {
+        if (window.audioContext && window.audioContext.state === 'running') {
+            let currentPosition;
+            if (window.isPositionLocked) { currentPosition = playerStore.currentTime; }
+            else {
+                const elapsedTime = window.audioContext.currentTime - window.songStartTimeInAc;
+                currentPosition = window.songStartOffset + elapsedTime;
+            }
+            safeStopAudioSource();
+            window.songStartOffset = currentPosition;
+            window.isAudioPlaying = false;
+            playerStore.updateCurrentTime(currentPosition);
+        }
+    }
+    updateMediaSessionPlaybackState();
+});
+
+watch(() => playerStore.volume, (newVolume) => {
+    if (window.gainNode && !playerStore.muted) { window.gainNode.gain.value = newVolume; }
+    if (window._onlineAudio) { window._onlineAudio.volume = newVolume; }
+});
+
+watch(() => playerStore.muted, (newMuted) => {
+    if (window.gainNode) { window.gainNode.gain.value = newMuted ? 0 : playerStore.volume; }
+    if (window._onlineAudio) { window._onlineAudio.volume = newMuted ? 0 : playerStore.volume; }
+});
+
+watch(() => playerStore.playMode, (newMode) => {
+    if (newMode === PlayMode.REPEAT_ONE && playerStore.currentSong) {
+        if ((playerStore.currentSong.duration - playerStore.currentTime) < 0.5) { playerStore.seek(0); }
+    }
+});
+
+watch(() => coverImage.value, () => {
+  updateMediaSessionMetadata();
+  if (coverImage.value) updateAlbumGlow(coverImage.value);
+});
+watch(() => playerStore.currentTime, () => { updateMediaSessionPosition(); });
+
+// 自动隐藏 idle 触发收缩
+watch(() => autoHide.isIdle.value, (idle) => {
+  if (idle && !isCollapsed.value) {
+    uiStore.collapsePlayerBar()
+  }
+})
+
+const handleKeydown = (event: any) => {
+    if (event.key === ' ' && document.activeElement?.tagName !== 'INPUT') {
+        event.preventDefault();
+        playerStore.togglePlay();
+    } else if (event.key === 'ArrowLeft') {
+        playerStore.seek(Math.max(0, playerStore.currentTime - 5));
+        if (playerStore.isOnlineSong && window._onlineAudio) { window._onlineAudio.currentTime = Math.max(0, playerStore.currentTime - 5); }
+    } else if (event.key === 'ArrowRight') {
+        const maxDur = playerStore.isOnlineSong ? onlineDuration.value : (playerStore.currentSong?.duration || 0);
+        if (maxDur > 0) {
+            playerStore.seek(Math.min(maxDur, playerStore.currentTime + 5));
+            if (playerStore.isOnlineSong && window._onlineAudio) { window._onlineAudio.currentTime = Math.min(maxDur, playerStore.currentTime + 5); }
+        }
     }
 };
 
+onMounted(async () => {
+    let removeAudioDataListener: any, removeErrorListener: any, progressTimer: any;
+    window.addEventListener('keydown', handleKeydown);
+    onUnmounted(() => {
+        window.removeEventListener('keydown', handleKeydown);
+        if (isDraggingVolume.value) {
+            document.removeEventListener('mousemove', updateVolume);
+            document.removeEventListener('mouseup', endVolumeChange);
+        }
+        if (removeErrorListener) removeErrorListener();
+        if (removeAudioDataListener) removeAudioDataListener();
+        if (progressTimer) clearInterval(progressTimer);
+        if (pulseTimer) clearInterval(pulseTimer);
+        if (window.audioContext) { window.audioContext.close(); window.audioContext = null; }
+        if ('mediaSession' in navigator) {
+            try {
+                navigator.mediaSession.setActionHandler('play', null);
+                navigator.mediaSession.setActionHandler('pause', null);
+                navigator.mediaSession.setActionHandler('previoustrack', null);
+                navigator.mediaSession.setActionHandler('nexttrack', null);
+                navigator.mediaSession.setActionHandler('seekto', null);
+                navigator.mediaSession.setActionHandler('seekbackward', null);
+                navigator.mediaSession.setActionHandler('seekforward', null);
+                navigator.mediaSession.metadata = null;
+            } catch (error) { console.error('清理媒体会话处理程序失败:', error); }
+        }
+        window.electronAPI.playerStop().catch(error => { console.error('停止播放失败:', error); });
+    });
+    playerStore.loadPlayerState();
+    initAudioContext();
+    initMediaSession();
+    if (playerStore.currentSong) {
+        updateMediaSessionMetadata();
+        updateMediaSessionPlaybackState();
+        updateMediaSessionPosition();
+    }
+    removeAudioDataListener = window.electronAPI.onPlayerAudioData(async (buffer: any) => {
+        try {
+            if (!buffer || buffer.byteLength === 0) { throw new Error("Received an empty audio buffer."); }
+            const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+            window.decodedAudioBuffer = await window.audioContext.decodeAudioData(arrayBuffer);
+            if (playerStore.currentSong) {
+                playerStore.updateSongDuration(playerStore.currentSong.id, window.decodedAudioBuffer.duration);
+                updateMediaSessionMetadata();
+                updateMediaSessionPosition();
+            }
+            if (playerStore.playing) {
+                playAudioBuffer(0);
+                updateMediaSessionPlaybackState();
+            }
+            if (playerStore.currentTime > 0) { window.songStartOffset = playerStore.currentTime; }
+        } catch (error) {
+            console.error("解码音频数据时出错:", error);
+            playbackError.value = `音频解码失败: ${(error as any).message}`;
+            window.decodedAudioBuffer = null;
+            playerStore.setPlaying(false);
+        }
+    });
+    removeErrorListener = window.electronAPI.onPlayerError((error: any) => {
+        console.error('播放器错误:', error);
+        playbackError.value = `播放错误: ${error.error || '未知错误'}`;
+        playerStore.setPlaying(false);
+    });
+    progressTimer = setInterval(async () => {
+        if (playerStore.playing && window.isAudioPlaying && window.audioContext && window.audioContext.state === 'running') {
+            if (window.isPositionLocked) return;
+            const elapsedTime = window.audioContext.currentTime - window.songStartTimeInAc;
+            const newCurrentTime = window.songStartOffset + elapsedTime;
+            if (window.decodedAudioBuffer && newCurrentTime < window.decodedAudioBuffer.duration) {
+                playerStore.updateCurrentTime(newCurrentTime);
+                if (playerStore.playMode === PlayMode.REPEAT_ONE && (window.decodedAudioBuffer.duration - newCurrentTime) < 0.2) {
+                    window.isAudioPlaying = false;
+                    await handleRepeatOneReplay();
+                }
+            } else if (window.decodedAudioBuffer && newCurrentTime >= window.decodedAudioBuffer.duration) {
+                window.isAudioPlaying = false;
+                if (playerStore.playMode !== PlayMode.REPEAT_ONE) { playerStore.playNext(true); }
+                else { await handleRepeatOneReplay(); }
+            }
+        }
+    }, 100);
+    // 窗口失焦时自动收缩（必须在 await 前注册，否则 onUnmounted 失效）
+    const handleBlur = () => { if (uiStore.playerBarAutoHide) uiStore.collapsePlayerBar() }
+    window.addEventListener('blur', handleBlur);
+    onUnmounted(() => window.removeEventListener('blur', handleBlur));
+
+    try {
+        const status = await (window.electronAPI.playerGetStatus() as any);
+        if (status.success && status.state === 'playing') { playerStore.updateCurrentTime(status.position); }
+    } catch (error) { console.error('获取播放状态失败:', error); }
+
+    // 启动节奏脉冲
+    pulseTimer = setInterval(() => {
+      if (playerStore.playing) {
+        isPulsing.value = true;
+        setTimeout(() => { isPulsing.value = false; }, 600);
+      }
+    }, 2400);
+
+    autoHide.start();
+});
 </script>
 
 <template>
-    <div :class="[
-        'grid grid-cols-[1fr_2fr_1fr] items-center bg-surface-elevated p-4 h-[90px] border-t border-line-base text-content-base z-[200] relative transition-all duration-200',
-        'max-lg:grid-cols-[1fr_1.5fr_1fr] max-lg:p-3',
-        'max-sm:grid-cols-1 max-sm:grid-rows-[auto_auto] max-sm:gap-2 max-sm:h-auto max-sm:min-h-[90px] max-sm:p-3',
-        playbackError ? 'border-t-accent-danger' : ''
-    ]">
-        <!-- 有歌曲：正常三栏布局 -->
+  <!-- 玻璃 Ribbon -->
+  <div :class="['ribbon-wrap', { collapsed: isCollapsed }]"
+    role="region" aria-label="播放控制栏"
+    @mouseenter="autoHide.reset()" @mouseleave="autoHide.start()">
+    <div :class="['ribbon w-full', { 'ribbon-pulse': isPulsing }]"
+      :style="{ '--progress-deg': progressDeg + 'deg' }"
+      @mouseenter="autoHide.reset()">
+      <!-- 封面（全模式） -->
+      <div v-show="!isCollapsed" class="ribbon-cover" @click="showLyrics" title="点击查看歌词">
+        <img :src="coverImage || defaultCoverImage"
+          :class="['rcover-img', { 'mini': isCollapsed }, isLoadingCover ? 'animate-pulse' : '']"
+          alt="cover" @error="onCoverImageError" />
+      </div>
+
+      <!-- 歌曲信息（全模式） -->
+      <div v-show="!isCollapsed" class="ribbon-track">
         <template v-if="hasValidSong">
-            <div class="flex items-center gap-4 min-w-0 max-sm:justify-center max-sm:order-1">
-                <img :src="coverImage || defaultCoverImage"
-                    :class="[
-                        'w-14 h-14 rounded object-cover cursor-pointer transition-all duration-200 shadow-custom shrink-0',
-                        'hover:scale-105 hover:shadow-custom-hover',
-                        'max-sm:w-12 max-sm:h-12',
-                        isLoadingCover ? 'animate-pulse' : ''
-                    ]"
-                    alt="cover" @click="showLyrics" @error="onCoverImageError" title="点击查看歌词" />
-                <div class="flex flex-col min-w-0 flex-1">
-                    <span class="text-sm font-medium text-content-base truncate mb-0.5 max-sm:text-xs max-sm:text-center">{{ displaySongTitle }}</span>
-                    <span class="text-xs text-content-secondary truncate max-sm:text-2xs max-sm:text-center">{{ displaySongArtist }}</span>
-                </div>
-                <CustomButton type="icon-only" icon="heart" icon-size="medium" customClass="max-sm:hidden! text-accent-green"
-                    title="收藏歌曲" />
-            </div>
-
-            <!-- Main Controls -->
-            <div class="flex flex-col items-center gap-2 w-full max-sm:order-2 max-sm:gap-1.5">
-                <div class="flex items-center gap-4 justify-center max-sm:gap-3">
-                    <CustomButton type="icon-only" :icon="playModeIconName" icon-size="medium" :title="playModeText"
-                        :customClass="playerStore.playMode !== 'sequence' ? 'text-accent-green!' : ''" @click="togglePlayMode" />
-                    <CustomButton type="icon-only" icon="step-backward" icon-size="large" title="上一首" @click="playerStore.playPrevious" />
-                    <CustomButton type="icon-only" :icon="playerStore.playing ? 'pause' : 'play'" icon-size="large"
-                        :title="playerStore.playing ? '暂停' : '播放'" :circle="true"
-                        customClass="border-2! border-content-secondary! hover:border-accent-green!"
-                        @click="togglePlayPause" />
-                    <CustomButton type="icon-only" icon="step-forward" icon-size="large" title="下一首" @click="playerStore.playNext()" />
-                    <CustomButton type="icon-only" icon="list" icon-size="medium" title="播放列表"
-                        :customClass="uiShowPlaylist ? 'text-accent-green!' : ''" @click="uiStore.togglePlaylist()" />
-                </div>
-                <div class="w-full flex items-center gap-3 max-sm:gap-2">
-                    <span class="text-2xs text-content-secondary min-w-[40px] text-center font-medium max-sm:min-w-[35px]">{{ formatTime(playerStore.currentTime) }}</span>
-                    <div ref="timelineRef"
-                        class="group flex-1 h-2 flex items-center cursor-pointer bg-overlay-medium rounded-full transition-all duration-200 relative overflow-hidden hover:h-2.5 hover:bg-overlay-light max-sm:h-[6px] max-sm:hover:h-2"
-                        @click="setPlayTime">
-                        <div class="h-full bg-content-base rounded-full transition-all duration-200 relative"
-                            :style="{ width: progressPercentage }">
-                            <span class="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-content-base rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200
-                                max-sm:w-2.5 max-sm:h-2.5"></span>
-                        </div>
-                    </div>
-                    <span class="text-2xs text-content-secondary min-w-[40px] text-center font-medium max-sm:min-w-[35px]">{{ displayDuration }}</span>
-                </div>
-            </div>
-
-            <!-- Volume Control -->
-            <div class="flex justify-end items-center gap-3 max-sm:hidden">
-                <CustomButton type="icon-only"
-                    :icon="(playerStore.muted || playerStore.volume === 0) ? 'volume-off' : 'volume-up'" icon-size="medium"
-                    :title="playerStore.muted ? '取消静音' : '静音'"
-                    :customClass="playerStore.muted ? 'text-accent-green!' : ''" @click="toggleMute" />
-                <div ref="volumeRef"
-                    class="group w-[100px] h-[6px] flex items-center cursor-pointer bg-overlay-medium rounded-full transition-all duration-200 relative overflow-hidden hover:h-2 hover:bg-overlay-light max-lg:w-[80px]"
-                    @mousedown="startVolumeChange" title="调节音量">
-                    <div class="h-full bg-content-base rounded-full transition-all duration-200 relative"
-                        :style="{ width: volumePercentage }">
-                        <span class="absolute right-0 top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-content-base rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"></span>
-                    </div>
-                </div>
-            </div>
+          <div class="rt-name">{{ displaySongTitle }}</div>
+          <div class="rt-artist">{{ displaySongArtist }}</div>
         </template>
+        <template v-else>
+          <div class="rt-name" style="color:#535353;letter-spacing:2px;font-weight:400">LLMusic</div>
+          <div class="rt-artist" style="color:#383838">&nbsp;</div>
+        </template>
+      </div>
 
-        <!-- 无歌曲：空状态 -->
-        <div v-else class="col-span-full flex items-center justify-center h-full">
-            <span class="text-lg font-medium text-content-secondary opacity-30 tracking-[4px] select-none">LLMusic</span>
+      <!-- 迷你态：B2 胶囊浮标 -->
+      <template v-if="isCollapsed">
+        <div class="pf-cover" @click="showLyrics" title="点击查看歌词">
+          <img :src="coverImage || defaultCoverImage"
+            class="rcover-img"
+            alt="cover" @error="onCoverImageError" />
         </div>
+        <div class="pf-info" :title="displaySongTitle + ' - ' + displaySongArtist">
+          <div class="pf-name">{{ hasValidSong ? displaySongTitle : 'LLMusic' }}</div>
+          <div class="pf-artist">{{ hasValidSong ? displaySongArtist : ' ' }}</div>
+        </div>
+        <button class="pf-play" title="播放/暂停" @click="togglePlayPause">{{ playerStore.playing ? '⏸' : '▶' }}</button>
+        <button class="pf-expand" title="展开" @click="uiStore.expandPlayerBar()">▲</button>
+      </template>
+
+      <!-- 全模式追踪信息 -->
+      <template v-if="!isCollapsed">
+        <!-- 音质标签 -->
+        <span v-if="hasValidSong" class="ribbon-badge">SQ · FLAC</span>
+        <span v-else class="ribbon-badge" style="opacity:0">SQ · FLAC</span>
+
+        <!-- 分隔 -->
+        <span class="rdivider"></span>
+
+        <!-- 主控制 -->
+        <div class="rbtn-group">
+          <button class="rbtn" title="上一首" @click="playerStore.playPrevious">⏮</button>
+          <button class="rbtn rbtn-play" title="播放/暂停" @click="togglePlayPause">{{ playerStore.playing ? '⏸' : '▶' }}</button>
+          <button class="rbtn" title="下一首" @click="playerStore.playNext()">⏭</button>
+        </div>
+
+        <!-- 分隔 -->
+        <span class="rdivider"></span>
+
+        <!-- 进度 -->
+        <div class="rprog">
+          <span class="rprog-time">{{ formatTime(playerStore.currentTime) }}</span>
+          <div ref="timelineRef" class="rprog-track" @click="setPlayTime">
+            <div class="rprog-fill" :style="{ width: progressPercentage }"></div>
+          </div>
+          <span class="rprog-time">{{ displayDuration }}</span>
+        </div>
+
+        <!-- 分隔 -->
+        <span class="rdivider"></span>
+
+        <!-- 辅助控制 -->
+        <div class="rbtn-group">
+          <button class="rbtn" title="收藏" :class="{ 'active': false }">♡</button>
+          <button class="rbtn" title="播放模式" :class="{ 'active': playerStore.playMode !== 'sequence' }" style="font-size:12px" @click="togglePlayMode">{{ playModeIconName === 'random' ? '🔀' : playModeIconName === 'repeat' ? '🔁' : '🔂' }}</button>
+          <button class="rbtn" title="歌词" style="font-size:14px" @click="showLyrics">♫</button>
+          <button class="rbtn" title="播放列表" :class="{ 'active': uiShowPlaylist }" style="font-size:13px" @click="uiStore.togglePlaylist()">☰</button>
+        </div>
+
+        <!-- 分隔 -->
+        <span class="rdivider"></span>
+
+        <!-- 音量 -->
+        <div class="rvol" title="音量">
+          <span class="rvol-icon" @click="toggleMute">{{ playerStore.muted || playerStore.volume === 0 ? '🔇' : playerStore.volume < 0.5 ? '🔉' : '🔊' }}</span>
+          <span ref="volumeRef" class="rvol-bar" @mousedown="startVolumeChange">
+            <span class="rvol-fill" :style="{ width: volumePercentage }"></span>
+          </span>
+        </div>
+      </template>
+
+      <!-- 展开/收缩按钮（仅全模式） -->
+      <button v-show="!isCollapsed" class="rcollapse-btn" title="收缩"
+        @click="uiStore.collapsePlayerBar()">▼</button>
     </div>
+  </div>
 </template>
 
+<style scoped>
+/* ===== 外层容器（固定定位） ===== */
+.ribbon-wrap {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 210;
+  width: calc(100% - 56px);
+  max-width: 960px;
+  transition: max-width 0.35s cubic-bezier(.16,1,.3,1);
+}
+
+/* ===== Ribbon 主体（玻璃胶囊） ===== */
+.ribbon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 64px;
+  padding: 0 14px 0 12px;
+  border-radius: 50px;
+  background: rgba(0,0,0,.12);
+  backdrop-filter: saturate(1.8) brightness(1.16) blur(12px);
+  -webkit-backdrop-filter: saturate(1.8) brightness(1.16) blur(12px);
+  box-shadow:
+    inset 0 0 2px 1px rgba(255,255,255,.32),
+    inset 0 0 10px 4px rgba(255,255,255,.13),
+    0 4px 16px rgba(17,17,26,.08),
+    0 8px 24px rgba(17,17,26,.08),
+    0 16px 56px rgba(17,17,26,.08),
+    inset 0 4px 16px rgba(17,17,26,.08),
+    inset 0 8px 24px rgba(17,17,26,.08),
+    inset 0 16px 56px rgba(17,17,26,.08);
+  transition: box-shadow 0.35s ease, height 0.35s cubic-bezier(.16,1,.3,1), padding 0.35s ease, gap 0.35s ease;
+  position: relative;
+  overflow: clip;
+}
+/* 底部微光进度线 */
+.ribbon::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 52px;
+  right: 52px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(255,255,255,.04), rgba(255,255,255,.15), rgba(255,255,255,.04));
+  border-radius: 2px;
+  transition: height 0.3s ease, background 0.3s ease;
+}
+.ribbon-wrap:hover .ribbon::before {
+  height: 3px;
+  background: linear-gradient(90deg, rgba(76,175,80,.25), rgba(76,175,80,.65), rgba(76,175,80,.25));
+}
+/* hover 玻璃增强 */
+.ribbon-wrap:hover .ribbon {
+  box-shadow:
+    inset 0 0 2px 1px rgba(255,255,255,.4),
+    inset 0 0 12px 5px rgba(255,255,255,.16),
+    0 4px 20px rgba(17,17,26,.1),
+    0 8px 28px rgba(17,17,26,.1),
+    0 16px 60px rgba(17,17,26,.1),
+    inset 0 4px 20px rgba(17,17,26,.1),
+    inset 0 8px 28px rgba(17,17,26,.1),
+    inset 0 16px 60px rgba(17,17,26,.1);
+}
+
+/* ===== 封面 ===== */
+.ribbon-cover {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  flex-shrink: 0;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.35s ease, box-shadow 0.35s ease;
+  position: relative;
+}
+.ribbon-cover::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,.06), transparent);
+  border-radius: inherit;
+  pointer-events: none;
+}
+.rcover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.ribbon-wrap:hover .ribbon-cover {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(255,255,255,.06);
+}
+
+/* ===== 歌曲信息 ===== */
+.ribbon-track {
+  flex: 0 0 auto;
+  min-width: 0;
+  max-width: 160px;
+}
+.rt-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rt-artist {
+  font-size: 11px;
+  color: #b3b3b3;
+  margin-top: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ===== 音质标签 ===== */
+.ribbon-badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: rgba(255,255,255,.05);
+  color: #888;
+  white-space: nowrap;
+  flex-shrink: 0;
+  letter-spacing: 0.3px;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+.ribbon-wrap:hover .ribbon-badge {
+  background: rgba(76,175,80,.12);
+  color: #4caf50;
+}
+
+/* ===== 分隔线 ===== */
+.rdivider {
+  width: 1px;
+  height: 24px;
+  background: rgba(255,255,255,.05);
+  flex-shrink: 0;
+}
+
+/* ===== 按钮 ===== */
+.rbtn-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.rbtn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,.5);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+.rbtn:hover {
+  background: rgba(255,255,255,.08);
+  color: #fff;
+}
+.rbtn.active {
+  color: #4caf50;
+}
+.rbtn-play {
+  width: 34px;
+  height: 34px;
+  background: rgba(255,255,255,.06);
+  font-size: 16px;
+  color: rgba(255,255,255,.75);
+}
+.rbtn-play:hover {
+  background: rgba(255,255,255,.13);
+  color: #fff;
+  box-shadow: 0 0 18px rgba(255,255,255,.06);
+}
+
+/* ===== 进度 ===== */
+.rprog {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 130px;
+}
+.rprog-time {
+  font-size: 11px;
+  color: #737373;
+  font-variant-numeric: tabular-nums;
+  min-width: 30px;
+  text-align: center;
+  transition: color 0.3s;
+}
+.ribbon-wrap:hover .rprog-time { color: #aaa; }
+.rprog-track {
+  flex: 1;
+  height: 3px;
+  background: rgba(255,255,255,.07);
+  border-radius: 3px;
+  position: relative;
+  cursor: pointer;
+  transition: height 0.25s ease;
+}
+.ribbon-wrap:hover .rprog-track { height: 5px; }
+.rprog-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #fff, rgba(255,255,255,.7));
+  border-radius: 3px;
+  position: relative;
+  transition: width 0.3s ease;
+}
+.rprog-fill::after {
+  content: '';
+  position: absolute;
+  right: -4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 7px;
+  height: 7px;
+  background: #fff;
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  box-shadow: 0 0 6px rgba(255,255,255,.3);
+}
+.ribbon-wrap:hover .rprog-fill::after { opacity: 1; }
+
+/* ===== 音量 ===== */
+.rvol {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 50px;
+  transition: background 0.25s;
+}
+.rvol:hover { background: rgba(255,255,255,.04); }
+.rvol-icon {
+  font-size: 14px;
+  color: rgba(255,255,255,.45);
+  transition: color 0.25s;
+}
+.rvol:hover .rvol-icon { color: rgba(255,255,255,.75); }
+.rvol-bar {
+  width: 44px;
+  height: 3px;
+  background: rgba(255,255,255,.07);
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+  transition: width 0.25s ease, height 0.25s ease;
+}
+.ribbon-wrap:hover .rvol-bar { width: 56px; height: 4px; }
+.rvol-fill {
+  height: 100%;
+  background: #fff;
+  border-radius: 2px;
+  transition: width 0.2s ease;
+}
+
+/* ===== 节奏脉冲动画 ===== */
+@keyframes ribbonPulse {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 1; }
+}
+.ribbon-pulse {
+  animation: ribbonPulse 0.6s ease-out;
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 820px) {
+  .ribbon-wrap { width: calc(100% - 32px); bottom: 16px; }
+  .ribbon { gap: 5px; padding: 0 10px; height: 60px; }
+  .ribbon-cover { width: 38px; height: 38px; }
+  .ribbon-track { max-width: 100px; }
+  .rt-name { font-size: 12px; }
+  .rt-artist { font-size: 10px; }
+  .rprog { flex: 0 0 90px; }
+  .rprog-time { min-width: 24px; font-size: 10px; }
+  .rvol-bar { width: 32px; }
+  .ribbon-badge { display: none; }
+  .rdivider:last-of-type { display: none; }
+}
+@media (max-width: 600px) {
+  .rprog { flex: 0 0 70px; }
+  .rbtn { width: 26px; height: 26px; font-size: 12px; }
+  .rbtn-play { width: 30px; height: 30px; font-size: 14px; }
+  .rvol-bar { width: 24px; }
+  .rvol { padding: 2px 4px; }
+}
+
+/* 收缩态响应式 */
+@media (max-width: 820px) {
+  .ribbon-wrap.collapsed { max-width: 300px; }
+  .pf-info { max-width: 100px; }
+}
+@media (max-width: 600px) {
+  .ribbon-wrap.collapsed { max-width: calc(100% - 32px); }
+  .pf-cover { width: 30px; height: 30px; }
+  .pf-info { max-width: 80px; }
+}
+
+/* ===== 收缩态（B2 胶囊浮标） ===== */
+.ribbon-wrap.collapsed {
+  width: fit-content;
+  max-width: 380px;
+}
+/* SVG 进度环容器 */
+.ribbon-wrap.collapsed .ribbon {
+  width: auto;
+  justify-content: center;
+  padding: 0 10px 0 6px;
+  gap: 8px;
+  height: 52px;
+  position: relative;
+}
+/* 隐藏底部微光线条（由 SVG 进度环替代） */
+.ribbon-wrap.collapsed .ribbon::before {
+  display: none;
+}
+/* 收缩态 ::after 边框进度环（使用 conic-gradient） */
+.ribbon-wrap.collapsed .ribbon::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(
+    from 0deg,
+    #4caf50 0deg,
+    #4caf50 var(--progress-deg, 0deg),
+    transparent var(--progress-deg, 0deg),
+    transparent 360deg
+  ) border-box;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+  pointer-events: none;
+}
+
+/* B2 胶囊 · 圆形封面 */
+.pf-cover {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+}
+.pf-cover::after {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255,255,255,.08), transparent);
+  pointer-events: none;
+}
+.pf-cover .rcover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* B2 胶囊 · 歌曲信息 */
+.pf-info {
+  min-width: 0;
+  max-width: 130px;
+  flex-shrink: 1;
+}
+.pf-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pf-artist {
+  font-size: 10px;
+  color: #b3b3b3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 0;
+}
+
+/* B2 胶囊 · 播放按钮 */
+.pf-play {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,.08);
+  color: rgba(255,255,255,.8);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+.pf-play:hover {
+  background: rgba(255,255,255,.16);
+  box-shadow: 0 0 18px rgba(255,255,255,.06);
+}
+
+/* B2 胶囊 · 展开按钮 */
+.pf-expand {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,.3);
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+.pf-expand:hover {
+  color: #fff;
+  background: rgba(255,255,255,.06);
+}
+
+/* 全模式下的展开/收缩按钮 */
+.rcollapse-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,.35);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  flex-shrink: 0;
+  transition: all 0.25s ease;
+}
+.rcollapse-btn:hover {
+  color: #fff;
+  background: rgba(255,255,255,.06);
+}
+</style>
