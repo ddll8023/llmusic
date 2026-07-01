@@ -10,32 +10,9 @@ import ContentHeader from '../common/ContentHeader.vue'; // 直接使用 Content
 const mediaStore = useMediaStore();
 const playerStore = usePlayerStore();
 
-// --- 从 LocalMusicHeader 迁移的搜索功能 ---
-const localSearchTerm = ref('');
-
-// 防抖函数
-const debounce = (func: (...args: any[]) => any, delay: number) => {
-  let timeout: ReturnType<typeof setTimeout>;
-  return (...args: any[]) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func.apply(this, args), delay);
-  };
-};
-
-// 创建防抖版的 setSearchTerm action 调用
-const debouncedSetSearchTerm = debounce((term: string) => {
-  mediaStore.setSearchTerm(term);
-}, 300);
-
-// 监听本地搜索词的变化，并调用防抖函数
-watch(localSearchTerm, (newTerm) => {
-  debouncedSetSearchTerm(newTerm);
-});
-
-// 处理搜索输入
-const handleSearchInput = (value: any) => {
-  localSearchTerm.value = value;
-};
+function handleSearch(value: string) {
+  mediaStore.setSearchTerm(value);
+}
 
 // --- 从 LocalMusicHeader 迁移的头部操作功能 ---
 // 头部操作按钮配置
@@ -325,8 +302,8 @@ const forceRefreshTable = () => {
 
 <template>
   <div class="h-full flex flex-col overflow-hidden">
-    <ContentHeader title="本地音乐" :show-search="true" :search-value="mediaStore.searchTerm"
-      search-placeholder="筛选歌曲、专辑或艺术家" :actions="headerActions" @search-input="handleSearchInput"
+    <ContentHeader title="本地音乐" :show-search="true" :manual-search="true" :search-value="mediaStore.searchTerm"
+      search-placeholder="筛选歌曲、专辑或艺术家" :actions="headerActions" @search="handleSearch"
       @action-click="handleHeaderAction" />
     <SongTable ref="songTableRef" :songs="sortedSongs" :loading="mediaStore.loading" :show-sortable="true"
       :show-play-count="true" :show-action-column="false" :context-menu-type="'main'" :current-list-id="currentListId"

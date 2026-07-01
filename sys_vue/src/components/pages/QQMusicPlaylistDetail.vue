@@ -104,10 +104,11 @@ const headerActions = computed(() => [
       :title="currentPlaylist?.title || '歌单详情'"
       :meta-text="`${filteredSongs.length} / ${currentPlaylist?.songCount || 0} 首歌曲`"
       :show-search="true"
+      :manual-search="true"
       :search-value="searchTerm"
       search-placeholder="筛选歌曲或歌手"
       :actions="headerActions"
-      @search-input="searchTerm = $event"
+      @search="searchTerm = $event"
       @action-click="handlePlayAll"
     />
 

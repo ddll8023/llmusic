@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import FAIcon from './FAIcon.vue'
 import CustomButton from '../custom/CustomButton.vue'
 import CustomInput from '../custom/CustomInput.vue'
@@ -18,6 +18,7 @@ const props = withDefaults(
 		subtitle?: string
 		metaText?: string
 		showSearch?: boolean
+		manualSearch?: boolean
 		searchValue?: string
 		searchPlaceholder?: string
 		actions?: ActionItem[]
@@ -26,6 +27,7 @@ const props = withDefaults(
 		subtitle: '',
 		metaText: '',
 		showSearch: false,
+		manualSearch: false,
 		searchValue: '',
 		searchPlaceholder: '搜索...',
 		actions: () => [],
@@ -35,6 +37,7 @@ const props = withDefaults(
 const emit = defineEmits<{
 	(e: 'search-input', value: string): void
 	(e: 'action-click', key: string): void
+	(e: 'search', value: string): void
 }>()
 
 const localSearchValue = ref(props.searchValue)
@@ -52,15 +55,36 @@ const debouncedEmitSearch = debounce((value: string) => {
 }, 300)
 
 watch(localSearchValue, (newValue) => {
+	if (props.manualSearch) return
 	debouncedEmitSearch(newValue)
 })
 
 watch(
 	() => props.searchValue,
 	(newValue) => {
-		localSearchValue.value = newValue
+		if (!props.manualSearch || localSearchValue.value !== newValue) {
+			localSearchValue.value = newValue
+		}
 	}
 )
+
+const searchDisabled = computed(() => props.manualSearch && !localSearchValue.value.trim())
+
+function handleManualSearch() {
+	emit('search', localSearchValue.value)
+}
+
+function handleClear() {
+	if (props.manualSearch) {
+		emit('search', '')
+	}
+}
+
+function handleEnter() {
+	if (props.manualSearch) {
+		handleManualSearch()
+	}
+}
 </script>
 
 <template>
@@ -79,9 +103,15 @@ watch(
 					class="text-xs text-content-secondary font-medium max-md:text-2xs max-md:text-center">
 					{{ metaText }}</div>
 			</div>
-			<div v-if="showSearch" class="shrink-0 max-md:w-full">
+			<div v-if="showSearch" class="shrink-0 max-md:w-full flex items-center gap-2">
 				<CustomInput v-model="localSearchValue" type="text" :placeholder="searchPlaceholder"
-					prefixIcon="search" clearable customClass="w-[300px] max-md:w-full" />
+					prefixIcon="search" clearable customClass="w-[300px] max-md:w-full"
+					@enter="handleEnter"
+					@clear="handleClear" />
+				<CustomButton v-if="manualSearch" type="primary" size="small" icon="search"
+					:disabled="searchDisabled" @click="handleManualSearch">
+					搜索
+				</CustomButton>
 			</div>
 		</div>
 
