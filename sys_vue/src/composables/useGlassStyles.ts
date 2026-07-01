@@ -10,7 +10,6 @@ export interface GlassOptions {
   saturate?: number
   brightness?: number
   performance?: GlassPerformance
-  padding?: 'sm' | 'md' | 'lg' | 'none'
 }
 
 export interface GlassStyles {
@@ -24,68 +23,32 @@ export interface GlassStyles {
   }
 }
 
+/* 阴影值统一在 tailwind-entry.css :root 中定义，通过 CSS 变量引用 */
 const variantConfigs: Record<GlassVariant, {
   shadow: string
   hoverShadow?: string
   hoverBg?: string
 }> = {
   panel: {
-    shadow: [
-      'inset 0 0 2px 1px rgba(255,255,255,.35)',
-      'inset 0 0 10px 4px rgba(255,255,255,.15)',
-      '0 4px 16px rgba(17,17,26,.05)',
-      '0 8px 24px rgba(17,17,26,.05)',
-      '0 16px 56px rgba(17,17,26,.05)',
-      'inset 0 4px 16px rgba(17,17,26,.05)',
-      'inset 0 8px 24px rgba(17,17,26,.05)',
-      'inset 0 16px 56px rgba(17,17,26,.05)',
-    ].join(', '),
+    shadow: 'var(--glass-panel-shadow)',
   },
   elevated: {
-    shadow: [
-      'inset 0 0 2px 1px rgba(255,255,255,.35)',
-      'inset 0 0 10px 4px rgba(255,255,255,.15)',
-      '0 4px 16px rgba(17,17,26,.05)',
-      '0 8px 24px rgba(17,17,26,.05)',
-      '0 16px 56px rgba(17,17,26,.05)',
-      'inset 0 4px 16px rgba(17,17,26,.05)',
-      'inset 0 8px 24px rgba(17,17,26,.05)',
-      'inset 0 16px 56px rgba(17,17,26,.05)',
-    ].join(', '),
-    hoverShadow: [
-      'inset 0 0 2px 1px rgba(255,255,255,.42)',
-      'inset 0 0 12px 5px rgba(255,255,255,.17)',
-      '0 12px 34px rgba(0,0,0,.22)',
-      '0 0 18px rgba(255,255,255,.06)',
-    ].join(', '),
-    hoverBg: 'rgba(255,255,255,.055)',
+    shadow: 'var(--glass-panel-shadow)',
+    hoverShadow: 'var(--glass-panel-hover-shadow)',
+    hoverBg: 'var(--glass-button-hover-bg)',
   },
   button: {
-    shadow: [
-      'inset 0 0 2px 1px rgba(255,255,255,.34)',
-      'inset 0 0 10px 4px rgba(255,255,255,.13)',
-      '0 10px 30px rgba(0,0,0,.18)',
-    ].join(', '),
-    hoverShadow: [
-      'inset 0 0 2px 1px rgba(255,255,255,.42)',
-      'inset 0 0 12px 5px rgba(255,255,255,.17)',
-      '0 12px 34px rgba(0,0,0,.22)',
-      '0 0 18px rgba(255,255,255,.06)',
-    ].join(', '),
-    hoverBg: 'rgba(255,255,255,.055)',
+    shadow: 'var(--glass-btn-shadow)',
+    hoverShadow: 'var(--glass-btn-hover-shadow)',
+    hoverBg: 'var(--glass-btn-hover-bg)',
   },
 }
 
-const performanceAdjustments: Record<GlassPerformance, {
-  shadowLayers: number
-  blurReduce: number
-}> = {
-  high: { shadowLayers: 8, blurReduce: 0 },
-  balanced: { shadowLayers: 4, blurReduce: 0 },
-  eco: { shadowLayers: 2, blurReduce: 0.5 },
+const blurReduceMap: Record<GlassPerformance, number> = {
+  high: 0,
+  balanced: 0,
+  eco: 0.5,
 }
-
-const paddingMap = { none: '0', sm: '8px', md: '16px', lg: '24px' }
 
 export function useGlassStyles(options: GlassOptions = {}): GlassStyles {
   const {
@@ -98,11 +61,11 @@ export function useGlassStyles(options: GlassOptions = {}): GlassStyles {
   } = options
 
   const config = variantConfigs[variant]
-  const perf = performanceAdjustments[performance]
+  const blurReduce = blurReduceMap[performance]
 
   const tokens = {
-    background: 'rgba(0,0,0,.10)',
-    backdropFilter: `blur(${Math.round(blur * (1 - perf.blurReduce))}px) saturate(${saturate}) brightness(${brightness})`,
+    background: 'var(--glass-bg)',
+    backdropFilter: `blur(${Math.round(blur * (1 - blurReduce))}px) saturate(${saturate}) brightness(${brightness})`,
     boxShadow: config.shadow,
     borderRadius: `${radius}px`,
   }
@@ -115,13 +78,7 @@ export function useGlassStyles(options: GlassOptions = {}): GlassStyles {
     borderRadius: tokens.borderRadius,
   }))
 
-  const classes = computed(() => {
-    const list = ['relative']
-    if (perf.shadowLayers < 4) {
-      list.push('shadow-custom')
-    }
-    return list.join(' ')
-  })
+  const classes = computed(() => 'relative')
 
   return { style, classes, tokens }
 }

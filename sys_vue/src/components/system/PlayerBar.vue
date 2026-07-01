@@ -430,7 +430,7 @@ const playModeIconName = computed(() => {
     switch (playerStore.playMode) {
         case PlayMode.RANDOM: return 'random';
         case PlayMode.REPEAT_ONE: return 'repeat';
-        case PlayMode.SEQUENCE: default: return 'refresh';
+        case PlayMode.SEQUENCE: default: return 'list';
     }
 });
 
@@ -758,10 +758,10 @@ onMounted(async () => {
         <span class="rdivider"></span>
 
         <div class="rbtn-group">
-          <button class="rbtn" title="上一首" @click="playerStore.playPrevious">⏮</button>
+          <button class="rbtn" title="上一首" @click="playerStore.playPrevious"><i class="fa fa-step-backward"></i></button>
           <button class="rbtn n-aux-play" title="播放/暂停"
-            @click="togglePlayPause">{{ playerStore.playing ? '⏸' : '▶' }}</button>
-          <button class="rbtn" title="下一首" @click="playerStore.playNext()">⏭</button>
+            @click="togglePlayPause"><i :class="['fa', playerStore.playing ? 'fa-pause' : 'fa-play']"></i></button>
+          <button class="rbtn" title="下一首" @click="playerStore.playNext()"><i class="fa fa-step-forward"></i></button>
         </div>
 
         <span class="rdivider"></span>
@@ -777,16 +777,16 @@ onMounted(async () => {
         <span class="rdivider"></span>
 
         <div class="rbtn-group">
-          <button class="rbtn" title="收藏" :class="{ 'active': false }">♡</button>
-          <button class="rbtn" title="播放模式" :class="{ 'active': playerStore.playMode !== 'sequence' }" style="font-size:12px" @click="togglePlayMode">{{ playModeIconName === 'random' ? '🔀' : playModeIconName === 'repeat' ? '🔁' : '🔂' }}</button>
-          <button class="rbtn" title="歌词" style="font-size:14px" @click="showLyrics">♫</button>
-          <button class="rbtn" title="播放列表" :class="{ 'active': uiShowPlaylist }" style="font-size:13px" @click="uiStore.togglePlaylist()">☰</button>
+          <button class="rbtn" title="收藏" :class="{ 'active': false }"><i class="fa fa-heart-o"></i></button>
+          <button class="rbtn" title="播放模式" :class="{ 'active': playerStore.playMode !== 'sequence' }" @click="togglePlayMode"><i class="fa" :class="'fa-' + playModeIconName"></i></button>
+          <button class="rbtn" title="歌词" @click="showLyrics"><i class="fa fa-file-text-o"></i></button>
+          <button class="rbtn" title="播放列表" :class="{ 'active': uiShowPlaylist }" @click="uiStore.togglePlaylist()"><i class="fa fa-bars"></i></button>
         </div>
 
         <span class="rdivider"></span>
 
         <div class="rvol" title="音量">
-          <span class="rvol-icon" @click="toggleMute">{{ playerStore.muted || playerStore.volume === 0 ? '🔇' : playerStore.volume < 0.5 ? '🔉' : '🔊' }}</span>
+          <span class="rvol-icon" @click="toggleMute"><i :class="['fa', playerStore.muted || playerStore.volume === 0 ? 'fa-volume-off' : playerStore.volume < 0.5 ? 'fa-volume-down' : 'fa-volume-up']"></i></span>
           <span ref="volumeRef" class="rvol-bar" @mousedown="startVolumeChange">
             <span class="rvol-fill" :style="{ width: volumePercentage }"></span>
           </span>
@@ -795,13 +795,13 @@ onMounted(async () => {
 
       <!-- 收缩态播放按钮 -->
       <button class="n-play-c" v-show="isCollapsed" title="播放/暂停"
-        @click="togglePlayPause">{{ playerStore.playing ? '⏸' : '▶' }}</button>
+        @click="togglePlayPause"><i :class="['fa', playerStore.playing ? 'fa-pause' : 'fa-play']"></i></button>
 
       <!-- 展开/收缩按钮（始终存在） -->
       <button class="n-toggle"
         :title="isCollapsed ? '展开' : '收缩'"
         @click="isCollapsed ? uiStore.expandPlayerBar() : uiStore.collapsePlayerBar()">
-        {{ isCollapsed ? '▲' : '▼' }}
+        <i :class="['fa', isCollapsed ? 'fa-chevron-up' : 'fa-chevron-down']"></i>
       </button>
     </div>
   </div>
@@ -815,8 +815,8 @@ onMounted(async () => {
   left: 50%;
   transform: translateX(-50%);
   z-index: 210;
-  width: calc(100% - 56px);
-  max-width: 960px;
+  width: fit-content;
+  max-width: calc(100% - 56px);
   transition: max-width 0.35s cubic-bezier(.16,1,.3,1);
 }
 .ribbon-wrap.collapsed {
@@ -830,18 +830,10 @@ onMounted(async () => {
   align-items: center;
   height: 64px;
   border-radius: 50px;
-  background: rgba(0,0,0,.12);
-  backdrop-filter: saturate(1.8) brightness(1.16) blur(12px);
-  -webkit-backdrop-filter: saturate(1.8) brightness(1.16) blur(12px);
-  box-shadow:
-    inset 0 0 2px 1px rgba(255,255,255,.32),
-    inset 0 0 10px 4px rgba(255,255,255,.13),
-    0 4px 16px rgba(17,17,26,.08),
-    0 8px 24px rgba(17,17,26,.08),
-    0 16px 56px rgba(17,17,26,.08),
-    inset 0 4px 16px rgba(17,17,26,.08),
-    inset 0 8px 24px rgba(17,17,26,.08),
-    inset 0 16px 56px rgba(17,17,26,.08);
+  background: var(--glass-playerbar-bg);
+  backdrop-filter: saturate(var(--glass-saturate)) brightness(var(--glass-brightness)) blur(var(--glass-blur));
+  -webkit-backdrop-filter: saturate(var(--glass-saturate)) brightness(var(--glass-brightness)) blur(var(--glass-blur));
+  box-shadow: var(--glass-panel-shadow);
   transition: height 0.35s cubic-bezier(.16,1,.3,1);
   position: relative;
   overflow: clip;
@@ -852,15 +844,7 @@ onMounted(async () => {
 
 /* hover 玻璃增强 */
 .ribbon-wrap:hover .ribbon {
-  box-shadow:
-    inset 0 0 2px 1px rgba(255,255,255,.4),
-    inset 0 0 12px 5px rgba(255,255,255,.16),
-    0 4px 20px rgba(17,17,26,.1),
-    0 8px 28px rgba(17,17,26,.1),
-    0 16px 60px rgba(17,17,26,.1),
-    inset 0 4px 20px rgba(17,17,26,.1),
-    inset 0 8px 28px rgba(17,17,26,.1),
-    inset 0 16px 60px rgba(17,17,26,.1);
+  box-shadow: var(--glass-panel-hover-shadow);
 }
 
 /* 底部微光进度线 */

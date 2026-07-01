@@ -43,12 +43,12 @@ const circleSize: Record<string, string> = {
 const buttonClasses = computed(() => {
   const base = 'inline-flex items-center justify-center gap-2 font-sans font-medium cursor-pointer select-none whitespace-nowrap overflow-hidden transition-all duration-250'
   const glass = [
-    'bg-[rgba(0,0,0,.10)]',
-    'backdrop-blur-[12px] backdrop-saturate-[1.8] backdrop-brightness-[1.16]',
-    'shadow-[inset_0_0_2px_1px_rgba(255,255,255,.34),inset_0_0_10px_4px_rgba(255,255,255,.13),0_10px_30px_rgba(0,0,0,.18)]',
-    'hover:bg-[rgba(255,255,255,.055)]',
-    'hover:shadow-[inset_0_0_2px_1px_rgba(255,255,255,.42),inset_0_0_12px_5px_rgba(255,255,255,.17),0_12px_34px_rgba(0,0,0,.22),0_0_18px_rgba(255,255,255,.06)]',
-    'rounded-[50px]',
+    'bg-[var(--glass-bg)]',
+    'backdrop-blur-[var(--glass-blur)] backdrop-saturate-[var(--glass-saturate)] backdrop-brightness-[var(--glass-brightness)]',
+    'shadow-[var(--glass-btn-shadow)]',
+    'hover:bg-[var(--glass-btn-hover-bg)]',
+    'hover:shadow-[var(--glass-btn-hover-shadow)]',
+    'rounded-[var(--glass-radius)]',
   ]
   const accent = props.variant === 'accent' ? 'bg-[rgba(76,175,80,.15)] text-accent-green hover:bg-[rgba(76,175,80,.25)]' : 'text-content-base'
   const state = props.disabled ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''
