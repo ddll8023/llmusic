@@ -181,9 +181,21 @@ async def get_song_url_list_v2(song_mid_list, request_id=""):
 
     items = await _try_get_flac_urls(song_mid_list, credential)
     if items is not None:
+        # 部分歌曲 FLAC 不可用时降级为试听
+        missing_mids = []
+        for i, item in enumerate(items):
+            if not item.url and i < len(song_mid_list):
+                missing_mids.append(song_mid_list[i])
+        if missing_mids:
+            trial_items = await _try_get_trial_urls(missing_mids)
+            trial_idx = 0
+            for i, item in enumerate(items):
+                if not item.url and trial_idx < len(trial_items):
+                    items[i] = trial_items[trial_idx]
+                    trial_idx += 1
         return SongUrlResponse(requestId=request_id, result=items)
 
-    # FLAC 降级 → 匿名试听
+    # FLAC 全部失败 → 匿名试听
     logging.warning("FLAC 获取失败，降级到 ACC_96 试听")
     items = await _try_get_trial_urls(song_mid_list)
     return SongUrlResponse(requestId=request_id, result=items)
@@ -321,7 +333,7 @@ async def _try_get_flac_urls(song_mid_list, credential):
     for item in flac_result.data:
         url = f"{CDN_DOMAIN}{item.purl}" if item.purl and getattr(item, "result", 0) == 0 else ""
         url_map[item.mid] = url
-    return _build_url_result_items(url_map, is_trial=False)
+    return _build_ordered_url_items(song_mid_list, url_map)
 
 
 async def _try_get_trial_urls(song_mid_list):
@@ -346,13 +358,14 @@ async def _try_get_trial_urls(song_mid_list):
     for item in result.data:
         url = f"{CDN_DOMAIN}{item.purl}" if item.purl and getattr(item, "result", 0) == 0 else ""
         url_map[item.mid] = url
-    return _build_url_result_items(url_map, is_trial=True)
+    return _build_ordered_url_items(song_mid_list, url_map)
 
 
-def _build_url_result_items(song_urls: dict[str, str], is_trial: bool) -> list[SongUrlItem]:
-    """构建歌曲 URL 结果列表"""
+def _build_ordered_url_items(song_mid_list: list[str], url_map: dict[str, str]) -> list[SongUrlItem]:
+    """按输入顺序构建歌曲 URL 结果列表"""
     items = []
-    for song_mid, url in song_urls.items():
+    for mid in song_mid_list:
+        url = url_map.get(mid, "")
         url_type = "flac" if "flac" in url.lower() else "mp3"
         items.append(SongUrlItem(url=url or "", urlType=url_type))
     return items

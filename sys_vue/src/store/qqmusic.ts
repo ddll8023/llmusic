@@ -175,6 +175,23 @@ export const useQqmusicStore = defineStore('qqmusic', () => {
         total = data.total || 0
       }
 
+      // 批量获取播放 URL
+      const songsNeedUrl = songs.filter(s => !s.songUrl?.url)
+      const mids = songsNeedUrl.map((s) => s.songMid).filter(Boolean)
+      if (mids.length > 0) {
+        try {
+          const urlRes = await getSongUrls(String(Date.now()), mids)
+          const urlList = (urlRes.data as { result?: Array<{ url: string; urlType?: string }> }).result || []
+          songsNeedUrl.forEach((song, idx) => {
+            if (urlList[idx]) {
+              song.songUrl = { url: urlList[idx].url, urlType: urlList[idx].urlType || 'mp3' }
+            }
+          })
+        } catch {
+          // URL 获取失败不阻塞
+        }
+      }
+
       playlistCache.value.set(playlistId, { songs, total, loadedPages: new Set([1]) })
       currentPlaylistSongs.value = songs
       currentPlaylistTotal.value = total
