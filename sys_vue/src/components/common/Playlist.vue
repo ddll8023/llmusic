@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { usePlayerStore } from '../../store/player'
+import type { OnlineSongInfo } from '../../store/player'
 import { useUiStore } from '../../store/ui'
 import FAIcon from './FAIcon.vue'
 import CustomButton from '../custom/CustomButton.vue'
@@ -12,6 +13,44 @@ const songListRef = ref<HTMLElement | null>(null)
 
 const songs = ref<Song[]>([])
 const isLoading = ref(false)
+
+interface DisplaySong {
+	id: string
+	title: string
+	artist: string
+	isOnline: boolean
+	onlineIndex: number
+	onlineInfo: OnlineSongInfo | null
+	localSong: Song | null
+}
+
+const displaySongs = computed<DisplaySong[]>(() => {
+	if (playerStore.isOnlineSong) {
+		return playerStore.onlinePlayQueue.map((info, i) => ({
+			id: info.songMid,
+			title: info.songName,
+			artist: info.singer,
+			isOnline: true,
+			onlineIndex: i,
+			onlineInfo: info,
+			localSong: null,
+		}))
+	}
+	return songs.value.map(s => ({
+		id: s.id,
+		title: s.title,
+		artist: s.artist,
+		isOnline: false,
+		onlineIndex: -1,
+		onlineInfo: null,
+		localSong: s,
+	}))
+})
+
+const currentId = computed(() => {
+	if (playerStore.isOnlineSong) return playerStore.onlineSongMid
+	return playerStore.currentSong?.id || ''
+})
 
 async function fetchSongsDetails(ids: string[]) {
 	if (!ids || ids.length === 0) {
@@ -36,19 +75,27 @@ async function fetchSongsDetails(ids: string[]) {
 	}
 }
 
-function playSong(song: Song) {
-	playerStore.playSong(song)
+function playDisplaySong(item: DisplaySong) {
+	if (item.isOnline && item.onlineInfo) {
+		playerStore.playOnlineSong(item.onlineInfo, {
+			queue: playerStore.onlinePlayQueue,
+			startIndex: item.onlineIndex,
+		})
+	} else if (item.localSong) {
+		playerStore.playSong(item.localSong)
+	}
 }
 
-function removeFromPlaylist(songId: string) {
-	const index = playerStore.playlist.indexOf(songId)
+function handleRemove(item: DisplaySong) {
+	if (item.isOnline) return
+	const index = playerStore.playlist.indexOf(item.id)
 	if (index > -1) playerStore.removeFromPlaylist(index)
 }
 
 async function scrollToCurrentSong() {
 	await nextTick()
-	if (!uiStore.isPlaylistVisible || !playerStore.currentSong || !songListRef.value) return
-	const songEl = songListRef.value.querySelector(`[data-song-id="${playerStore.currentSong.id}"]`) as HTMLElement | null
+	if (!uiStore.isPlaylistVisible || !currentId.value || !songListRef.value) return
+	const songEl = songListRef.value.querySelector(`[data-song-id="${currentId.value}"]`) as HTMLElement | null
 	if (songEl) songEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
 }
 
@@ -72,6 +119,12 @@ watch(
 	},
 	{ deep: true }
 )
+watch(
+	() => playerStore.onlineSongMid,
+	() => {
+		if (uiStore.isPlaylistVisible) scrollToCurrentSong()
+	}
+)
 </script>
 
 <template>
@@ -79,8 +132,7 @@ watch(
 		:class="[
 			'flex flex-col h-full bg-surface-elevated text-content-base rounded shadow-custom overflow-hidden border border-line-base select-none slide-in',
 			'max-md:rounded-none max-md:shadow-none max-md:border-none max-md:border-l max-md:border-line-base',
-			isLoading ? 'opacity-80' : '',
-			songs.length === 0 && !isLoading ? '' : '',
+			!playerStore.isOnlineSong && isLoading ? 'opacity-80' : '',
 		]">
 		<div
 			class="flex justify-between items-center p-4 bg-surface-overlay border-b border-line-base shrink-0 max-md:p-3">
@@ -90,37 +142,37 @@ watch(
 		</div>
 
 		<div class="flex-1 flex flex-col overflow-hidden">
-			<div v-if="isLoading"
+			<div v-if="!playerStore.isOnlineSong && isLoading"
 				class="flex flex-col items-center justify-center flex-1 gap-4 text-content-secondary p-8 max-md:gap-3 max-md:p-4">
 				<div class="w-8 h-8 border-3 border-surface-overlay border-t-accent-green rounded-full spin max-md:w-7 max-md:h-7 max-md:border-2"></div>
 				<span class="text-sm font-medium max-md:text-xs">正在加载...</span>
 			</div>
 
-			<ul v-else-if="songs.length > 0" ref="songListRef"
+			<ul v-else-if="displaySongs.length > 0" ref="songListRef"
 				class="list-none m-0 p-0 overflow-y-auto flex-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-surface-base [&::-webkit-scrollbar-thumb]:bg-overlay-medium [&::-webkit-scrollbar-thumb]:rounded-[4px] [&::-webkit-scrollbar-thumb]:transition-colors [&::-webkit-scrollbar-thumb]:duration-200 [&::-webkit-scrollbar-thumb:hover]:bg-overlay-light max-md:[&::-webkit-scrollbar]:w-[6px]">
-				<li v-for="song in songs" :key="song.id" :data-song-id="song.id" @click="playSong(song)"
+				<li v-for="item in displaySongs" :key="item.id" :data-song-id="item.id" @click="playDisplaySong(item)"
 					:class="[
-						'flex justify-between items-center px-4 py-3 cursor-pointer border-b border-surface-base transition-all duration-200 relative min-h-[60px]',
+						'group flex justify-between items-center px-4 py-3 cursor-pointer border-b border-surface-base transition-all duration-200 relative min-h-[60px]',
 						'hover:bg-overlay-light active:bg-overlay-medium active:scale-[0.98]',
-						playerStore.currentSong && playerStore.currentSong.id === song.id
+						currentId === item.id
 							? 'bg-surface-overlay text-accent-green border-l-3 border-l-accent-green pl-[13px]'
 							: '',
 						'max-md:px-3 max-md:py-2 max-md:min-h-[52px]',
-						playerStore.currentSong && playerStore.currentSong.id === song.id ? 'max-md:pl-[9px]' : '',
+						currentId === item.id ? 'max-md:pl-[9px]' : '',
 					]">
-					<span v-if="playerStore.currentSong && playerStore.currentSong.id === song.id"
+					<span v-if="currentId === item.id"
 						class="absolute left-2 top-1/2 -translate-y-1/2 w-1 h-5 bg-gradient-to-b from-accent-green to-accent-green-hover rounded-[2px] playing-pulse">
 					</span>
 					<div class="flex flex-col min-w-0 flex-1 mr-4 max-md:mr-3">
 						<span
 							:class="[
-								'font-medium text-sm text-content-base truncate mb-1 max-md:text-xs',
-								playerStore.currentSong && playerStore.currentSong.id === song.id ? 'text-accent-green font-medium' : '',
-							]">{{ song.title }}</span>
-						<span class="text-xs text-content-secondary truncate max-md:text-2xs">{{ song.artist }}</span>
+								'font-medium text-sm truncate mb-1 max-md:text-xs',
+								currentId === item.id ? 'text-accent-green font-medium' : 'text-content-base',
+							]">{{ item.title }}</span>
+						<span class="text-xs text-content-secondary truncate max-md:text-2xs">{{ item.artist }}</span>
 					</div>
-					<CustomButton type="icon-only" icon="trash" size="small"
-						@click.stop="removeFromPlaylist(song.id)"
+					<CustomButton v-if="!item.isOnline" type="icon-only" icon="trash" size="small"
+						@click.stop="handleRemove(item)"
 						:customClass="[
 							'min-w-8 min-h-8 shrink-0 transition-all duration-200',
 							'max-md:min-w-7 max-md:min-h-7 max-md:opacity-100 max-md:visible',
@@ -132,7 +184,7 @@ watch(
 			<div v-else
 				class="flex flex-col items-center justify-center flex-1 p-8 text-center text-content-secondary max-md:p-4">
 				<FAIcon name="music" size="xl" color="secondary" />
-				<p class="text-lg font-medium text-content-secondary m-0 mb-2 max-md:text-base">播放列表为空</p>
+				<p class="text-lg font-medium m-0 mb-2 max-md:text-base">播放列表为空</p>
 				<p class="text-sm text-content-disabled m-0 max-md:text-xs">添加一些歌曲开始播放</p>
 			</div>
 		</div>

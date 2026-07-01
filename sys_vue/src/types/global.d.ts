@@ -30,6 +30,7 @@ declare global {
 		_onlineAudio?: HTMLAudioElement | null
 		_onlineCoverUrl?: string
 		_onlineAudioUrl?: string
+		_playOnlineUrl?: (url: string) => void
 		webkitAudioContext?: typeof AudioContext
 	}
 }

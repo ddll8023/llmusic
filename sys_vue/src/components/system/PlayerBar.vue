@@ -27,6 +27,7 @@ declare global {
     _seekLockTimeout?: any;
     _onSeeked?: (() => void) | undefined;
     handleAudioEnded?: () => Promise<void>;
+    _playOnlineUrl?: (url: string) => void;
   }
 }
 
@@ -320,11 +321,13 @@ const handleOnlinePlayback = () => {
             }
         });
         window._onlineAudio.addEventListener('ended', () => {
-            if (playerStore.playlist.length === 0) {
-                playerStore.setPlaying(false);
-            } else {
-                playerStore.playNext(true);
+            if (playerStore.playMode === PlayMode.REPEAT_ONE) {
+                window._onlineAudio.currentTime = 0;
+                window._onlineAudio.play().catch(e => console.error('在线单曲循环重启失败:', e));
+                playerStore.currentTime = 0;
+                return;
             }
+            playerStore.playNext(true);
         });
         window._onlineAudio.addEventListener('error', (e) => {
             console.error('在线播放出错:', e);
@@ -333,6 +336,42 @@ const handleOnlinePlayback = () => {
     }
 
     if (window._onlineAudio.src !== url) {
+        window._onlineAudio.src = url;
+    }
+    window._onlineAudio.play().catch(e => console.error('在线播放启动失败:', e));
+};
+
+// 暴露给 playerStore 直接调用，绕过 watcher 时序问题
+window._playOnlineUrl = (url: string) => {
+    if (!url) return;
+    if (!window._onlineAudio) {
+        window._onlineAudio = new Audio();
+        window._onlineAudio.addEventListener('timeupdate', () => {
+            if (!window.isPositionLocked && window._onlineAudio) {
+                playerStore.updateCurrentTime(window._onlineAudio.currentTime);
+            }
+        });
+        window._onlineAudio.addEventListener('loadedmetadata', () => {
+            if (window._onlineAudio && isFinite(window._onlineAudio.duration)) {
+                onlineDuration.value = window._onlineAudio.duration;
+            }
+        });
+        window._onlineAudio.addEventListener('ended', () => {
+            if (playerStore.playMode === PlayMode.REPEAT_ONE) {
+                window._onlineAudio.currentTime = 0;
+                window._onlineAudio.play().catch(e => console.error('在线单曲循环重启失败:', e));
+                playerStore.currentTime = 0;
+                return;
+            }
+            playerStore.playNext(true);
+        });
+        window._onlineAudio.addEventListener('error', (e) => {
+            console.error('在线播放出错:', e);
+            playbackError.value = '在线播放失败';
+        });
+    }
+
+    if (window._onlineAudio.src !== url && !window._onlineAudio.src.endsWith(url)) {
         window._onlineAudio.src = url;
     }
     window._onlineAudio.play().catch(e => console.error('在线播放启动失败:', e));
@@ -614,14 +653,13 @@ watch(
     { deep: true }
 );
 
-// 在线歌曲切歌时（currentSong不变）更新封面
+// 在线歌曲切歌时更新封面和媒体会话（不操作音频，由 _playOnlineUrl 负责）
 watch(
     () => playerStore.onlineSongName,
     (newName) => {
         if (newName && playerStore.isOnlineSong) {
             coverImage.value = window._onlineCoverUrl || null;
             updateMediaSessionMetadata();
-            handleOnlinePlayback();
         }
     }
 );
@@ -641,7 +679,7 @@ watch(
     }
 )
 
-// 监听播放状态的变化，更新媒体会话播放状态
+// 监听播放状态的变化
 watch(
     () => playerStore.playing,
     async (isPlaying) => {
@@ -650,26 +688,14 @@ watch(
             return;
         }
 
-        // 在线歌曲由 HTML5 Audio 控制，跳过 Web Audio 操作
+        // 在线歌曲：仅处理暂停/恢复，切歌由 _applyOnlineSong 直接调用 _playOnlineUrl
         if (playerStore.isOnlineSong) {
-            const audio = window._onlineAudio;
-            if (!audio) {
-                // 可能是切歌后 Audio 实例未创建，触发一次在线播放初始化
-                if (window._onlineAudioUrl && isPlaying) {
-                    handleOnlinePlayback();
-                    updateMediaSessionPlaybackState();
-                }
-                return;
-            }
-            const expectedUrl = window._onlineAudioUrl;
-            if (expectedUrl && audio.src !== expectedUrl && !audio.src.endsWith(expectedUrl)) {
-                audio.src = expectedUrl;
-                audio.load();
-            }
-            if (isPlaying) {
-                audio.play().catch(e => console.error('在线播放失败:', e));
+            if (!isPlaying) {
+                const audio = window._onlineAudio;
+                if (audio) audio.pause();
             } else {
-                audio.pause();
+                const audio = window._onlineAudio;
+                if (audio) audio.play().catch(e => console.error('在线恢复播放失败:', e));
             }
             updateMediaSessionPlaybackState();
             return;

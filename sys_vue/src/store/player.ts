@@ -11,6 +11,15 @@ export const PlayMode = {
 	REPEAT_ONE: 'repeat_one' as PlayMode,
 }
 
+export interface OnlineSongInfo {
+	songMid: string
+	songName: string
+	singer: string
+	coverUrl: string
+	url: string
+	urlType: string
+}
+
 function shuffleArray<T>(arr: T[]): T[] {
 	const shuffled = [...arr]
 	for (let i = shuffled.length - 1; i > 0; i--) {
@@ -41,6 +50,10 @@ export const usePlayerStore = defineStore('player', {
 		onlineSongName: '',
 		onlineSinger: '',
 		onlineSongMid: '',
+		onlinePlayQueue: [] as OnlineSongInfo[],
+		onlinePlayIndex: -1,
+		onlineShuffleQueue: [] as number[],
+		onlineShuffleIndex: -1,
 	}),
 
 	getters: {
@@ -143,6 +156,10 @@ export const usePlayerStore = defineStore('player', {
 			this.currentTime = 0
 			this.currentIndex = -1
 			this.playlist = []
+			this.onlinePlayQueue = []
+			this.onlinePlayIndex = -1
+			this.onlineShuffleQueue = []
+			this.onlineShuffleIndex = -1
 		},
 
 		seek(time: number) {
@@ -164,9 +181,12 @@ export const usePlayerStore = defineStore('player', {
 		},
 
 		playNext(auto = false) {
+			if (this.isOnlineSong) {
+				this._playNextOnline(auto)
+				return
+			}
 			if (this.playlist.length === 0) return
 			if (this.playMode === PlayMode.REPEAT_ONE && auto) {
-				// 单曲循环：当前歌曲不变，重置时间
 				this.currentTime = 0
 				this.playing = true
 				return
@@ -206,7 +226,79 @@ export const usePlayerStore = defineStore('player', {
 			}
 		},
 
+		_playNextOnline(auto = false) {
+			if (this.onlinePlayQueue.length === 0) return
+
+			if (this.playMode === PlayMode.REPEAT_ONE && auto) {
+				this.currentTime = 0
+				this.playing = true
+				return
+			}
+
+			let nextIndex: number
+			const length = this.onlinePlayQueue.length
+
+			if (this.playMode === PlayMode.RANDOM) {
+				if (this.onlineShuffleQueue.length === 0) {
+					this._generateOnlineShuffleQueue()
+				}
+				if (this.onlineShuffleIndex < this.onlineShuffleQueue.length - 1) {
+					this.onlineShuffleIndex++
+				} else {
+					this._generateOnlineShuffleQueue()
+					this.onlineShuffleIndex = 0
+				}
+				nextIndex = this.onlineShuffleQueue[this.onlineShuffleIndex]
+			} else {
+				nextIndex = this.onlinePlayIndex + 1
+				if (nextIndex >= length) {
+					if (this.playMode === PlayMode.SEQUENCE && auto) {
+						this.playing = false
+						return
+					}
+					nextIndex = 0
+				}
+			}
+
+			for (let attempts = 0; attempts < length; attempts++) {
+				const next = this.onlinePlayQueue[nextIndex]
+				if (!next) return
+				if (next.url) {
+					this.onlinePlayIndex = nextIndex
+					this._applyOnlineSong(next)
+					this.savePlayerState()
+					return
+				}
+				this.onlinePlayIndex = nextIndex
+				if (this.playMode === PlayMode.RANDOM) {
+					if (this.onlineShuffleIndex < this.onlineShuffleQueue.length - 1) {
+						this.onlineShuffleIndex++
+						nextIndex = this.onlineShuffleQueue[this.onlineShuffleIndex]
+					} else {
+						this._generateOnlineShuffleQueue()
+						this.onlineShuffleIndex = 0
+						nextIndex = this.onlineShuffleQueue[0]
+					}
+				} else {
+					nextIndex++
+					if (nextIndex >= length) {
+						if (this.playMode === PlayMode.SEQUENCE && auto) {
+							this.playing = false
+							return
+						}
+						nextIndex = 0
+					}
+				}
+			}
+
+			this.playing = false
+		},
+
 		playPrevious() {
+			if (this.isOnlineSong) {
+				this._playPreviousOnline()
+				return
+			}
 			if (this.playlist.length === 0) return
 
 			if (this.currentTime > 3) {
@@ -239,6 +331,56 @@ export const usePlayerStore = defineStore('player', {
 			if (prevSong) this.playSong(prevSong)
 		},
 
+		_playPreviousOnline() {
+			if (this.onlinePlayQueue.length === 0) return
+
+			if (this.currentTime > 3) {
+				this.currentTime = 0
+				return
+			}
+
+			let prevIndex: number
+			const length = this.onlinePlayQueue.length
+
+			if (this.playMode === PlayMode.RANDOM) {
+				if (this.onlineShuffleIndex > 0) {
+					this.onlineShuffleIndex--
+				} else {
+					this.onlineShuffleIndex = this.onlineShuffleQueue.length - 1
+				}
+				prevIndex = this.onlineShuffleQueue[this.onlineShuffleIndex]
+			} else {
+				prevIndex = this.onlinePlayIndex - 1
+				if (prevIndex < 0) prevIndex = length - 1
+			}
+
+			for (let attempts = 0; attempts < length; attempts++) {
+				const prev = this.onlinePlayQueue[prevIndex]
+				if (!prev) return
+				if (prev.url) {
+					this.onlinePlayIndex = prevIndex
+					this._applyOnlineSong(prev)
+					this.savePlayerState()
+					return
+				}
+				this.onlinePlayIndex = prevIndex
+				if (this.playMode === PlayMode.RANDOM) {
+					if (this.onlineShuffleIndex > 0) {
+						this.onlineShuffleIndex--
+						prevIndex = this.onlineShuffleQueue[this.onlineShuffleIndex]
+					} else {
+						this.onlineShuffleIndex = this.onlineShuffleQueue.length - 1
+						prevIndex = this.onlineShuffleQueue[this.onlineShuffleIndex]
+					}
+				} else {
+					prevIndex--
+					if (prevIndex < 0) prevIndex = length - 1
+				}
+			}
+
+			this.playing = false
+		},
+
 		// ── 音量 ──
 		setVolume(volume: number) {
 			this.volume = Math.max(0, Math.min(1, volume))
@@ -251,6 +393,9 @@ export const usePlayerStore = defineStore('player', {
 		// ── 播放模式 ──
 		setPlayMode(mode: PlayMode) {
 			this.playMode = mode
+			if (this.isOnlineSong && mode === PlayMode.RANDOM && this.onlinePlayQueue.length > 0) {
+				this._generateOnlineShuffleQueue()
+			}
 		},
 
 		// ── 时间管理 ──
@@ -305,18 +450,58 @@ export const usePlayerStore = defineStore('player', {
 		},
 
 		// ── 在线播放 ──
-		playOnlineSong(info: { songName: string; singer: string; coverUrl: string; url: string; urlType: string; songMid?: string }) {
+		playOnlineSong(info: OnlineSongInfo, options?: { queue: OnlineSongInfo[]; startIndex: number }) {
 			this.currentTime = 0
 			this.accumulatedPlayTime = 0
 			this.hasBeenCounted = false
 			this.isOnlineSong = true
+			this.currentSong = null
+
+			if (options?.queue) {
+				this.onlinePlayQueue = options.queue
+				this.onlinePlayIndex = options.startIndex
+			} else {
+				this.onlinePlayQueue = [info]
+				this.onlinePlayIndex = 0
+			}
+
+			if (this.playMode === PlayMode.RANDOM) {
+				this._generateOnlineShuffleQueue()
+			} else {
+				this.onlineShuffleQueue = []
+				this.onlineShuffleIndex = -1
+			}
+
+			this._applyOnlineSong(info)
+			this.savePlayerState()
+		},
+
+		_applyOnlineSong(info: OnlineSongInfo) {
 			this.onlineSongName = info.songName
 			this.onlineSinger = info.singer
 			this.onlineSongMid = info.songMid || ''
-			this.currentSong = null
 			this.playing = true
 			window._onlineCoverUrl = info.coverUrl || ''
 			window._onlineAudioUrl = info.url || ''
+			if (window._playOnlineUrl && info.url) {
+				window._playOnlineUrl(info.url)
+			}
+		},
+
+		_generateOnlineShuffleQueue() {
+			if (this.onlinePlayQueue.length === 0) {
+				this.onlineShuffleQueue = []
+				this.onlineShuffleIndex = -1
+				return
+			}
+			const indices = this.onlinePlayQueue.map((_, i) => i)
+			const currentIdx = this.onlinePlayIndex
+			const others = indices.filter((i) => i !== currentIdx)
+			this.onlineShuffleQueue = shuffleArray(others)
+			if (currentIdx >= 0) {
+				this.onlineShuffleQueue.unshift(currentIdx)
+			}
+			this.onlineShuffleIndex = 0
 		},
 
 		addToPlaylist(songId: string) {
@@ -386,6 +571,10 @@ export const usePlayerStore = defineStore('player', {
 					onlineSongName: this.onlineSongName,
 					onlineSinger: this.onlineSinger,
 					onlineSongMid: this.onlineSongMid,
+					onlinePlayQueue: this.onlinePlayQueue,
+					onlinePlayIndex: this.onlinePlayIndex,
+					onlineShuffleQueue: this.onlineShuffleQueue,
+					onlineShuffleIndex: this.onlineShuffleIndex,
 				}
 				localStorage.setItem('playerState', JSON.stringify(state))
 			} catch {
@@ -412,6 +601,10 @@ export const usePlayerStore = defineStore('player', {
 					this.onlineSongName = state.onlineSongName || ''
 					this.onlineSinger = state.onlineSinger || ''
 					this.onlineSongMid = state.onlineSongMid || ''
+					this.onlinePlayQueue = state.onlinePlayQueue || []
+					this.onlinePlayIndex = state.onlinePlayIndex ?? -1
+					this.onlineShuffleQueue = state.onlineShuffleQueue || []
+					this.onlineShuffleIndex = state.onlineShuffleIndex ?? -1
 				}
 			} catch {
 				// 解析失败时使用默认值

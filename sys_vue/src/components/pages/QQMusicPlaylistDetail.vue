@@ -1,16 +1,17 @@
 <script setup lang="ts">
 /**
  * QQMusicPlaylistDetail
- * QQ 音乐歌单详情页面：展示歌单歌曲列表，支持试听/下载/刷新/详情页
- * 依赖组件：BaseSongTable, CustomButton, FAIcon, LoadingSpinner
+ * QQ 音乐歌单详情页面：展示歌单歌曲列表，支持搜索/播放全部/试听/下载/详情页
+ * 依赖组件：ContentHeader, BaseSongTable, FAIcon, LoadingSpinner
  */
-import { watch, computed } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useQqmusicStore } from '../../store/qqmusic';
-import { usePlayerStore } from '../../store/player';
+import { usePlayerStore, PlayMode } from '../../store/player';
+import type { OnlineSongInfo } from '../../store/player';
 import { useLyricsStore } from '../../store/lyrics';
 import { getSongDownloadBundle } from '../../api/qqmusic';
+import ContentHeader from '../common/ContentHeader.vue';
 import BaseSongTable from '../business/BaseSongTable.vue';
-import CustomButton from '../custom/CustomButton.vue';
 import FAIcon from '../common/FAIcon.vue';
 import LoadingSpinner from '../custom/LoadingSpinner.vue';
 
@@ -21,20 +22,62 @@ const currentPlaylist = computed(() =>
   qqmusicStore.userPlaylists.find((p) => p.id === qqmusicStore.currentPlaylistId)
 );
 
+const searchTerm = ref('')
+const filteredSongs = computed(() => {
+  const term = searchTerm.value.trim().toLowerCase()
+  if (!term) return qqmusicStore.currentPlaylistSongs
+  return qqmusicStore.currentPlaylistSongs.filter((s: any) =>
+    (s.songName || '').toLowerCase().includes(term) ||
+    (s.singer || '').toLowerCase().includes(term)
+  )
+})
+
 watch(() => qqmusicStore.currentPlaylistId, (newId) => {
   if (newId) {
+    searchTerm.value = ''
     qqmusicStore.loadAllPlaylistSongs(newId);
   }
 }, { immediate: true })
 
 async function handleRefresh() {
   if (qqmusicStore.currentPlaylistId) {
+    searchTerm.value = ''
     await qqmusicStore.refreshPlaylistSongs(qqmusicStore.currentPlaylistId)
   }
 }
 
+function buildQueue(songs: any[]): OnlineSongInfo[] {
+  return songs.map((s: any) => ({
+    songMid: s.songMid || '',
+    songName: s.songName,
+    singer: s.singer,
+    coverUrl: s.album?.albumCoverUrl || '',
+    url: s.songUrl?.url || '',
+    urlType: s.songUrl?.urlType || 'mp3',
+  }))
+}
+
+function playSongWithContext(song: any) {
+  const songs = filteredSongs.value
+  const index = songs.findIndex((s: any) => (s.songMid || s.songId) === (song.songMid || song.songId))
+  const queue = buildQueue(songs)
+  const startIndex = index >= 0 ? index : 0
+  playerStore.playOnlineSong(queue[startIndex], { queue, startIndex })
+}
+
+function handlePlayAll() {
+  const songs = filteredSongs.value
+  if (songs.length === 0) return
+  const queue = buildQueue(songs)
+  let startIndex = 0
+  if (playerStore.playMode === PlayMode.RANDOM) {
+    startIndex = Math.floor(Math.random() * queue.length)
+  }
+  playerStore.playOnlineSong(queue[startIndex], { queue, startIndex })
+}
+
 async function handleClickSong(song: any) {
-  handlePlay(song);
+  playSongWithContext(song);
   const lyricsStore = useLyricsStore();
   lyricsStore.reset();
   try {
@@ -48,40 +91,36 @@ async function handleClickSong(song: any) {
 }
 
 function handlePlay(song: any) {
-  playerStore.playOnlineSong({
-    songMid: song.songMid || '',
-    songName: song.songName,
-    singer: song.singer,
-    coverUrl: song.album?.albumCoverUrl || '',
-    url: song.songUrl?.url || '',
-    urlType: song.songUrl?.urlType || 'mp3',
-  });
+  playSongWithContext(song);
 }
 
 async function handleDownload(song: any) {
   await qqmusicStore.downloadSong(song);
 }
+
+const headerActions = computed(() => [
+  {
+    key: 'play-all',
+    label: '播放全部',
+    icon: 'play',
+    type: 'primary' as const,
+    disabled: filteredSongs.value.length === 0,
+  },
+])
 </script>
 
 <template>
-  <div class="p-6 text-content-base h-full overflow-y-auto flex flex-col max-md:p-4">
-    <!-- 标题 -->
-    <div class="flex items-center gap-3 mb-6 shrink-0">
-      <div class="flex-1">
-        <div class="flex items-center gap-2">
-          <h2 class="text-xl font-bold max-md:text-lg">{{ currentPlaylist?.title || '歌单详情' }}</h2>
-          <CustomButton
-            type="icon-only" size="small" icon="refresh"
-            :loading="qqmusicStore.isRefreshing"
-            title="刷新歌单"
-            @click="handleRefresh"
-          />
-        </div>
-        <span v-if="currentPlaylist" class="text-xs text-content-secondary">
-          {{ qqmusicStore.currentPlaylistSongs.length }} / {{ currentPlaylist.songCount }} 首歌曲
-        </span>
-      </div>
-    </div>
+  <div class="h-full flex flex-col bg-surface-base text-content-base overflow-hidden">
+    <ContentHeader
+      :title="currentPlaylist?.title || '歌单详情'"
+      :meta-text="`${filteredSongs.length} / ${currentPlaylist?.songCount || 0} 首歌曲`"
+      :show-search="true"
+      :search-value="searchTerm"
+      search-placeholder="筛选歌曲或歌手"
+      :actions="headerActions"
+      @search-input="searchTerm = $event"
+      @action-click="handlePlayAll"
+    />
 
     <!-- 首次加载 -->
     <LoadingSpinner
@@ -94,14 +133,14 @@ async function handleDownload(song: any) {
       class="flex flex-col items-center justify-center flex-1 text-content-secondary gap-3">
       <FAIcon name="exclamation-circle" size="xl" color="danger" />
       <p>{{ qqmusicStore.loadingError }}</p>
-      <CustomButton type="primary" size="small" @click="handleRefresh">重试</CustomButton>
+      <button class="px-3 py-1.5 text-sm bg-surface-overlay rounded hover:bg-surface-elevated transition-colors" @click="handleRefresh">重试</button>
     </div>
 
-      <!-- 歌曲表格 -->
+    <!-- 歌曲表格 -->
     <div v-else class="flex-1 min-h-0 flex flex-col">
       <BaseSongTable
         mode="online"
-        :songs="qqmusicStore.currentPlaylistSongs as any"
+        :songs="filteredSongs as any"
         :loading="qqmusicStore.currentPlaylistLoading && qqmusicStore.currentPlaylistSongs.length > 0"
         :downloading-ids="qqmusicStore.downloadingIds"
         :show-cover="true"
