@@ -78,7 +78,7 @@ async def get_song_detail(song_id, request_id=""):
 
 
 async def get_songlist_detail(songlist_id, page, page_size, request_id=""):
-    """获取歌单歌曲列表"""
+    """获取歌单歌曲列表（单页）"""
     client = await get_client()
 
     try:
@@ -93,6 +93,53 @@ async def get_songlist_detail(songlist_id, page, page_size, request_id=""):
 
     items = [_build_songlist_item(song) for song in result.songs]
     return PlaylistSongsResponse(result=items, total=result.total, requestId=request_id)
+
+
+async def get_songlist_detail_all(songlist_id, request_id=""):
+    """获取歌单全部歌曲（自动迭代所有页码，一次性返回）"""
+    client = await get_client()
+
+    logger = logging.getLogger(__name__)
+    logger.info(f"开始获取歌单全部歌曲: songlist_id={songlist_id}")
+
+    all_songs = []
+    total = 0
+
+    try:
+        pager = client.songlist.get_detail(
+            songlist_id, num=100
+        ).paginate()
+
+        async for page in pager:
+            for song in page.songs:
+                all_songs.append(_build_songlist_item(song))
+            total = page.total or total
+    except ServiceException:
+        raise
+    except Exception:
+        logging.exception(f"获取歌单全部歌曲失败: {songlist_id}")
+        raise ServiceException(ErrorCode.AI_SERVICE_ERROR, "服务调用失败，请稍后重试")
+
+    # 一次性批量获取所有歌曲的播放 URL
+    mids = [s.songMid for s in all_songs if s.songMid]
+    if mids:
+        try:
+            url_items = await get_song_url_list_v2(mids, request_id)
+            url_list = url_items.result if url_items and url_items.result else []
+            for i, song in enumerate(all_songs):
+                if i < len(url_list) and url_list[i].url:
+                    song.songUrl = SongUrlInfo(
+                        url=url_list[i].url,
+                        urlType=url_list[i].urlType or "mp3",
+                    )
+        except Exception:
+            logging.warning(f"批量获取歌单歌曲 URL 失败: {songlist_id}")
+
+    return PlaylistSongsResponse(
+        result=all_songs,
+        total=total or len(all_songs),
+        requestId=request_id,
+    )
 
 
 async def search_by_keyword(keyword, page, page_size, request_id=""):

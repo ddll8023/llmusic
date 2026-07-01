@@ -184,6 +184,7 @@ export const useDiscoverStore = defineStore('discover', () => {
 
 	function playOnline(song: OnlineSong) {
 		return {
+			songMid: song.songMid || '',
 			songName: song.songName,
 			singer: song.singer,
 			coverUrl: song.album?.albumCoverUrl || '',

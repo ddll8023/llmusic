@@ -165,7 +165,7 @@ const handlePlatformNav = (view: string) => {
           class="absolute right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-[opacity,transform] duration-150 translate-x-1 group-hover:translate-x-0"
           @click.stop
         >
-          <CustomButton type="icon-only" size="small" icon="play" title="播放全部" circle @click="qqmusicStore.loadPlaylistSongs(playlist.id); /* TODO: play all */" />
+          <CustomButton type="icon-only" size="small" icon="play" title="播放全部" circle @click="qqmusicStore.setCurrentPlaylistId(playlist.id); uiStore.setView('qq-playlist-detail')" />
         </div>
       </div>
     </template>

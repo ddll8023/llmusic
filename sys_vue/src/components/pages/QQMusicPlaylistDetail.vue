@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * QQMusicPlaylistDetail
- * QQ 音乐歌单详情页面：展示歌单歌曲列表，支持试听/下载/详情页
+ * QQ 音乐歌单详情页面：展示歌单歌曲列表，支持试听/下载/刷新/详情页
  * 依赖组件：BaseSongTable, CustomButton, FAIcon, LoadingSpinner
  */
 import { watch, computed } from 'vue';
@@ -23,9 +23,15 @@ const currentPlaylist = computed(() =>
 
 watch(() => qqmusicStore.currentPlaylistId, (newId) => {
   if (newId) {
-    qqmusicStore.loadPlaylistSongs(newId);
+    qqmusicStore.loadAllPlaylistSongs(newId);
   }
 }, { immediate: true })
+
+async function handleRefresh() {
+  if (qqmusicStore.currentPlaylistId) {
+    await qqmusicStore.refreshPlaylistSongs(qqmusicStore.currentPlaylistId)
+  }
+}
 
 async function handleClickSong(song: any) {
   handlePlay(song);
@@ -37,29 +43,23 @@ async function handleClickSong(song: any) {
     if (data.lyrics) {
       lyricsStore.loadOnlineLyrics(data.lyrics);
     }
-  } catch { /* 歌词加载失败不阻塞 */ }
+  } catch (e) { console.warn('歌词加载失败:', e) }
   playerStore.showLyricsDisplay();
 }
 
 function handlePlay(song: any) {
-  const playable = {
+  playerStore.playOnlineSong({
+    songMid: song.songMid || '',
     songName: song.songName,
     singer: song.singer,
     coverUrl: song.album?.albumCoverUrl || '',
     url: song.songUrl?.url || '',
     urlType: song.songUrl?.urlType || 'mp3',
-  };
-  playerStore.playOnlineSong(playable);
+  });
 }
 
 async function handleDownload(song: any) {
   await qqmusicStore.downloadSong(song);
-}
-
-function handlePageChange(page: number) {
-  if (qqmusicStore.currentPlaylistId) {
-    qqmusicStore.loadPlaylistSongs(qqmusicStore.currentPlaylistId, page);
-  }
 }
 </script>
 
@@ -67,22 +67,42 @@ function handlePageChange(page: number) {
   <div class="p-6 text-content-base h-full overflow-y-auto flex flex-col max-md:p-4">
     <!-- 标题 -->
     <div class="flex items-center gap-3 mb-6 shrink-0">
-      <div>
-        <h2 class="text-xl font-bold max-md:text-lg">{{ currentPlaylist?.title || '歌单详情' }}</h2>
-        <span v-if="currentPlaylist" class="text-xs text-content-secondary">{{ currentPlaylist.songCount }} 首歌曲</span>
+      <div class="flex-1">
+        <div class="flex items-center gap-2">
+          <h2 class="text-xl font-bold max-md:text-lg">{{ currentPlaylist?.title || '歌单详情' }}</h2>
+          <CustomButton
+            type="icon-only" size="small" icon="refresh"
+            :loading="qqmusicStore.isRefreshing"
+            title="刷新歌单"
+            @click="handleRefresh"
+          />
+        </div>
+        <span v-if="currentPlaylist" class="text-xs text-content-secondary">
+          {{ qqmusicStore.currentPlaylistSongs.length }} / {{ currentPlaylist.songCount }} 首歌曲
+        </span>
       </div>
     </div>
 
-    <!-- 加载状态 -->
-    <LoadingSpinner v-if="qqmusicStore.currentPlaylistLoading && qqmusicStore.currentPlaylistSongs.length === 0" text="加载中..." />
+    <!-- 首次加载 -->
+    <LoadingSpinner
+      v-if="qqmusicStore.currentPlaylistLoading && qqmusicStore.currentPlaylistSongs.length === 0"
+      text="加载中..."
+    />
 
-    <!-- 歌曲表格 -->
+    <!-- 错误状态 -->
+    <div v-else-if="qqmusicStore.loadingError && qqmusicStore.currentPlaylistSongs.length === 0"
+      class="flex flex-col items-center justify-center flex-1 text-content-secondary gap-3">
+      <FAIcon name="exclamation-circle" size="xl" color="danger" />
+      <p>{{ qqmusicStore.loadingError }}</p>
+      <CustomButton type="primary" size="small" @click="handleRefresh">重试</CustomButton>
+    </div>
+
+      <!-- 歌曲表格 -->
     <div v-else class="flex-1 min-h-0 flex flex-col">
       <BaseSongTable
         mode="online"
         :songs="qqmusicStore.currentPlaylistSongs as any"
-        :loading="false"
-        :start-index="(qqmusicStore.currentPlaylistPage - 1) * qqmusicStore.currentPlaylistPageSize + 1"
+        :loading="qqmusicStore.currentPlaylistLoading && qqmusicStore.currentPlaylistSongs.length > 0"
         :downloading-ids="qqmusicStore.downloadingIds"
         :show-cover="true"
         :show-format="true"
@@ -93,27 +113,6 @@ function handlePageChange(page: number) {
         @play="handlePlay"
         @download="handleDownload"
       />
-
-    </div>
-
-    <!-- 分页 -->
-    <div
-      v-if="qqmusicStore.currentPlaylistTotal > qqmusicStore.currentPlaylistPageSize"
-      class="flex items-center justify-center gap-2 mt-6 shrink-0"
-    >
-      <CustomButton
-        type="secondary" size="small"
-        :disabled="qqmusicStore.currentPlaylistPage <= 1"
-        @click="handlePageChange(qqmusicStore.currentPlaylistPage - 1)"
-      >上一页</CustomButton>
-      <span class="text-xs text-content-secondary">
-        {{ qqmusicStore.currentPlaylistPage }} / {{ Math.ceil(qqmusicStore.currentPlaylistTotal / qqmusicStore.currentPlaylistPageSize) }}
-      </span>
-      <CustomButton
-        type="secondary" size="small"
-        :disabled="qqmusicStore.currentPlaylistPage * qqmusicStore.currentPlaylistPageSize >= qqmusicStore.currentPlaylistTotal"
-        @click="handlePageChange(qqmusicStore.currentPlaylistPage + 1)"
-      >下一页</CustomButton>
     </div>
   </div>
 </template>

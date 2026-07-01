@@ -133,10 +133,23 @@ async def get_user_liked_songs(req: schemas_qqmusic.GetUserLikedRequest):
 
 @router.post("/playlist/{playlist_id}/songs", response_model=ApiResponse[PlaylistSongsResponse])
 async def get_playlist_songs(playlist_id: int, req: schemas_qqmusic.GetPlaylistSongsRequest):
-    """获取 QQ 音乐歌单内的歌曲列表"""
+    """获取 QQ 音乐歌单内的歌曲列表（单页）"""
     try:
         result = await services_qqmusic.get_songlist_detail(
             playlist_id, req.page, req.pageSize, request_id=""
+        )
+        return success(data=result)
+
+    except ServiceException as e:
+        return error(code=e.code, message=e.message)
+
+
+@router.post("/playlist/{playlist_id}/songs/all", response_model=ApiResponse[PlaylistSongsResponse])
+async def get_playlist_songs_all(playlist_id: int):
+    """获取 QQ 音乐歌单内的全部歌曲（自动迭代所有页码，一次性返回）"""
+    try:
+        result = await services_qqmusic.get_songlist_detail_all(
+            playlist_id, request_id=""
         )
         return success(data=result)
 

@@ -1,7 +1,13 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
-import { getUserPlaylists, getUserLikedSongs, getPlaylistSongs, getSongUrls, getSongDownloadBundle } from '@/api/qqmusic'
+import { ref, computed } from 'vue'
+import { getUserPlaylists, getUserLikedSongs, getPlaylistSongs, getPlaylistSongsAll, getSongUrls, getSongDownloadBundle } from '@/api/qqmusic'
 import type { OnlineSong, QMPlaylistItem, SongDownloadBundle } from '@/types'
+
+interface PlaylistCacheEntry {
+  songs: OnlineSong[]
+  total: number
+  loadedPages: Set<number>
+}
 
 export const useQqmusicStore = defineStore('qqmusic', () => {
   // ========== 用户创建的歌单 ==========
@@ -10,16 +16,10 @@ export const useQqmusicStore = defineStore('qqmusic', () => {
   const playlistsLoading = ref(false)
   const likedPlaylistId = ref<number | null>(null)
 
-  // ========== 歌单详情 ==========
-  const currentPlaylistId = ref<number | null>(null)
-  const currentPlaylistSongs = ref<OnlineSong[]>([])
-  const currentPlaylistTotal = ref(0)
-  const currentPlaylistPage = ref(1)
-  const currentPlaylistPageSize = ref(20)
-  const currentPlaylistLoading = ref(false)
-  const downloadingIds = ref(new Set<string>())
+  // ========== 缓存层（内部，不导出） ==========
+  const playlistCache = ref(new Map<number, PlaylistCacheEntry>())
 
-  // ========== Actions ==========
+  // ========== Actions：用户歌单 ==========
 
   async function loadUserPlaylists() {
     playlistsLoading.value = true
@@ -32,7 +32,7 @@ export const useQqmusicStore = defineStore('qqmusic', () => {
       playlistsTotal.value = data.total || 0
 
       // 识别"我喜欢的音乐"歌单 ID
-      const liked = list.find((p) => p.title.includes('喜欢'))
+      const liked = list.find((p) => p.title === '我喜欢的音乐') || list.find((p) => p.title.includes('喜欢'))
       likedPlaylistId.value = liked?.id ?? null
     } catch (e) {
       userPlaylists.value = []
@@ -43,25 +43,54 @@ export const useQqmusicStore = defineStore('qqmusic', () => {
     }
   }
 
+  // ========== 歌单详情（从缓存派生） ==========
+  const currentPlaylistId = ref<number | null>(null)
+  const currentPlaylistSongs = ref<OnlineSong[]>([])
+  const currentPlaylistTotal = ref(0)
+  const currentPlaylistPage = ref(1)
+  const currentPlaylistPageSize = ref(20)
+  const currentPlaylistLoading = ref(false)
+  const isRefreshing = ref(false)
+  const loadingError = ref('')
+  const hasLoadedAll = computed(() =>
+    currentPlaylistTotal.value > 0 && currentPlaylistSongs.value.length >= currentPlaylistTotal.value
+  )
+  const downloadingIds = ref(new Set<string>())
+
   function setCurrentPlaylistId(id: number | null) {
     currentPlaylistId.value = id
+    currentPlaylistPage.value = 1
     currentPlaylistSongs.value = []
     currentPlaylistTotal.value = 0
-    currentPlaylistPage.value = 1
+    loadingError.value = ''
   }
 
   async function loadPlaylistSongs(playlistId: number, page = 1, pageSize = 20) {
-    currentPlaylistLoading.value = true
-    currentPlaylistId.value = playlistId
-    currentPlaylistPage.value = page
-    currentPlaylistPageSize.value = pageSize
+    const cached = playlistCache.value.get(playlistId)
+    if (cached) {
+      // 页面已缓存，直接展示
+      currentPlaylistId.value = playlistId
+      currentPlaylistSongs.value = cached.songs
+      currentPlaylistTotal.value = cached.total
+      currentPlaylistPage.value = page
+      currentPlaylistPageSize.value = pageSize
+      // page > 1 且已加载过 → 直接返回
+      if (cached.loadedPages.has(page)) {
+        return
+      }
+    } else {
+      playlistCache.value.set(playlistId, { songs: [], total: 0, loadedPages: new Set() })
+    }
+
+    // 仅首次加载设置 loading（翻页加载由组件控制，避免遮罩重置滚动位置）
+    if (page === 1) currentPlaylistLoading.value = true
+    loadingError.value = ''
 
     try {
       let songs: OnlineSong[] = []
       let total = 0
 
       if (playlistId === likedPlaylistId.value) {
-        // "我喜欢的音乐"调专用接口
         const res = await getUserLikedSongs(page, pageSize)
         const data = res.data as { result?: OnlineSong[]; total?: number }
         songs = data.result || []
@@ -73,15 +102,18 @@ export const useQqmusicStore = defineStore('qqmusic', () => {
         total = data.total || 0
       }
 
-      currentPlaylistTotal.value = total
+      const entry = playlistCache.value.get(playlistId)!
+      entry.total = total
+      entry.loadedPages.add(page)
 
-      // 第二步：获取歌曲播放 URL
-      const mids = songs.map((s) => s.songMid).filter(Boolean)
+      // 仅获取无 URL 的歌曲的播放 URL
+      const songsNeedUrl = songs.filter(s => !s.songUrl?.url)
+      const mids = songsNeedUrl.map((s) => s.songMid).filter(Boolean)
       if (mids.length > 0) {
         try {
           const urlRes = await getSongUrls(String(Date.now()), mids)
           const urlList = (urlRes.data as { result?: Array<{ url: string; urlType?: string }> }).result || []
-          songs.forEach((song, idx) => {
+          songsNeedUrl.forEach((song, idx) => {
             if (urlList[idx]) {
               song.songUrl = { url: urlList[idx].url, urlType: urlList[idx].urlType || 'mp3' }
             }
@@ -91,14 +123,88 @@ export const useQqmusicStore = defineStore('qqmusic', () => {
         }
       }
 
-      currentPlaylistSongs.value = songs
+      if (page === 1) {
+        entry.songs = songs
+        currentPlaylistSongs.value = songs
+      } else {
+        entry.songs.push(...songs)
+        currentPlaylistSongs.value = [...entry.songs]
+      }
+
+      currentPlaylistTotal.value = total
+      currentPlaylistPage.value = page
+      isRefreshing.value = false
     } catch (e) {
-      currentPlaylistSongs.value = []
+      if (page === 1) {
+        currentPlaylistSongs.value = []
+        loadingError.value = '加载失败'
+      }
       currentPlaylistTotal.value = 0
+      isRefreshing.value = false
       console.error('加载歌单歌曲失败:', e)
     } finally {
       currentPlaylistLoading.value = false
     }
+  }
+
+  async function loadAllPlaylistSongs(playlistId: number) {
+    const cached = playlistCache.value.get(playlistId)
+    if (cached) {
+      currentPlaylistId.value = playlistId
+      currentPlaylistSongs.value = cached.songs
+      currentPlaylistTotal.value = cached.total
+      return
+    }
+
+    currentPlaylistLoading.value = true
+    loadingError.value = ''
+
+    try {
+      let songs: OnlineSong[] = []
+      let total = 0
+
+      if (playlistId === likedPlaylistId.value) {
+        const res = await getUserLikedSongs(1, 100)
+        const data = res.data as { result?: OnlineSong[]; total?: number }
+        songs = data.result || []
+        total = data.total || 0
+      } else {
+        const res = await getPlaylistSongsAll(playlistId)
+        const data = res.data as { result?: OnlineSong[]; total?: number }
+        songs = data.result || []
+        total = data.total || 0
+      }
+
+      playlistCache.value.set(playlistId, { songs, total, loadedPages: new Set([1]) })
+      currentPlaylistSongs.value = songs
+      currentPlaylistTotal.value = total
+      isRefreshing.value = false
+    } catch (e) {
+      currentPlaylistSongs.value = []
+      currentPlaylistTotal.value = 0
+      loadingError.value = '加载失败'
+      isRefreshing.value = false
+      console.error('加载歌单全部歌曲失败:', e)
+    } finally {
+      currentPlaylistLoading.value = false
+    }
+  }
+
+  async function refreshPlaylistSongs(playlistId: number) {
+    playlistCache.value.delete(playlistId)
+    isRefreshing.value = true
+    await loadAllPlaylistSongs(playlistId)
+  }
+
+  function clearAllCache() {
+    playlistCache.value.clear()
+    userPlaylists.value = []
+    playlistsTotal.value = 0
+    currentPlaylistSongs.value = []
+    currentPlaylistTotal.value = 0
+    currentPlaylistPage.value = 1
+    currentPlaylistId.value = null
+    likedPlaylistId.value = null
   }
 
   async function downloadSong(song: OnlineSong) {
@@ -158,6 +264,7 @@ export const useQqmusicStore = defineStore('qqmusic', () => {
     currentPlaylistSongs.value = []
     currentPlaylistTotal.value = 0
     currentPlaylistPage.value = 1
+    loadingError.value = ''
   }
 
   return {
@@ -171,10 +278,16 @@ export const useQqmusicStore = defineStore('qqmusic', () => {
     currentPlaylistPage,
     currentPlaylistPageSize,
     currentPlaylistLoading,
+    isRefreshing,
+    loadingError,
+    hasLoadedAll,
     downloadingIds,
     loadUserPlaylists,
     setCurrentPlaylistId,
     loadPlaylistSongs,
+    loadAllPlaylistSongs,
+    refreshPlaylistSongs,
+    clearAllCache,
     downloadSong,
     clearCurrentPlaylist,
   }

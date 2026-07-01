@@ -106,8 +106,8 @@ export const useAuthStore = defineStore('auth', () => {
 		stopPolling()
 		try {
 			await logoutApi()
-		} catch {
-			// 忽略
+		} catch (e) {
+			console.warn('退出登录失败:', e)
 		}
 		isLoggedIn.value = false
 		isExpired.value = false
@@ -116,6 +116,28 @@ export const useAuthStore = defineStore('auth', () => {
 		sessionId.value = ''
 		qrStatus.value = ''
 		qrMessage.value = ''
+
+		const { useQqmusicStore } = await import('./qqmusic')
+		const qqmusicStore = useQqmusicStore()
+		qqmusicStore.clearAllCache()
+
+		const { usePlayerStore } = await import('./player')
+		const playerStore = usePlayerStore()
+		playerStore.stop()
+		playerStore.isOnlineSong = false
+		playerStore.onlineSongName = ''
+		playerStore.onlineSinger = ''
+		playerStore.onlineSongMid = ''
+
+		const { useDiscoverStore } = await import('./discover')
+		const discoverStore = useDiscoverStore()
+		discoverStore.searchResults = []
+		discoverStore.keyword = ''
+		discoverStore.searchUrl = ''
+		discoverStore.errorMsg = ''
+		discoverStore.loading = false
+
+		localStorage.removeItem('playerState')
 	}
 
 	function resetQRState() {

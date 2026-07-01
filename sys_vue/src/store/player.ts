@@ -40,6 +40,7 @@ export const usePlayerStore = defineStore('player', {
 		isOnlineSong: false,
 		onlineSongName: '',
 		onlineSinger: '',
+		onlineSongMid: '',
 	}),
 
 	getters: {
@@ -304,13 +305,14 @@ export const usePlayerStore = defineStore('player', {
 		},
 
 		// ── 在线播放 ──
-		playOnlineSong(info: { songName: string; singer: string; coverUrl: string; url: string; urlType: string }) {
+		playOnlineSong(info: { songName: string; singer: string; coverUrl: string; url: string; urlType: string; songMid?: string }) {
 			this.currentTime = 0
 			this.accumulatedPlayTime = 0
 			this.hasBeenCounted = false
 			this.isOnlineSong = true
 			this.onlineSongName = info.songName
 			this.onlineSinger = info.singer
+			this.onlineSongMid = info.songMid || ''
 			this.currentSong = null
 			this.playing = true
 			window._onlineCoverUrl = info.coverUrl || ''
@@ -380,6 +382,10 @@ export const usePlayerStore = defineStore('player', {
 					currentIndex: this.currentIndex,
 					shuffleQueue: this.shuffleQueue,
 					shuffleIndex: this.shuffleIndex,
+					isOnlineSong: this.isOnlineSong,
+					onlineSongName: this.onlineSongName,
+					onlineSinger: this.onlineSinger,
+					onlineSongMid: this.onlineSongMid,
 				}
 				localStorage.setItem('playerState', JSON.stringify(state))
 			} catch {
@@ -402,6 +408,10 @@ export const usePlayerStore = defineStore('player', {
 					this.currentIndex = state.currentIndex ?? -1
 					this.shuffleQueue = state.shuffleQueue || []
 					this.shuffleIndex = state.shuffleIndex ?? -1
+					this.isOnlineSong = state.isOnlineSong || false
+					this.onlineSongName = state.onlineSongName || ''
+					this.onlineSinger = state.onlineSinger || ''
+					this.onlineSongMid = state.onlineSongMid || ''
 				}
 			} catch {
 				// 解析失败时使用默认值

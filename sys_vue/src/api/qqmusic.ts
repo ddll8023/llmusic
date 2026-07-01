@@ -74,9 +74,14 @@ export function getUserLikedSongs(page = 1, pageSize = 20) {
   return qqmusicClient.post<ApiResponse>('/user/liked', { page, pageSize })
 }
 
-/** 获取 QQ 音乐歌单内的歌曲列表 */
+/** 获取 QQ 音乐歌单内的歌曲列表（单页） */
 export function getPlaylistSongs(playlistId: number, page = 1, pageSize = 20) {
   return qqmusicClient.post<ApiResponse>(`/playlist/${playlistId}/songs`, { page, pageSize })
+}
+
+/** 获取 QQ 音乐歌单内的全部歌曲（后端自动翻页，一次性返回） */
+export function getPlaylistSongsAll(playlistId: number) {
+  return qqmusicClient.post<ApiResponse>(`/playlist/${playlistId}/songs/all`, { requestId: String(Date.now()) })
 }
 
 // ========== 下载元数据 ==========

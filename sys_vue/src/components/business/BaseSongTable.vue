@@ -88,7 +88,10 @@ const selectedIds = ref(new Set<string>())
 const songCovers = reactive<Record<string, string>>({})
 const placeholderCover = 'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=='
 
-const currentSongId = computed(() => playerStore.currentSong?.id || null)
+const currentSongId = computed(() => {
+  if (playerStore.isOnlineSong) return playerStore.onlineSongMid
+  return playerStore.currentSong?.id || null
+})
 const isPlaying = computed(() => playerStore.playing)
 
 function getSongId(song: SongItem): string {
@@ -137,7 +140,7 @@ async function loadCover(songId: any) {
       const fmt = result.format || 'image/jpeg'
       songCovers[songId] = `data:${fmt};base64,${result.cover}`
     }
-  } catch { /* ignore */ }
+  } catch (e) { console.warn('加载封面失败:', e) }
 }
 
 // ── 选择逻辑 ──
@@ -411,7 +414,10 @@ const gridTemplateStyle = computed(() => {
           <div v-for="(song, index) in songs" :key="getSongId(song)"
             :class="[
               'grid gap-2 px-4 py-2 border-b border-line-base items-center hover:bg-overlay-light transition-colors group cursor-pointer',
-              isSelected(song) ? 'bg-accent-green/[0.04] shadow-[inset_3px_0_0_0_rgba(76,175,80,0.5)]' : ''
+              isSelected(song) ? 'bg-accent-green/[0.04] shadow-[inset_3px_0_0_0_rgba(76,175,80,0.5)]' : '',
+              currentSongId === getSongId(song)
+                ? 'text-accent-green bg-accent-green/10 border-l-[3px] border-l-accent-green'
+                : ''
             ]"
             :style="gridTemplateStyle"
             @click="handleRowClick(song)">
