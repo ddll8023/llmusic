@@ -1024,6 +1024,10 @@ const showLyrics = async () => {
 
     try {
         if (playerStore.isOnlineSong) {
+            const lyricsStore = useLyricsStore()
+            if (!lyricsStore.hasLyrics && playerStore.onlineSongMid) {
+                await lyricsStore.loadOnlineLyricsByMid(playerStore.onlineSongMid)
+            }
             playerStore.showLyricsDisplay();
             return;
         }

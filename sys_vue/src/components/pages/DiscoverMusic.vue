@@ -163,8 +163,7 @@
 		import { computed, ref, watch } from 'vue'
 		import { useDiscoverStore } from '../../store/discover'
 		import { usePlayerStore } from '../../store/player'
-		import { useLyricsStore } from '../../store/lyrics'
-		import { getSongDownloadBundle } from '../../api/qqmusic'
+		
 		import BaseSongTable from '../business/BaseSongTable.vue'
 		import CustomSelect from '../custom/CustomSelect.vue'
 		import CustomInput from '../custom/CustomInput.vue'
@@ -199,17 +198,8 @@
 			return discoverStore.keyword.trim()
 		})
 
-		async function handleClickSong(song: any) {
+			async function handleClickSong(song: any) {
 			handlePlay(song);
-			const lyricsStore = useLyricsStore();
-			lyricsStore.reset();
-			try {
-				const res = await getSongDownloadBundle(String(Date.now()), song.songMid)
-				const data = res.data as any
-				if (data.lyrics) {
-					lyricsStore.loadOnlineLyrics(data.lyrics)
-				}
-			} catch { /* 歌词加载失败不阻塞 */ }
 			playerStore.showLyricsDisplay()
 		}
 

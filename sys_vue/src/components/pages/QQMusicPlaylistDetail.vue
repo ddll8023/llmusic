@@ -8,8 +8,6 @@ import { ref, watch, computed } from 'vue';
 import { useQqmusicStore } from '../../store/qqmusic';
 import { usePlayerStore, PlayMode } from '../../store/player';
 import type { OnlineSongInfo } from '../../store/player';
-import { useLyricsStore } from '../../store/lyrics';
-import { getSongDownloadBundle } from '../../api/qqmusic';
 import ContentHeader from '../common/ContentHeader.vue';
 import BaseSongTable from '../business/BaseSongTable.vue';
 import FAIcon from '../common/FAIcon.vue';
@@ -78,15 +76,6 @@ function handlePlayAll() {
 
 async function handleClickSong(song: any) {
   playSongWithContext(song);
-  const lyricsStore = useLyricsStore();
-  lyricsStore.reset();
-  try {
-    const res = await getSongDownloadBundle(String(Date.now()), song.songMid);
-    const data = res.data as any;
-    if (data.lyrics) {
-      lyricsStore.loadOnlineLyrics(data.lyrics);
-    }
-  } catch (e) { console.warn('歌词加载失败:', e) }
   playerStore.showLyricsDisplay();
 }
 

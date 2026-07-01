@@ -12,6 +12,8 @@
  */
 import { defineStore } from "pinia"
 import type { LyricLine } from "../types"
+import { getSongDownloadBundle } from '@/api/qqmusic'
+import { usePlayerStore } from './player'
 
 export const useLyricsStore = defineStore("lyrics", {
 	state: () => ({
@@ -135,6 +137,25 @@ export const useLyricsStore = defineStore("lyrics", {
 			this.isAutoScrolling = true
 			this.source = 'online'
 			this.format = 'lrc'
+		},
+
+		/**
+		 * 通过 songMid 从后端加载在线歌词
+		 * 供 playerStore._applyOnlineSong 调用（fire-and-forget）
+		 */
+		async loadOnlineLyricsByMid(songMid: string) {
+			if (!songMid) return
+			try {
+				const res = await getSongDownloadBundle(String(Date.now()), songMid)
+				const playerStore = usePlayerStore()
+				if (playerStore.onlineSongMid !== songMid) return
+				const data = res.data as { lyrics?: string }
+				if (data?.lyrics) {
+					this.loadOnlineLyrics(data.lyrics)
+				}
+			} catch {
+				// 歌词加载失败不阻塞播放
+			}
 		},
 
 		/** 重置歌词状态 */

@@ -486,6 +486,8 @@ export const usePlayerStore = defineStore('player', {
 			if (window._playOnlineUrl && info.url) {
 				window._playOnlineUrl(info.url)
 			}
+			const lyricsStore = useLyricsStore()
+			lyricsStore.loadOnlineLyricsByMid(this.onlineSongMid)
 		},
 
 		_generateOnlineShuffleQueue() {
@@ -601,10 +603,14 @@ export const usePlayerStore = defineStore('player', {
 					this.onlineSongName = state.onlineSongName || ''
 					this.onlineSinger = state.onlineSinger || ''
 					this.onlineSongMid = state.onlineSongMid || ''
-					this.onlinePlayQueue = state.onlinePlayQueue || []
-					this.onlinePlayIndex = state.onlinePlayIndex ?? -1
-					this.onlineShuffleQueue = state.onlineShuffleQueue || []
-					this.onlineShuffleIndex = state.onlineShuffleIndex ?? -1
+			this.onlinePlayQueue = state.onlinePlayQueue || []
+				this.onlinePlayIndex = state.onlinePlayIndex ?? -1
+				this.onlineShuffleQueue = state.onlineShuffleQueue || []
+				this.onlineShuffleIndex = state.onlineShuffleIndex ?? -1
+				if (this.isOnlineSong && this.onlineSongMid) {
+					const lyricsStore = useLyricsStore()
+					lyricsStore.loadOnlineLyricsByMid(this.onlineSongMid)
+				}
 				}
 			} catch {
 				// 解析失败时使用默认值
