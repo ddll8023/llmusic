@@ -1,6 +1,6 @@
 import { computed, type ComputedRef } from 'vue'
 
-export type GlassVariant = 'panel' | 'elevated' | 'button'
+export type GlassVariant = 'panel' | 'button'
 export type GlassPerformance = 'high' | 'balanced' | 'eco'
 
 export interface GlassOptions {
@@ -14,7 +14,6 @@ export interface GlassOptions {
 
 export interface GlassStyles {
   style: ComputedRef<Record<string, string>>
-  classes: ComputedRef<string>
   tokens: {
     background: string
     backdropFilter: string
@@ -26,21 +25,12 @@ export interface GlassStyles {
 /* 阴影值统一在 tailwind-entry.css :root 中定义，通过 CSS 变量引用 */
 const variantConfigs: Record<GlassVariant, {
   shadow: string
-  hoverShadow?: string
-  hoverBg?: string
 }> = {
   panel: {
     shadow: 'var(--glass-panel-shadow)',
   },
-  elevated: {
-    shadow: 'var(--glass-panel-shadow)',
-    hoverShadow: 'var(--glass-panel-hover-shadow)',
-    hoverBg: 'var(--glass-button-hover-bg)',
-  },
   button: {
     shadow: 'var(--glass-btn-shadow)',
-    hoverShadow: 'var(--glass-btn-hover-shadow)',
-    hoverBg: 'var(--glass-btn-hover-bg)',
   },
 }
 
@@ -78,7 +68,5 @@ export function useGlassStyles(options: GlassOptions = {}): GlassStyles {
     borderRadius: tokens.borderRadius,
   }))
 
-  const classes = computed(() => 'relative')
-
-  return { style, classes, tokens }
+  return { style, tokens }
 }

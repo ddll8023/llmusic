@@ -143,9 +143,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-	<div v-if="show" ref="menuRef"
-		class="fixed z-[250] min-w-[200px] max-w-[250px] bg-surface-overlay rounded shadow-custom-hover overflow-hidden fade-in-up select-none border border-surface-overlay max-md:min-w-[180px] max-md:max-w-[220px]"
-		:style="menuStyle" @click.stop>
+	<Transition name="context-menu">
+		<div v-if="show" ref="menuRef"
+			class="fixed z-[250] min-w-[200px] max-w-[250px] bg-surface-overlay rounded shadow-custom-hover overflow-hidden select-none border border-surface-overlay max-md:min-w-[180px] max-md:max-w-[220px]"
+			:style="menuStyle" @click.stop>
 		<div v-if="props.song" class="p-3 bg-surface-elevated border-b border-surface-overlay">
 			<div class="overflow-hidden">
 				<div class="font-medium text-sm text-content-base truncate">{{ props.song.title || '未知歌曲' }}</div>
@@ -203,4 +204,28 @@ onUnmounted(() => {
 			</template>
 		</div>
 	</div>
+</Transition>
 </template>
+
+<style scoped>
+.context-menu-enter-active,
+.context-menu-leave-active {
+  transition: opacity var(--duration-fast) cubic-bezier(.16,1,.3,1),
+              transform var(--duration-fast) cubic-bezier(.16,1,.3,1);
+}
+.context-menu-enter-from,
+.context-menu-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+.context-menu-enter-to,
+.context-menu-leave-from {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.context-menu-enter-active > div,
+.context-menu-leave-active > div {
+  will-change: transform, opacity;
+}
+</style>

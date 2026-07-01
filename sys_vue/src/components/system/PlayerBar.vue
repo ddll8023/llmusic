@@ -731,6 +731,9 @@ onMounted(async () => {
       :style="{ '--progress-deg': progressDeg + 'deg' }"
       @mouseenter="autoHide.reset()">
 
+      <!-- SVG 色差玻璃覆盖层 -->
+      <div class="ribbon-glass-overlay"></div>
+
       <!-- 封面（始终存在，过渡尺寸/圆角） -->
       <div class="n-cover" @click="showLyrics" title="点击查看歌词">
         <img :src="coverImage || defaultCoverImage"
@@ -834,12 +837,24 @@ onMounted(async () => {
   backdrop-filter: saturate(var(--glass-saturate)) brightness(var(--glass-brightness)) blur(var(--glass-blur));
   -webkit-backdrop-filter: saturate(var(--glass-saturate)) brightness(var(--glass-brightness)) blur(var(--glass-blur));
   box-shadow: var(--glass-panel-shadow);
-  transition: height 0.35s cubic-bezier(.16,1,.3,1);
+  transition: height 0.35s cubic-bezier(.16,1,.3,1),
+              box-shadow var(--duration-fast) cubic-bezier(.16,1,.3,1);
   position: relative;
   overflow: clip;
+  will-change: height, box-shadow;
 }
 .ribbon-wrap.collapsed .ribbon {
   height: 52px;
+}
+
+/* SVG 色差玻璃覆盖层 — 叠加在 backdrop-filter 之上 */
+.ribbon-glass-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  filter: var(--glass-svg-filter);
+  will-change: filter;
 }
 
 /* hover 玻璃增强 */
