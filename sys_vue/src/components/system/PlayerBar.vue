@@ -724,22 +724,22 @@ onMounted(async () => {
 </script>
 
 <template>
-  <!-- 玻璃 Ribbon -->
   <div :class="['ribbon-wrap', { collapsed: isCollapsed }]"
     role="region" aria-label="播放控制栏"
     @mouseenter="autoHide.reset()" @mouseleave="autoHide.start()">
-    <div :class="['ribbon w-full', { 'ribbon-pulse': isPulsing }]"
+    <div :class="['ribbon', { 'ribbon-pulse': isPulsing }]"
       :style="{ '--progress-deg': progressDeg + 'deg' }"
       @mouseenter="autoHide.reset()">
-      <!-- 封面（全模式） -->
-      <div v-show="!isCollapsed" class="ribbon-cover" @click="showLyrics" title="点击查看歌词">
+
+      <!-- 封面（始终存在，过渡尺寸/圆角） -->
+      <div class="n-cover" @click="showLyrics" title="点击查看歌词">
         <img :src="coverImage || defaultCoverImage"
-          :class="['rcover-img', { 'mini': isCollapsed }, isLoadingCover ? 'animate-pulse' : '']"
+          :class="['rcover-img', isLoadingCover ? 'animate-pulse' : '']"
           alt="cover" @error="onCoverImageError" />
       </div>
 
-      <!-- 歌曲信息（全模式） -->
-      <div v-show="!isCollapsed" class="ribbon-track">
+      <!-- 歌曲信息（始终存在，过渡宽度） -->
+      <div class="n-track" :title="displaySongTitle + ' - ' + displaySongArtist">
         <template v-if="hasValidSong">
           <div class="rt-name">{{ displaySongTitle }}</div>
           <div class="rt-artist">{{ displaySongArtist }}</div>
@@ -750,41 +750,22 @@ onMounted(async () => {
         </template>
       </div>
 
-      <!-- 迷你态：B2 胶囊浮标 -->
-      <template v-if="isCollapsed">
-        <div class="pf-cover" @click="showLyrics" title="点击查看歌词">
-          <img :src="coverImage || defaultCoverImage"
-            class="rcover-img"
-            alt="cover" @error="onCoverImageError" />
-        </div>
-        <div class="pf-info" :title="displaySongTitle + ' - ' + displaySongArtist">
-          <div class="pf-name">{{ hasValidSong ? displaySongTitle : 'LLMusic' }}</div>
-          <div class="pf-artist">{{ hasValidSong ? displaySongArtist : ' ' }}</div>
-        </div>
-        <button class="pf-play" title="播放/暂停" @click="togglePlayPause">{{ playerStore.playing ? '⏸' : '▶' }}</button>
-        <button class="pf-expand" title="展开" @click="uiStore.expandPlayerBar()">▲</button>
-      </template>
-
-      <!-- 全模式追踪信息 -->
-      <template v-if="!isCollapsed">
-        <!-- 音质标签 -->
+      <!-- 辅助控制区（收缩态压缩消失） -->
+      <div class="n-aux">
         <span v-if="hasValidSong" class="ribbon-badge">SQ · FLAC</span>
         <span v-else class="ribbon-badge" style="opacity:0">SQ · FLAC</span>
 
-        <!-- 分隔 -->
         <span class="rdivider"></span>
 
-        <!-- 主控制 -->
         <div class="rbtn-group">
           <button class="rbtn" title="上一首" @click="playerStore.playPrevious">⏮</button>
-          <button class="rbtn rbtn-play" title="播放/暂停" @click="togglePlayPause">{{ playerStore.playing ? '⏸' : '▶' }}</button>
+          <button class="rbtn n-aux-play" title="播放/暂停"
+            @click="togglePlayPause">{{ playerStore.playing ? '⏸' : '▶' }}</button>
           <button class="rbtn" title="下一首" @click="playerStore.playNext()">⏭</button>
         </div>
 
-        <!-- 分隔 -->
         <span class="rdivider"></span>
 
-        <!-- 进度 -->
         <div class="rprog">
           <span class="rprog-time">{{ formatTime(playerStore.currentTime) }}</span>
           <div ref="timelineRef" class="rprog-track" @click="setPlayTime">
@@ -793,10 +774,8 @@ onMounted(async () => {
           <span class="rprog-time">{{ displayDuration }}</span>
         </div>
 
-        <!-- 分隔 -->
         <span class="rdivider"></span>
 
-        <!-- 辅助控制 -->
         <div class="rbtn-group">
           <button class="rbtn" title="收藏" :class="{ 'active': false }">♡</button>
           <button class="rbtn" title="播放模式" :class="{ 'active': playerStore.playMode !== 'sequence' }" style="font-size:12px" @click="togglePlayMode">{{ playModeIconName === 'random' ? '🔀' : playModeIconName === 'repeat' ? '🔁' : '🔂' }}</button>
@@ -804,21 +783,26 @@ onMounted(async () => {
           <button class="rbtn" title="播放列表" :class="{ 'active': uiShowPlaylist }" style="font-size:13px" @click="uiStore.togglePlaylist()">☰</button>
         </div>
 
-        <!-- 分隔 -->
         <span class="rdivider"></span>
 
-        <!-- 音量 -->
         <div class="rvol" title="音量">
           <span class="rvol-icon" @click="toggleMute">{{ playerStore.muted || playerStore.volume === 0 ? '🔇' : playerStore.volume < 0.5 ? '🔉' : '🔊' }}</span>
           <span ref="volumeRef" class="rvol-bar" @mousedown="startVolumeChange">
             <span class="rvol-fill" :style="{ width: volumePercentage }"></span>
           </span>
         </div>
-      </template>
+      </div>
 
-      <!-- 展开/收缩按钮（仅全模式） -->
-      <button v-show="!isCollapsed" class="rcollapse-btn" title="收缩"
-        @click="uiStore.collapsePlayerBar()">▼</button>
+      <!-- 收缩态播放按钮 -->
+      <button class="n-play-c" v-show="isCollapsed" title="播放/暂停"
+        @click="togglePlayPause">{{ playerStore.playing ? '⏸' : '▶' }}</button>
+
+      <!-- 展开/收缩按钮（始终存在） -->
+      <button class="n-toggle"
+        :title="isCollapsed ? '展开' : '收缩'"
+        @click="isCollapsed ? uiStore.expandPlayerBar() : uiStore.collapsePlayerBar()">
+        {{ isCollapsed ? '▲' : '▼' }}
+      </button>
     </div>
   </div>
 </template>
@@ -835,14 +819,16 @@ onMounted(async () => {
   max-width: 960px;
   transition: max-width 0.35s cubic-bezier(.16,1,.3,1);
 }
+.ribbon-wrap.collapsed {
+  width: fit-content;
+  max-width: 380px;
+}
 
 /* ===== Ribbon 主体（玻璃胶囊） ===== */
 .ribbon {
   display: flex;
   align-items: center;
-  gap: 8px;
   height: 64px;
-  padding: 0 14px 0 12px;
   border-radius: 50px;
   background: rgba(0,0,0,.12);
   backdrop-filter: saturate(1.8) brightness(1.16) blur(12px);
@@ -856,26 +842,14 @@ onMounted(async () => {
     inset 0 4px 16px rgba(17,17,26,.08),
     inset 0 8px 24px rgba(17,17,26,.08),
     inset 0 16px 56px rgba(17,17,26,.08);
-  transition: box-shadow 0.35s ease, height 0.35s cubic-bezier(.16,1,.3,1), padding 0.35s ease, gap 0.35s ease;
+  transition: height 0.35s cubic-bezier(.16,1,.3,1);
   position: relative;
   overflow: clip;
 }
-/* 底部微光进度线 */
-.ribbon::before {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 52px;
-  right: 52px;
-  height: 2px;
-  background: linear-gradient(90deg, rgba(255,255,255,.04), rgba(255,255,255,.15), rgba(255,255,255,.04));
-  border-radius: 2px;
-  transition: height 0.3s ease, background 0.3s ease;
+.ribbon-wrap.collapsed .ribbon {
+  height: 52px;
 }
-.ribbon-wrap:hover .ribbon::before {
-  height: 3px;
-  background: linear-gradient(90deg, rgba(76,175,80,.25), rgba(76,175,80,.65), rgba(76,175,80,.25));
-}
+
 /* hover 玻璃增强 */
 .ribbon-wrap:hover .ribbon {
   box-shadow:
@@ -889,18 +863,64 @@ onMounted(async () => {
     inset 0 16px 60px rgba(17,17,26,.1);
 }
 
-/* ===== 封面 ===== */
-.ribbon-cover {
+/* 底部微光进度线 */
+.ribbon::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 52px;
+  right: 52px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(255,255,255,.04), rgba(255,255,255,.15), rgba(255,255,255,.04));
+  border-radius: 2px;
+  transition: opacity 0.3s ease, height 0.3s ease, background 0.3s ease;
+}
+.ribbon-wrap.collapsed .ribbon::before {
+  opacity: 0;
+}
+.ribbon-wrap:hover .ribbon::before {
+  height: 3px;
+  background: linear-gradient(90deg, rgba(76,175,80,.25), rgba(76,175,80,.65), rgba(76,175,80,.25));
+}
+
+/* 收缩态 ::after 进度环 */
+.ribbon-wrap.collapsed .ribbon::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(
+    from 0deg,
+    #4caf50 0deg,
+    #4caf50 var(--progress-deg, 0deg),
+    transparent var(--progress-deg, 0deg),
+    transparent 360deg
+  ) border-box;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+  pointer-events: none;
+}
+
+/* ===== 封面（始终存在，过渡尺寸/圆角） ===== */
+.n-cover {
+  flex-shrink: 0;
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  flex-shrink: 0;
   overflow: hidden;
   cursor: pointer;
-  transition: transform 0.35s ease, box-shadow 0.35s ease;
   position: relative;
+  margin-left: 12px;
+  transition: width 0.35s cubic-bezier(.16,1,.3,1),
+              height 0.35s cubic-bezier(.16,1,.3,1),
+              border-radius 0.35s cubic-bezier(.16,1,.3,1),
+              margin-left 0.35s cubic-bezier(.16,1,.3,1);
 }
-.ribbon-cover::after {
+.n-cover::after {
   content: '';
   position: absolute; inset: 0;
   background: linear-gradient(135deg, rgba(255,255,255,.06), transparent);
@@ -913,16 +933,28 @@ onMounted(async () => {
   object-fit: cover;
   display: block;
 }
-.ribbon-wrap:hover .ribbon-cover {
+.ribbon-wrap:hover .n-cover {
   transform: scale(1.05);
   box-shadow: 0 0 20px rgba(255,255,255,.06);
 }
+.ribbon-wrap.collapsed .n-cover {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  margin-left: 6px;
+}
 
-/* ===== 歌曲信息 ===== */
-.ribbon-track {
-  flex: 0 0 auto;
+/* ===== 歌曲信息（始终存在，过渡宽度） ===== */
+.n-track {
+  flex: 0 1 auto;
   min-width: 0;
-  max-width: 160px;
+  max-width: 200px;
+  margin: 0 8px;
+  transition: max-width 0.35s cubic-bezier(.16,1,.3,1),
+              margin 0.35s cubic-bezier(.16,1,.3,1);
+}
+.ribbon-wrap.collapsed .n-track {
+  max-width: 130px;
 }
 .rt-name {
   font-size: 13px;
@@ -939,6 +971,28 @@ onMounted(async () => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ===== 辅助控制区（收缩态压缩消失） ===== */
+.n-aux {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 580px;
+  opacity: 1;
+  transition: max-width 0.35s cubic-bezier(.16,1,.3,1),
+              opacity 0.2s ease,
+              margin 0.35s cubic-bezier(.16,1,.3,1),
+              padding 0.35s cubic-bezier(.16,1,.3,1);
+}
+.ribbon-wrap.collapsed .n-aux {
+  max-width: 0;
+  opacity: 0;
+  margin: 0;
+  padding: 0;
+  pointer-events: none;
 }
 
 /* ===== 音质标签 ===== */
@@ -966,7 +1020,7 @@ onMounted(async () => {
   flex-shrink: 0;
 }
 
-/* ===== 按钮 ===== */
+/* ===== 按钮通用 ===== */
 .rbtn-group {
   display: flex;
   align-items: center;
@@ -995,17 +1049,64 @@ onMounted(async () => {
 .rbtn.active {
   color: #4caf50;
 }
-.rbtn-play {
+
+/* n-aux 内的播放按钮（展开态使用） */
+.n-aux-play {
   width: 34px;
   height: 34px;
   background: rgba(255,255,255,.06);
   font-size: 16px;
   color: rgba(255,255,255,.75);
 }
-.rbtn-play:hover {
+.n-aux-play:hover {
   background: rgba(255,255,255,.13);
   color: #fff;
   box-shadow: 0 0 18px rgba(255,255,255,.06);
+}
+
+/* ===== 收缩态播放按钮 ===== */
+.n-play-c {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,.08);
+  color: rgba(255,255,255,.8);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.n-play-c:hover {
+  background: rgba(255,255,255,.16);
+  box-shadow: 0 0 18px rgba(255,255,255,.06);
+}
+
+/* ===== 展开/收缩按钮（始终存在） ===== */
+.n-toggle {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,.35);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  margin-right: 10px;
+  transition: all 0.25s ease, margin-right 0.35s cubic-bezier(.16,1,.3,1);
+}
+.n-toggle:hover {
+  color: #fff;
+  background: rgba(255,255,255,.06);
+}
+.ribbon-wrap.collapsed .n-toggle {
+  margin-right: 6px;
 }
 
 /* ===== 进度 ===== */
@@ -1104,9 +1205,12 @@ onMounted(async () => {
 /* ===== 响应式 ===== */
 @media (max-width: 820px) {
   .ribbon-wrap { width: calc(100% - 32px); bottom: 16px; }
-  .ribbon { gap: 5px; padding: 0 10px; height: 60px; }
-  .ribbon-cover { width: 38px; height: 38px; }
-  .ribbon-track { max-width: 100px; }
+  .ribbon { height: 60px; }
+  .ribbon-wrap.collapsed .ribbon { height: 50px; }
+  .n-cover { width: 38px; height: 38px; margin-left: 10px; }
+  .ribbon-wrap.collapsed .n-cover { width: 34px; height: 34px; margin-left: 5px; }
+  .n-track { max-width: 140px; }
+  .ribbon-wrap.collapsed .n-track { max-width: 100px; }
   .rt-name { font-size: 12px; }
   .rt-artist { font-size: 10px; }
   .rprog { flex: 0 0 90px; }
@@ -1118,169 +1222,15 @@ onMounted(async () => {
 @media (max-width: 600px) {
   .rprog { flex: 0 0 70px; }
   .rbtn { width: 26px; height: 26px; font-size: 12px; }
-  .rbtn-play { width: 30px; height: 30px; font-size: 14px; }
+  .n-aux-play { width: 30px; height: 30px; font-size: 14px; }
   .rvol-bar { width: 24px; }
   .rvol { padding: 2px 4px; }
 }
 
-/* 收缩态响应式 */
 @media (max-width: 820px) {
   .ribbon-wrap.collapsed { max-width: 300px; }
-  .pf-info { max-width: 100px; }
 }
 @media (max-width: 600px) {
   .ribbon-wrap.collapsed { max-width: calc(100% - 32px); }
-  .pf-cover { width: 30px; height: 30px; }
-  .pf-info { max-width: 80px; }
-}
-
-/* ===== 收缩态（B2 胶囊浮标） ===== */
-.ribbon-wrap.collapsed {
-  width: fit-content;
-  max-width: 380px;
-}
-/* SVG 进度环容器 */
-.ribbon-wrap.collapsed .ribbon {
-  width: auto;
-  justify-content: center;
-  padding: 0 10px 0 6px;
-  gap: 8px;
-  height: 52px;
-  position: relative;
-}
-/* 隐藏底部微光线条（由 SVG 进度环替代） */
-.ribbon-wrap.collapsed .ribbon::before {
-  display: none;
-}
-/* 收缩态 ::after 边框进度环（使用 conic-gradient） */
-.ribbon-wrap.collapsed .ribbon::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 2px;
-  background: conic-gradient(
-    from 0deg,
-    #4caf50 0deg,
-    #4caf50 var(--progress-deg, 0deg),
-    transparent var(--progress-deg, 0deg),
-    transparent 360deg
-  ) border-box;
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask-composite: exclude;
-  -webkit-mask-composite: xor;
-  pointer-events: none;
-}
-
-/* B2 胶囊 · 圆形封面 */
-.pf-cover {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  overflow: hidden;
-  cursor: pointer;
-  position: relative;
-}
-.pf-cover::after {
-  content: '';
-  position: absolute; inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(135deg, rgba(255,255,255,.08), transparent);
-  pointer-events: none;
-}
-.pf-cover .rcover-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-/* B2 胶囊 · 歌曲信息 */
-.pf-info {
-  min-width: 0;
-  max-width: 130px;
-  flex-shrink: 1;
-}
-.pf-name {
-  font-size: 12px;
-  font-weight: 500;
-  color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.pf-artist {
-  font-size: 10px;
-  color: #b3b3b3;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-top: 0;
-}
-
-/* B2 胶囊 · 播放按钮 */
-.pf-play {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(255,255,255,.08);
-  color: rgba(255,255,255,.8);
-  font-size: 14px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: all 0.2s ease;
-}
-.pf-play:hover {
-  background: rgba(255,255,255,.16);
-  box-shadow: 0 0 18px rgba(255,255,255,.06);
-}
-
-/* B2 胶囊 · 展开按钮 */
-.pf-expand {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: none;
-  background: transparent;
-  color: rgba(255,255,255,.3);
-  font-size: 10px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: all 0.2s ease;
-}
-.pf-expand:hover {
-  color: #fff;
-  background: rgba(255,255,255,.06);
-}
-
-/* 全模式下的展开/收缩按钮 */
-.rcollapse-btn {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: none;
-  background: transparent;
-  color: rgba(255,255,255,.35);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  flex-shrink: 0;
-  transition: all 0.25s ease;
-}
-.rcollapse-btn:hover {
-  color: #fff;
-  background: rgba(255,255,255,.06);
 }
 </style>
