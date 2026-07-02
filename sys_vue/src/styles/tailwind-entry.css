@@ -56,7 +56,7 @@
   --color-overlay-dark: rgba(0, 0, 0, 0.3);
 
   /* 侧边栏玻璃背景 — 与 PlayerBar 玻璃风格衔接 */
-  --color-surface-sidebar: rgba(26,26,26,.92);
+  --color-surface-sidebar: #1a1a1a;
 
   /* ========== 字体系统 ========== */
 

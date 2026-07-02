@@ -70,9 +70,8 @@ const handlePlatformNav = (view: string) => {
 
 <template>
   <div
-    :style="{ width: isCollapsed ? '60px' : '250px' }"
-    class="bg-surface-sidebar text-content-secondary flex flex-col overflow-hidden shrink-0 box-border min-h-0 h-full z-[50] font-sans transition-[width] duration-300 ease-out"
-    :class="isCollapsed ? 'px-2 py-6' : 'px-5 py-6'"
+    :style="{ padding: '24px 20px' }"
+    class="bg-surface-sidebar text-content-secondary flex flex-col overflow-hidden flex-1 box-border min-h-0 h-full z-[50] font-sans"
   >
     <!-- Logo 区域 -->
     <div class="flex items-center justify-between mb-6">
@@ -112,7 +111,7 @@ const handlePlatformNav = (view: string) => {
     >
       <FAIcon
         :name="item.icon" size="medium" color="primary" :clickable="true"
-        :class="isCollapsed ? 'mr-0' : 'mr-4'"
+        :style="{ marginRight: isCollapsed ? '0' : '16px' }"
       />
       <span v-if="!isCollapsed">{{ item.label }}</span>
     </div>
@@ -139,7 +138,7 @@ const handlePlatformNav = (view: string) => {
       >
         <FAIcon
           :name="navItem.icon" size="medium" color="primary" :clickable="true"
-          :class="isCollapsed ? 'mr-0' : 'mr-4'"
+          :style="{ marginRight: isCollapsed ? '0' : '16px' }"
         />
         <span v-if="!isCollapsed">{{ navItem.label }}</span>
       </div>
@@ -158,7 +157,7 @@ const handlePlatformNav = (view: string) => {
         >
           <FAIcon
             :name="playlist.id === qqmusicStore.likedPlaylistId ? 'heart' : 'list'" size="medium" color="primary" :clickable="true"
-            :class="isCollapsed ? 'mr-0' : 'mr-4'"
+            :style="{ marginRight: isCollapsed ? '0' : '16px' }"
           />
           <span v-if="!isCollapsed" class="flex-1 truncate" :title="playlist.title">{{ playlist.title }}</span>
           <span v-if="!isCollapsed" class="text-[10px] text-content-tertiary shrink-0 ml-1">{{ playlist.songCount }}首</span>
@@ -190,7 +189,7 @@ const handlePlatformNav = (view: string) => {
     >
       <FAIcon
         name="folder" size="medium" color="primary" :clickable="true"
-        :class="isCollapsed ? 'mr-0' : 'mr-4'"
+        :style="{ marginRight: isCollapsed ? '0' : '16px' }"
       />
       <span v-if="!isCollapsed">所有音乐</span>
     </div>
@@ -207,7 +206,7 @@ const handlePlatformNav = (view: string) => {
     >
       <FAIcon
         name="music" size="medium" color="primary" :clickable="true"
-        :class="isCollapsed ? 'mr-0' : 'mr-4'"
+        :style="{ marginRight: isCollapsed ? '0' : '16px' }"
       />
       <span v-if="!isCollapsed">{{ lib.name }}</span>
     </div>
@@ -238,7 +237,7 @@ const handlePlatformNav = (view: string) => {
       >
         <FAIcon
           name="list" size="medium" color="primary" :clickable="true"
-          :class="isCollapsed ? 'mr-0' : 'mr-4'"
+          :style="{ marginRight: isCollapsed ? '0' : '16px' }"
         />
         <span v-if="!isCollapsed" class="flex-1 truncate" :title="playlist.name">{{ playlist.name }}</span>
         <div

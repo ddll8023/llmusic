@@ -5,6 +5,7 @@ interface UiState {
 	isSidebarVisible: boolean
 	sidebarWidth: number
 	tempSidebarWidth: number
+	previousExpandedWidth: number
 	isDraggingSidebar: boolean
 	isPlaylistVisible: boolean
 	currentView: string
@@ -45,6 +46,7 @@ export const useUiStore = defineStore('ui', {
 		isSidebarVisible: loadState().isSidebarVisible,
 		sidebarWidth: 250,
 		tempSidebarWidth: 250,
+		previousExpandedWidth: 250,
 		isDraggingSidebar: false,
 		isPlaylistVisible: false,
 		currentView: 'main',
@@ -55,7 +57,10 @@ export const useUiStore = defineStore('ui', {
 	}),
 
 	getters: {
-		isSidebarCollapsed: (state): boolean => state.sidebarWidth <= 130,
+		isSidebarCollapsed: (state): boolean => {
+			const w = state.isDraggingSidebar ? state.tempSidebarWidth : state.sidebarWidth;
+			return w <= 130;
+		},
 		effectiveSidebarWidth: (state): number => (state.isSidebarVisible ? state.sidebarWidth : 0),
 		currentDisplayWidth: (state): number =>
 			state.isDraggingSidebar ? state.tempSidebarWidth : state.sidebarWidth,
@@ -89,18 +94,26 @@ export const useUiStore = defineStore('ui', {
 
 		toggleSidebarCollapse() {
 			if (this.isSidebarCollapsed) {
-				this.sidebarWidth = 250
+				const target = this.previousExpandedWidth || 250;
+				this.sidebarWidth = target;
+				this.tempSidebarWidth = target;
 			} else {
-				this.sidebarWidth = 60
+				this.previousExpandedWidth = this.currentDisplayWidth;
+				this.sidebarWidth = 60;
+				this.tempSidebarWidth = 60;
 			}
 		},
 
 		collapseSidebar() {
-			this.sidebarWidth = 60
+			this.previousExpandedWidth = this.currentDisplayWidth;
+			this.sidebarWidth = 60;
+			this.tempSidebarWidth = 60;
 		},
 
 		expandSidebar() {
-			this.sidebarWidth = 250
+			const target = this.previousExpandedWidth || 250;
+			this.sidebarWidth = target;
+			this.tempSidebarWidth = target;
 		},
 
 		togglePlaylist() {

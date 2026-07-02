@@ -13,7 +13,6 @@ import GlobalScanProgress from './components/system/GlobalScanProgress.vue';
 import LyricPage from './components/pages/LyricPage.vue';
 import DiscoverMusic from './components/pages/DiscoverMusic.vue';
 import QQMusicPlaylistDetail from './components/pages/QQMusicPlaylistDetail.vue';
-import AmbientGlow from './components/background/AmbientGlow.vue';
 import { useUiStore } from './store/ui';
 import { usePlaylistStore } from './store/playlist';
 import { usePlayerStore } from './store/player';
@@ -155,7 +154,6 @@ onUnmounted(() => {
 
 <template>
     <div id="app-container">
-        <AmbientGlow />
 
         <!-- 自定义标题栏 -->
         <TitleBar />
@@ -166,7 +164,7 @@ onUnmounted(() => {
         <div class="flex flex-1 overflow-hidden" :class="layoutClasses">
             <div class="sidebar-container">
                 <SideBar />
-                <div class="w-1 bg-transparent cursor-col-resize shrink-0 hover:bg-overlay-light" @mousedown="startResize" @dblclick="handleResizeHandleDoubleClick"></div>
+                <div class="w-1 bg-line-base cursor-col-resize shrink-0 hover:bg-overlay-light" @mousedown="startResize" @dblclick="handleResizeHandleDoubleClick"></div>
             </div>
             <div class="flex-1 flex flex-col overflow-hidden min-w-0">
                 <MusicLibrary v-if="uiStore.currentView === 'main'" />
@@ -200,7 +198,8 @@ onUnmounted(() => {
     flex-shrink: 0;
     width: var(--sidebar-width, 250px);
     height: 100%;
-    transition: width 0.25s ease-out, opacity 0.2s ease-out;
+    overflow: hidden;
+    transition: width 0.15s ease-out, opacity 0.2s ease-out;
 }
 
 .sidebar-hidden .sidebar-container {
