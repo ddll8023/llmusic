@@ -529,7 +529,7 @@ defineExpose({
     width: 8px;
 }
 :deep(.vue-recycle-scroller)::-webkit-scrollbar-track {
-    background: #121212;
+    background: var(--color-surface-base);
 }
 :deep(.vue-recycle-scroller)::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.2);
@@ -549,7 +549,7 @@ defineExpose({
     width: 6px;
 }
 .dialog-content::-webkit-scrollbar-track {
-    background: #121212;
+    background: var(--color-surface-base);
 }
 .dialog-content::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.2);

@@ -41,7 +41,7 @@ const circleSize: Record<string, string> = {
 }
 
 const buttonClasses = computed(() => {
-  const base = 'inline-flex items-center justify-center gap-2 font-sans font-medium cursor-pointer select-none whitespace-nowrap overflow-hidden transition-all duration-250'
+  const base = 'inline-flex items-center justify-center gap-2 font-sans font-medium cursor-pointer select-none whitespace-nowrap overflow-hidden transition-[background-color,box-shadow,transform,opacity] duration-base active:scale-95'
   const glass = [
     'bg-[var(--glass-bg)]',
     'backdrop-blur-[var(--glass-blur)] backdrop-saturate-[var(--glass-saturate)] backdrop-brightness-[var(--glass-brightness)]',

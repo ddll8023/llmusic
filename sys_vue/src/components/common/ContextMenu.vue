@@ -158,7 +158,7 @@ onUnmounted(() => {
 			<template v-for="item in availableMenuItems" :key="item.key">
 				<div v-if="item.hasSubmenu" class="border-b-0">
 					<div
-						class="flex items-center justify-between px-4 py-3 cursor-pointer text-sm text-content-base transition-all duration-200 hover:bg-overlay-light active:bg-overlay-medium"
+						class="flex items-center justify-between px-4 py-3 cursor-pointer text-sm text-content-base transition-[background-color] duration-200 hover:bg-overlay-light active:bg-overlay-medium"
 						@click="showPlaylistSubmenu = !showPlaylistSubmenu; if (showPlaylistSubmenu && playlistStore.playlists.length === 0) playlistStore.loadPlaylists()">
 						<FAIcon :name="item.icon" size="medium" color="primary" class="mr-3 shrink-0" />
 						<span class="flex-1">{{ item.label }}</span>
@@ -193,7 +193,7 @@ onUnmounted(() => {
 
 				<div v-else @click="handleMenuAction(item.action)"
 					:class="[
-						'flex items-center px-4 py-3 cursor-pointer text-sm transition-all duration-200',
+						'flex items-center px-4 py-3 cursor-pointer text-sm transition-[background-color,color] duration-200',
 						item.class === 'delete' ? 'text-accent-danger border-t border-surface-overlay mt-1' : 'text-content-base',
 						'hover:bg-overlay-light active:bg-overlay-medium',
 					]">

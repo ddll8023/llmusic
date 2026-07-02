@@ -71,7 +71,7 @@ const handlePlatformNav = (view: string) => {
 <template>
   <div
     :style="{ width: isCollapsed ? '60px' : '250px' }"
-    class="bg-surface-elevated text-content-secondary flex flex-col overflow-hidden shrink-0 box-border min-h-0 h-full z-[50] font-sans transition-[width] duration-300 ease-out"
+    class="bg-surface-sidebar text-content-secondary flex flex-col overflow-hidden shrink-0 box-border min-h-0 h-full z-[50] font-sans transition-[width] duration-300 ease-out"
     :class="isCollapsed ? 'px-2 py-6' : 'px-5 py-6'"
   >
     <!-- Logo 区域 -->

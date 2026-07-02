@@ -38,9 +38,9 @@ const emit = defineEmits<{
 
 // 类型 → Tailwind 类映射
 const typeStyles: Record<string, string> = {
-  primary: 'bg-accent-green text-content-base shadow-custom font-semibold hover:bg-accent-green-hover hover:-translate-y-px hover:shadow-custom-hover active:translate-y-0 active:shadow-custom',
-  secondary: 'bg-transparent text-content-secondary border border-line-base hover:border-content-base hover:text-content-base hover:bg-overlay-light hover:-translate-y-px active:translate-y-0',
-  danger: 'bg-transparent text-accent-danger border border-accent-danger hover:bg-accent-danger/10 hover:-translate-y-px active:translate-y-0',
+  primary: 'bg-accent-green text-content-base shadow-custom font-semibold hover:bg-accent-green-hover hover:-translate-y-px hover:shadow-custom-hover active:scale-95 active:translate-y-0 active:shadow-custom',
+  secondary: 'bg-transparent text-content-secondary border border-line-base hover:border-content-base hover:text-content-base hover:bg-overlay-light hover:-translate-y-px active:scale-95 active:translate-y-0',
+  danger: 'bg-transparent text-accent-danger border border-accent-danger hover:bg-accent-danger/10 hover:-translate-y-px active:scale-95 active:translate-y-0',
   'icon-only': 'bg-transparent text-content-secondary border-none p-2 hover:bg-overlay-light hover:text-content-base hover:scale-110 active:scale-95',
 };
 

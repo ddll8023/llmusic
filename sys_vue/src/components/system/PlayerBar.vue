@@ -748,8 +748,8 @@ onMounted(async () => {
           <div class="rt-artist">{{ displaySongArtist }}</div>
         </template>
         <template v-else>
-          <div class="rt-name" style="color:#535353;letter-spacing:2px;font-weight:400">LLMusic</div>
-          <div class="rt-artist" style="color:#383838">&nbsp;</div>
+          <div class="rt-name" style="color:var(--color-content-disabled);letter-spacing:2px;font-weight:400">LLMusic</div>
+          <div class="rt-artist" style="color:var(--color-line-light)">&nbsp;</div>
         </template>
       </div>
 
@@ -891,8 +891,8 @@ onMounted(async () => {
   padding: 2px;
   background: conic-gradient(
     from 0deg,
-    #4caf50 0deg,
-    #4caf50 var(--progress-deg, 0deg),
+    var(--color-accent-green) 0deg,
+    var(--color-accent-green) var(--progress-deg, 0deg),
     transparent var(--progress-deg, 0deg),
     transparent 360deg
   ) border-box;
@@ -958,14 +958,14 @@ onMounted(async () => {
 .rt-name {
   font-size: 13px;
   font-weight: 500;
-  color: #fff;
+  color: var(--color-content-base);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .rt-artist {
   font-size: 11px;
-  color: #b3b3b3;
+  color: var(--color-content-secondary);
   margin-top: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -1000,7 +1000,7 @@ onMounted(async () => {
   padding: 2px 8px;
   border-radius: 20px;
   background: rgba(255,255,255,.05);
-  color: #888;
+  color: var(--color-content-tertiary);
   white-space: nowrap;
   flex-shrink: 0;
   letter-spacing: 0.3px;
@@ -1008,7 +1008,7 @@ onMounted(async () => {
 }
 .ribbon-wrap:hover .ribbon-badge {
   background: rgba(76,175,80,.12);
-  color: #4caf50;
+  color: var(--color-accent-green);
 }
 
 /* ===== 分隔线 ===== */
@@ -1043,10 +1043,10 @@ onMounted(async () => {
 }
 .rbtn:hover {
   background: rgba(255,255,255,.08);
-  color: #fff;
+  color: var(--color-content-base);
 }
 .rbtn.active {
-  color: #4caf50;
+  color: var(--color-accent-green);
 }
 
 /* n-aux 内的播放按钮（展开态使用） */
@@ -1059,7 +1059,7 @@ onMounted(async () => {
 }
 .n-aux-play:hover {
   background: rgba(255,255,255,.13);
-  color: #fff;
+  color: var(--color-content-base);
   box-shadow: 0 0 18px rgba(255,255,255,.06);
 }
 
@@ -1101,7 +1101,7 @@ onMounted(async () => {
   transition: all 0.25s ease, margin-right 0.35s cubic-bezier(.16,1,.3,1);
 }
 .n-toggle:hover {
-  color: #fff;
+  color: var(--color-content-base);
   background: rgba(255,255,255,.06);
 }
 .ribbon-wrap.collapsed .n-toggle {
@@ -1117,13 +1117,13 @@ onMounted(async () => {
 }
 .rprog-time {
   font-size: 11px;
-  color: #737373;
+  color: var(--color-content-tertiary);
   font-variant-numeric: tabular-nums;
   min-width: 30px;
   text-align: center;
   transition: color 0.3s;
 }
-.ribbon-wrap:hover .rprog-time { color: #aaa; }
+.ribbon-wrap:hover .rprog-time { color: var(--color-content-secondary); }
 .rprog-track {
   flex: 1;
   height: 3px;
@@ -1136,7 +1136,7 @@ onMounted(async () => {
 .ribbon-wrap:hover .rprog-track { height: 5px; }
 .rprog-fill {
   height: 100%;
-  background: linear-gradient(90deg, #fff, rgba(255,255,255,.7));
+  background: linear-gradient(90deg, var(--color-content-base), rgba(255,255,255,.7));
   border-radius: 3px;
   position: relative;
   transition: width 0.3s ease;
@@ -1149,7 +1149,7 @@ onMounted(async () => {
   transform: translateY(-50%);
   width: 7px;
   height: 7px;
-  background: #fff;
+  background: var(--color-content-base);
   border-radius: 50%;
   opacity: 0;
   transition: opacity 0.25s ease;
@@ -1187,7 +1187,7 @@ onMounted(async () => {
 .ribbon-wrap:hover .rvol-bar { width: 56px; height: 4px; }
 .rvol-fill {
   height: 100%;
-  background: #fff;
+  background: var(--color-content-base);
   border-radius: 2px;
   transition: width 0.2s ease;
 }

@@ -29,8 +29,8 @@
       Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
     font-size: 14px;
     line-height: 1.4;
-    color: #ffffff;
-    background-color: #121212;
+    color: var(--color-content-base);
+    background-color: var(--color-surface-base);
     overflow: hidden;
     cursor: default;
     -webkit-font-smoothing: antialiased;
@@ -111,7 +111,6 @@
     height: 100vh;
     width: 100vw;
     overflow: hidden;
-    background-color: #121212;
     --title-bar-height: 32px;
   }
 

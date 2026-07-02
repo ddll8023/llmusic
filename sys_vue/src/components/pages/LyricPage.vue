@@ -331,8 +331,8 @@ onUnmounted(() => {
 	pointer-events: none;
 	overflow: hidden;
 	visibility: hidden;
-	background-color: #121212;
-	color: #ffffff;
+	background-color: var(--color-surface-base);
+	color: var(--color-content-base);
 }
 .lyric-page--fade {
 	opacity: 0;
@@ -364,18 +364,18 @@ onUnmounted(() => {
 
 /* 歌词行 active 状态 */
 .lyric-page__lyric-line--active {
-	color: #4caf50;
+	color: var(--color-accent-green);
 	font-weight: 600;
 	text-shadow: 0 0 20px rgba(76, 175, 80, 0.3);
 }
 .lyric-page__lyric-line--active .lyric-page__lyric-time,
 .lyric-page__lyric-line--active .lyric-page__play-icon {
-	color: #4caf50;
+	color: var(--color-accent-green);
 }
 
 /* 逐字歌词高亮 */
 .lyric-page__word--active {
-	color: #4caf50;
+	color: var(--color-accent-green);
 }
 
 /* 翻译歌词样式 */
@@ -383,7 +383,7 @@ onUnmounted(() => {
 	font-size: 0.85em;
 	opacity: 0.7;
 	margin-top: 2px;
-	color: #a0a0a0;
+	color: var(--color-content-secondary);
 }
 
 /* 罗马音/音译样式 */
@@ -391,7 +391,7 @@ onUnmounted(() => {
 	font-size: 0.8em;
 	opacity: 0.55;
 	margin-top: 1px;
-	color: #888;
+	color: var(--color-content-tertiary);
 }
 
 /* 歌词滚动条 */

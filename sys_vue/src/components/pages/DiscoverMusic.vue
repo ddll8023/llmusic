@@ -260,7 +260,7 @@
 @reference "../../styles/tailwind-entry.css";
 .page-btn {
 	@apply w-8 h-8 inline-flex items-center justify-center rounded-lg text-xs font-medium
-			transition-all duration-200 cursor-pointer select-none outline-none;
+			transition-[background-color,color,transform,box-shadow] duration-200 cursor-pointer select-none outline-none;
 }
 
 .page-btn--default {
