@@ -36,6 +36,25 @@ const mediaStore = useMediaStore();
 const uiStore = useUiStore();
 const timelineRef = ref<any>(null);
 const volumeRef = ref<any>(null);
+const volumeTriggerRef = ref<HTMLElement | null>(null);
+const isVolumePopupVisible = ref(false);
+const volumePopupPos = ref({ top: 0, left: 0 });
+let volumePopupTimer: any = null;
+
+const showVolumePopup = () => {
+  clearTimeout(volumePopupTimer);
+  if (!volumeTriggerRef.value) return;
+  const rect = volumeTriggerRef.value.getBoundingClientRect();
+  volumePopupPos.value = {
+    top: rect.top - 8,
+    left: rect.left + rect.width / 2
+  };
+  isVolumePopupVisible.value = true;
+};
+const hideVolumePopup = () => {
+  clearTimeout(volumePopupTimer);
+  volumePopupTimer = setTimeout(() => { isVolumePopupVisible.value = false; }, 150);
+};
 const coverImage = ref<any>(null);
 const isLoadingCover = ref(false);
 const coverLoadError = ref(false);
@@ -332,6 +351,10 @@ const displayDuration = computed(() => {
 });
 
 const volumePercentage = computed(() => `${playerStore.volume * 100}%`);
+const volumeDisplayText = computed(() => {
+  if (playerStore.muted) return '静音'
+  return `${Math.round(playerStore.volume * 100)}%`
+})
 
 const setPlayTime = (event: any) => {
     if (!timelineRef.value) return;
@@ -379,7 +402,8 @@ const setPlayTime = (event: any) => {
 const setVolume = (event: any) => {
     if (!volumeRef.value) return;
     const rect = volumeRef.value.getBoundingClientRect();
-    const percent = (event.clientX - rect.left) / rect.width;
+    // 垂直：底部=100%，顶部=0%
+    const percent = 1 - (event.clientY - rect.top) / rect.height;
     playerStore.setVolume(Math.max(0, Math.min(1, percent)));
 };
 
@@ -397,8 +421,9 @@ function calcVolumeFromEvent(event: any): number {
     const target = volumeRef.value
     if (!target) return playerStore.volume
     const rect = target.getBoundingClientRect()
-    if (rect.width <= 0) return playerStore.volume
-    return Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width))
+    if (rect.height <= 0) return playerStore.volume
+    // 垂直：底部=100%，顶部=0%
+    return Math.max(0, Math.min(1, 1 - (event.clientY - rect.top) / rect.height))
 }
 
 const updateVolume = (event: any) => {
@@ -633,6 +658,7 @@ onMounted(async () => {
         if (removeAudioDataListener) removeAudioDataListener();
         if (progressTimer) clearInterval(progressTimer);
         if (pulseTimer) clearInterval(pulseTimer);
+        if (volumePopupTimer) clearTimeout(volumePopupTimer);
         if (window.audioContext) { window.audioContext.close(); window.audioContext = null; }
         if ('mediaSession' in navigator) {
             try {
@@ -789,10 +815,12 @@ onMounted(async () => {
         <span class="rdivider"></span>
 
         <div class="rvol" title="音量">
-          <span class="rvol-icon" @click="toggleMute"><i :class="['fa', playerStore.muted || playerStore.volume === 0 ? 'fa-volume-off' : playerStore.volume < 0.5 ? 'fa-volume-down' : 'fa-volume-up']"></i></span>
-          <span ref="volumeRef" class="rvol-bar" @mousedown="startVolumeChange">
-            <span class="rvol-fill" :style="{ width: volumePercentage }"></span>
-          </span>
+          <div class="rvol-trigger"
+            ref="volumeTriggerRef"
+            @mouseenter="showVolumePopup"
+            @mouseleave="hideVolumePopup">
+            <span class="rvol-icon" @click="toggleMute"><i :class="['fa', 'fa-fw', playerStore.muted || playerStore.volume === 0 ? 'fa-volume-off' : playerStore.volume < 0.5 ? 'fa-volume-down' : 'fa-volume-up']"></i></span>
+          </div>
         </div>
       </div>
 
@@ -808,6 +836,20 @@ onMounted(async () => {
       </button>
     </div>
   </div>
+
+  <!-- Teleport 音量弹层到 body，避免 overflow 裁剪 -->
+  <Teleport to="body">
+    <div class="rvol-popup" :class="{ 'is-visible': isVolumePopupVisible }"
+      :style="{ top: volumePopupPos.top + 'px', left: volumePopupPos.left + 'px' }"
+      @mouseenter="showVolumePopup"
+      @mouseleave="hideVolumePopup">
+      <span ref="volumeRef" class="rvol-bar" @mousedown="startVolumeChange">
+        <span class="rvol-fill" :style="{ height: volumePercentage }"></span>
+        <span class="rvol-thumb" :style="{ top: (100 - playerStore.volume * 100) + '%' }"></span>
+      </span>
+      <span class="rvol-value">{{ volumeDisplayText }}</span>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -1158,10 +1200,8 @@ onMounted(async () => {
 .ribbon-wrap:hover .rprog-fill::after { opacity: 1; }
 
 /* ===== 音量 ===== */
+/* 外部容器 */
 .rvol {
-  display: flex;
-  align-items: center;
-  gap: 5px;
   flex-shrink: 0;
   cursor: pointer;
   padding: 3px 8px;
@@ -1169,28 +1209,125 @@ onMounted(async () => {
   transition: background 0.25s;
 }
 .rvol:hover { background: rgba(255,255,255,.04); }
+
+/* 触发区 */
+.rvol-trigger {
+  display: flex;
+  align-items: center;
+}
+
+/* Teleport 弹层 — 固定定位，从 body 渲染 */
+.rvol-popup {
+  position: fixed;
+  z-index: 9999;
+  transform: translate(-50%, -100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 8px 8px;
+  border-radius: 10px;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(16px) saturate(1.6) brightness(1.1);
+  -webkit-backdrop-filter: blur(16px) saturate(1.6) brightness(1.1);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.06),
+    0 4px 20px rgba(0,0,0,.5),
+    0 8px 40px rgba(0,0,0,.3);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.2s ease,
+    transform 0.25s cubic-bezier(.16,1,.3,1);
+}
+.rvol-popup.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, calc(-100% - 8px));
+}
+
+/* 垂直轨道 */
+.rvol-bar {
+  width: 4px;
+  height: 80px;
+  border-radius: 2px;
+  background: rgba(255,255,255,.10);
+  position: relative;
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
+}
+
+/* 填充条（从底部向上） */
+.rvol-fill {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  border-radius: 2px;
+  background: linear-gradient(to top,
+    rgba(76,175,80,.55),
+    rgba(76,175,80,.30) 50%,
+    rgba(255,255,255,.75)
+  );
+  transition: height 0.15s cubic-bezier(.16,1,.3,1);
+}
+
+/* 填充玻璃高光 */
+.rvol-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(-90deg,
+    rgba(255,255,255,.12) 0%,
+    transparent 60%
+  );
+  pointer-events: none;
+}
+
+/* 拖拽手柄 */
+.rvol-thumb {
+  position: absolute;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.95), rgba(220,220,220,.8));
+  transform: translate(-50%, -50%);
+  box-shadow:
+    0 0 4px rgba(255,255,255,.25),
+    0 0 10px rgba(76,175,80,.12),
+    inset 0 0 2px rgba(255,255,255,.6);
+  pointer-events: none;
+  z-index: 1;
+  transition: box-shadow 0.2s ease;
+}
+.rvol-popup:hover .rvol-thumb {
+  box-shadow:
+    0 0 6px rgba(255,255,255,.35),
+    0 0 18px rgba(76,175,80,.18),
+    inset 0 0 2px rgba(255,255,255,.6);
+}
+
+/* 音量数值 */
+.rvol-value {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-content-secondary);
+  text-align: center;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+/* 图标 */
 .rvol-icon {
   font-size: 14px;
   color: rgba(255,255,255,.45);
   transition: color 0.25s;
+  display: block;
+  line-height: 1;
 }
 .rvol:hover .rvol-icon { color: rgba(255,255,255,.75); }
-.rvol-bar {
-  width: 44px;
-  height: 3px;
-  background: rgba(255,255,255,.07);
-  border-radius: 2px;
-  position: relative;
-  overflow: hidden;
-  transition: width 0.25s ease, height 0.25s ease;
-}
-.ribbon-wrap:hover .rvol-bar { width: 56px; height: 4px; }
-.rvol-fill {
-  height: 100%;
-  background: var(--color-content-base);
-  border-radius: 2px;
-  transition: width 0.2s ease;
-}
 
 /* ===== 节奏脉冲动画 ===== */
 @keyframes ribbonPulse {
@@ -1214,7 +1351,9 @@ onMounted(async () => {
   .rt-artist { font-size: 10px; }
   .rprog { flex: 0 0 90px; }
   .rprog-time { min-width: 24px; font-size: 10px; }
-  .rvol-bar { width: 32px; }
+  .rvol-bar { height: 60px; }
+  .rvol-popup { padding: 8px 6px 6px; gap: 4px; }
+  .rvol-value { font-size: 9px; }
   .ribbon-badge { display: none; }
   .rdivider:last-of-type { display: none; }
 }
@@ -1222,8 +1361,10 @@ onMounted(async () => {
   .rprog { flex: 0 0 70px; }
   .rbtn { width: 26px; height: 26px; font-size: 12px; }
   .n-aux-play { width: 30px; height: 30px; font-size: 14px; }
-  .rvol-bar { width: 24px; }
   .rvol { padding: 2px 4px; }
+  .rvol-bar { height: 48px; }
+  .rvol-popup { padding: 6px 5px 5px; gap: 3px; }
+  .rvol-value { display: none; }
 }
 
 @media (max-width: 820px) {

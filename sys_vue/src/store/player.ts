@@ -451,6 +451,9 @@ export const usePlayerStore = defineStore('player', {
 
 		// ── 在线播放 ──
 		playOnlineSong(info: OnlineSongInfo, options?: { queue: OnlineSongInfo[]; startIndex: number }) {
+			// 无播放 URL 时不修改播放状态
+			if (!info.url) return
+
 			this.currentTime = 0
 			this.accumulatedPlayTime = 0
 			this.hasBeenCounted = false

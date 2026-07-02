@@ -198,6 +198,7 @@ function isDownloading(song: SongItem): boolean {
 // ── 行点击 ──
 function handleRowClick(song: SongItem) {
   if (props.mode === 'online') {
+    if (!(song as any).songUrl?.url) return
     emit('click-song', song)
   } else {
     handlePlaySong(song)
@@ -206,6 +207,7 @@ function handleRowClick(song: SongItem) {
 
 function handlePlaySong(song: SongItem) {
   if (props.mode === 'online') {
+    if (!(song as any).songUrl?.url) return
     emit('play', song)
   } else {
     emit('play-song', {

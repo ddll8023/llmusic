@@ -237,6 +237,7 @@
 		}
 
 		function handlePlay(song: any) {
+			if (!song.songUrl?.url) return
 			const info = discoverStore.playOnline(song)
 			playerStore.playOnlineSong(info)
 		}

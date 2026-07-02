@@ -56,6 +56,7 @@ function buildQueue(songs: any[]): OnlineSongInfo[] {
 }
 
 function playSongWithContext(song: any) {
+  if (!song.songUrl?.url) return
   const songs = filteredSongs.value
   const index = songs.findIndex((s: any) => (s.songMid || s.songId) === (song.songMid || song.songId))
   const queue = buildQueue(songs)
@@ -64,7 +65,7 @@ function playSongWithContext(song: any) {
 }
 
 function handlePlayAll() {
-  const songs = filteredSongs.value
+  const songs = filteredSongs.value.filter((s: any) => s.songUrl?.url)
   if (songs.length === 0) return
   const queue = buildQueue(songs)
   let startIndex = 0
