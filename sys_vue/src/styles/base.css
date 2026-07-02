@@ -111,6 +111,7 @@
     height: 100vh;
     width: 100vw;
     overflow: hidden;
+    position: relative;
     --title-bar-height: 32px;
   }
 
@@ -124,7 +125,6 @@
     height: 200px;
     background: var(--album-glow, radial-gradient(ellipse 70% 50% at 50% 100%, rgba(76,175,80,.15), rgba(18,18,18,.06), transparent 65%));
     pointer-events: none;
-    z-index: -1;
     transition: background 1.2s ease;
   }
 

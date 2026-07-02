@@ -13,6 +13,7 @@ import GlobalScanProgress from './components/system/GlobalScanProgress.vue';
 import LyricPage from './components/pages/LyricPage.vue';
 import DiscoverMusic from './components/pages/DiscoverMusic.vue';
 import QQMusicPlaylistDetail from './components/pages/QQMusicPlaylistDetail.vue';
+import AmbientGlow from './components/background/AmbientGlow.vue';
 import { useUiStore } from './store/ui';
 import { usePlaylistStore } from './store/playlist';
 import { usePlayerStore } from './store/player';
@@ -154,6 +155,8 @@ onUnmounted(() => {
 
 <template>
     <div id="app-container">
+        <AmbientGlow />
+
         <!-- 自定义标题栏 -->
         <TitleBar />
 
