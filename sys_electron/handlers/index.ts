@@ -1,3 +1,4 @@
+import { app } from "electron"
 import { registerIPC, unregisterAll } from "../utils/ipc/ipcWrapper"
 
 // 系统相关处理器
@@ -20,6 +21,9 @@ import { createTagHandlers } from "./audio/tagHandlers"
 // 下载相关处理器
 import { createDownloadHandlers } from "./download/downloadHandlers"
 
+// 第三方源处理器
+import { createThirdpartyHandlers } from "./thirdparty/userapiHandlers"
+
 import type { IpcHandlerModule } from "../types"
 
 /**
@@ -38,6 +42,7 @@ function setupIpcHandlers(mainWindow: Electron.BrowserWindow): () => void {
 		createLibraryHandlers(),
 		createTagHandlers(),
 		createDownloadHandlers(mainWindow),
+		createThirdpartyHandlers(mainWindow, app.getPath("userData")),
 	]
 
 	modules.forEach((m) => {

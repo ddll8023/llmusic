@@ -46,6 +46,7 @@ interface BaseSongTableProps {
   showFormat?: boolean
   showAction?: boolean
   showThirdpartyAction?: boolean
+  unifyActions?: boolean
   officialDisabled?: boolean
   thirdpartySources?: Array<{ id: string; name: string }>
   thirdpartyDownloadingIds?: Set<string>
@@ -71,6 +72,7 @@ const props = withDefaults(defineProps<BaseSongTableProps>(), {
   showAction: false,
   showThirdpartyAction: false,
   officialDisabled: false,
+  unifyActions: false,
   thirdpartySources: () => [],
   thirdpartyDownloadingIds: () => new Set<string>(),
   emptyText: '暂无歌曲',
@@ -266,8 +268,12 @@ const headers = computed(() => {
       h.push({ key: 'format', label: '格式', width: '50px' })
     }
     if (props.showAction) {
-		h.push({ key: 'action_official', label: '官方', width: '72px' })
-		h.push({ key: 'action_thirdparty', label: '三方', width: '96px' })
+      if (props.unifyActions) {
+        h.push({ key: 'action', label: '', width: '72px' })
+      } else {
+        h.push({ key: 'action_official', label: '官方', width: '72px' })
+        h.push({ key: 'action_thirdparty', label: '三方', width: '96px' })
+      }
     }
   }
 
@@ -355,7 +361,7 @@ const gridTemplateStyle = computed(() => {
           </div>
         </Transition>
 
-        <!-- 本地模式：RecycleScroller 虚拟滚动 -->
+        <!-- 本地模式 -->
         <template v-if="mode === 'local'">
           <div class="flex flex-col">
             <div v-for="(song, index) in songs" :key="song.id"
@@ -426,7 +432,7 @@ const gridTemplateStyle = computed(() => {
           </div>
         </template>
 
-        <!-- 在线模式：静态 Grid 渲染 -->
+        <!-- 在线模式 -->
         <template v-else>
           <div v-for="(song, index) in songs" :key="getSongId(song)"
             :class="[
@@ -486,8 +492,28 @@ const gridTemplateStyle = computed(() => {
               <span v-else class="text-content-disabled">-</span>
             </div>
 
+            <!-- 统一操作列（unifyActions 模式） -->
+            <div v-if="showAction && unifyActions" class="flex items-center justify-center gap-1" @click.stop>
+              <button
+                class="w-[26px] h-[26px] inline-flex items-center justify-center cursor-pointer select-none disabled:opacity-30 disabled:cursor-not-allowed hover:brightness-125 transition-all duration-150"
+                style="color:#4caf50"
+                :disabled="!song.songUrl?.url"
+                :title="song.songUrl?.url ? '播放' : '无可用的播放链接'"
+                @click="emit('play', song)">
+                <FAIcon name="play" size="small" color="current" />
+              </button>
+              <button
+                class="w-[26px] h-[26px] inline-flex items-center justify-center cursor-pointer select-none disabled:opacity-30 disabled:cursor-not-allowed hover:brightness-125 transition-all duration-150"
+                style="color:#4caf50"
+                :disabled="!song.songUrl?.url || officialDisabled || isDownloading(song)"
+                title="下载"
+                @click="emit('download', song)">
+                <FAIcon :name="isDownloading(song) ? 'spinner' : 'download'" size="small" color="current" />
+              </button>
+            </div>
+
             <!-- 官方操作 -->
-            <div v-if="showAction" class="flex items-center justify-center gap-1" @click.stop>
+            <div v-if="showAction && !unifyActions" class="flex items-center justify-center gap-1" @click.stop>
               <button
                 class="w-[26px] h-[26px] inline-flex items-center justify-center cursor-pointer select-none disabled:opacity-30 disabled:cursor-not-allowed hover:brightness-125 transition-all duration-150"
                 style="color:#4caf50"

@@ -129,6 +129,18 @@ const API = {
 	},
 }
 
+/**
+ * IPC 调用辅助 — 解包 { success, data, error } 格式
+ * 成功时返回 data，失败时 reject(error)
+ */
+async function invokeIPC<T>(channel: string, ...args: unknown[]): Promise<T> {
+	const result = await ipcRenderer.invoke(channel, ...args) as { success: boolean; data?: T; error?: string }
+	if (result.success === false) {
+		throw new Error(result.error || "IPC 调用失败")
+	}
+	return result.data as T
+}
+
 // 创建扁平化API结构以保持向后兼容性
 const compatAPI: Record<string, unknown> = {
 	scanMusic: API.scan.start,
@@ -218,6 +230,20 @@ const compatAPI: Record<string, unknown> = {
 
 	// 文件下载（带元数据嵌入）
 	downloadSongWithMetadata: API.download.saveSongWithMetadata,
+
+	// ═══ 第三方源 / UserAPI ═══
+	thirdparty: {
+		listSources: () => invokeIPC<any[]>("thirdparty:list-sources"),
+		setSource: (id: string) => invokeIPC<void>("thirdparty:set-source", id),
+		search: (params: Record<string, unknown>) => invokeIPC<any>("thirdparty:search", params),
+		getMusicUrl: (params: Record<string, unknown>) => invokeIPC<string | null>("thirdparty:get-music-url", params),
+		importScript: () => invokeIPC<any | null>("thirdparty:import-script"),
+		removeScript: (id: string) => invokeIPC<void>("thirdparty:remove-script", id),
+		toggleScript: (id: string, enabled: boolean) => invokeIPC<void>("thirdparty:toggle-script", id, enabled),
+		getStatus: () => invokeIPC<any>("thirdparty:get-status"),
+		openDevTools: () => invokeIPC<void>("thirdparty:open-devtools"),
+		closeDevTools: () => invokeIPC<void>("thirdparty:close-devtools"),
+	},
 }
 
 // 安全地暴露主进程的API给渲染进程

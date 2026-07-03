@@ -10,24 +10,14 @@ import CustomInput from '../custom/CustomInput.vue';
 import CustomModal from '../custom/CustomModal.vue';
 import CustomSelect from '../custom/CustomSelect.vue';
 import CustomCheckbox from '../custom/CustomCheckbox.vue';
-import { useThirdpartyDownloadStore } from '../../store/thirdpartyDownload';
+import { useThirdpartyStore } from '../../store/thirdpartySource';
 import { musicPlatforms, PLATFORM_VISIBILITY_PREFIX } from '../../config/platforms';
 
 const mediaStore = useMediaStore();
 const playerStore = usePlayerStore();
 const uiStore = useUiStore();
 const authStore = useAuthStore();
-const thirdpartyDownloadStore = useThirdpartyDownloadStore();
-
-const testingId = ref('');
-const testResults = reactive<Record<string, { ok: boolean; ms: number }>>({});
-
-async function testSource(src: any) {
-  testingId.value = src.id;
-  const result = await thirdpartyDownloadStore.testSource(src, '0039MnYb0qxYhV');
-  testResults[src.id] = result;
-  testingId.value = '';
-}
+const thirdpartyStore = useThirdpartyStore();
 
 // --- 音乐库管理 State ---
 const showEditLibraryModal = ref(false);
@@ -213,37 +203,87 @@ function togglePlatformVisibility(platformId: string) {
       </div>
     </div>
 
-    <!-- 第三方下载源管理 -->
+    <!-- 第三方源管理 -->
     <div class="mb-6 max-md:mb-4">
-      <h3 class="text-sm text-content-secondary mb-4 border-b border-line-base pb-2 font-medium max-md:text-[13px]">第三方下载源管理</h3>
+      <h3 class="text-sm text-content-secondary mb-4 border-b border-line-base pb-2 font-medium max-md:text-[13px]">
+        <FAIcon name="puzzle-piece" size="small" color="secondary" class="mr-1.5" />
+        第三方源管理
+      </h3>
       <div class="text-[10px] text-content-tertiary mb-3 leading-relaxed">
-        配置第三方下载源，在搜索页面可选用第三方源下载歌曲。源由社区维护，失效时可在此处关闭。
+        管理第三方音乐源。内置源开箱即用；UserAPI 脚本由社区维护，导入后可直接使用。
       </div>
-      <div class="flex flex-col gap-2">
-        <div v-for="src in thirdpartyDownloadStore.sources" :key="src.id"
-          class="flex items-center justify-between py-2 px-3 bg-surface-overlay rounded-lg">
-          <div class="flex items-center gap-3">
-            <CustomCheckbox :checked="src.enabled" size="small"
-              @change="thirdpartyDownloadStore.toggleSource(src.id)" />
-            <div>
+
+      <!-- 内置源列表 -->
+      <div class="mb-4">
+        <span class="text-xs text-content-secondary font-medium mb-2 block">内置源</span>
+        <div class="flex flex-col gap-2">
+          <div v-for="src in thirdpartyStore.builtinSources" :key="src.id"
+            class="flex items-center justify-between py-2 px-3 bg-surface-overlay rounded-lg">
+            <div class="flex items-center gap-3">
+              <span class="text-xs px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green uppercase font-mono">{{ src.id }}</span>
               <span class="text-sm text-content-base">{{ src.name }}</span>
-              <span class="text-xs text-content-tertiary ml-2">{{ src.platform.toUpperCase() }}</span>
+              <span class="text-[10px] text-content-tertiary">v{{ src.version }}</span>
             </div>
-          </div>
-          <div class="flex items-center gap-2">
-            <span class="text-xs" :class="testResults[src.id]?.ok ? 'text-accent-green' : 'text-content-disabled'">
-              {{ testResults[src.id] ? (testResults[src.id].ok ? testResults[src.id].ms + 'ms' : '失败') : '' }}
-            </span>
-            <CustomButton type="secondary" size="small" :loading="testingId === src.id"
-              @click="testSource(src)">测试</CustomButton>
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] text-content-disabled">{{ src.qualitys.join(' / ') }}</span>
+              <span class="text-[10px] text-accent-green">内置</span>
+            </div>
           </div>
         </div>
       </div>
-      <div class="mt-3 flex items-center gap-3">
-        <CustomButton type="secondary" size="small" @click="thirdpartyDownloadStore.resetToDefaults()">
-          重置默认
+
+      <!-- UserAPI 脚本列表 -->
+      <div class="mb-4">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs text-content-secondary font-medium">UserAPI 脚本</span>
+          <CustomButton type="secondary" size="small" icon="plus" @click="thirdpartyStore.importScript()">
+            导入
+          </CustomButton>
+        </div>
+
+        <div v-if="thirdpartyStore.userApiSources.length === 0"
+          class="flex flex-col items-center justify-center py-6 text-content-disabled">
+          <FAIcon name="file-code-o" size="xl" color="disabled" />
+          <p class="text-xs mt-2">暂无脚本，点击"导入"添加 lx-music 兼容脚本</p>
+        </div>
+
+        <div v-else class="flex flex-col gap-2">
+          <div v-for="src in thirdpartyStore.userApiSources" :key="src.id"
+            class="flex items-center justify-between py-2 px-3 bg-surface-overlay rounded-lg">
+            <div class="flex items-center gap-3 min-w-0 flex-1">
+              <button
+                class="w-[18px] h-[18px] rounded flex items-center justify-center shrink-0 transition-colors duration-150 text-[10px] leading-none"
+                :class="src.enabled
+                  ? 'bg-accent-green text-white'
+                  : 'bg-surface-elevated text-content-disabled border border-line-base'"
+                @click="thirdpartyStore.toggleScript(src.id, !src.enabled)">
+                {{ src.enabled ? '✓' : '✕' }}
+              </button>
+              <div class="min-w-0">
+                <span class="text-sm text-content-base truncate block">{{ src.name }}</span>
+                <span class="text-[10px] text-content-tertiary">
+                  {{ src.author ? `by ${src.author}` : '' }}
+                  {{ src.version ? `v${src.version}` : '' }}
+                </span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0 ml-2">
+              <CustomButton type="icon-only" icon="trash" circle size="medium"
+                @click="thirdpartyStore.removeScript(src.id)" title="删除脚本" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 调试工具 -->
+      <div class="mt-4 flex items-center gap-3">
+        <CustomButton type="secondary" size="small" icon="bug" @click="thirdpartyStore.openDevTools()">
+          打开脚本调试器
         </CustomButton>
-        <span class="text-[10px] text-content-disabled">共 {{ thirdpartyDownloadStore.sources.length }} 个源</span>
+        <span class="text-[10px] text-content-disabled">
+          共 {{ thirdpartyStore.enabledSources.length }} 个源
+          （内置 {{ thirdpartyStore.builtinSources.length }} / 脚本 {{ thirdpartyStore.userApiSources.length }}）
+        </span>
       </div>
     </div>
 
@@ -275,7 +315,7 @@ function togglePlatformVisibility(platformId: string) {
           <!-- 头部：平台图标 + 名称 + Toggle -->
           <div class="flex items-start justify-between mb-3">
             <div class="flex items-center gap-3">
-              <FAIcon :name="platform.icon" size="lg" color="primary" />
+              <FAIcon :name="platform.icon" size="large" color="primary" />
               <div>
                 <span class="text-sm font-semibold text-content-base block">{{ platform.name }}</span>
                 <span class="text-[10px] text-content-secondary">在线音乐平台</span>
