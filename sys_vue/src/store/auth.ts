@@ -86,6 +86,11 @@ export const useAuthStore = defineStore('auth', () => {
 
 				if (data.status === 'done') {
 					await initAuth()
+
+					// 登录成功后自动加载 QQ 音乐歌单
+					const { useQqmusicStore } = await import('./qqmusic')
+					const qqmusicStore = useQqmusicStore()
+					qqmusicStore.loadUserPlaylists()
 				}
 			} catch {
 				qrStatus.value = 'error'

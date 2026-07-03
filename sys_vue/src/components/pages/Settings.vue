@@ -3,18 +3,31 @@ import { useMediaStore } from '../../store/media';
 import { usePlayerStore } from '../../store/player';
 import { useUiStore } from '../../store/ui';
 import { useAuthStore } from '../../store/auth';
-import { ref, onMounted } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import FAIcon from '../common/FAIcon.vue';
 import CustomButton from '../custom/CustomButton.vue';
 import CustomInput from '../custom/CustomInput.vue';
 import CustomModal from '../custom/CustomModal.vue';
 import CustomSelect from '../custom/CustomSelect.vue';
+import CustomCheckbox from '../custom/CustomCheckbox.vue';
+import { useThirdpartyDownloadStore } from '../../store/thirdpartyDownload';
 import { musicPlatforms, PLATFORM_VISIBILITY_PREFIX } from '../../config/platforms';
 
 const mediaStore = useMediaStore();
 const playerStore = usePlayerStore();
 const uiStore = useUiStore();
 const authStore = useAuthStore();
+const thirdpartyDownloadStore = useThirdpartyDownloadStore();
+
+const testingId = ref('');
+const testResults = reactive<Record<string, { ok: boolean; ms: number }>>({});
+
+async function testSource(src: any) {
+  testingId.value = src.id;
+  const result = await thirdpartyDownloadStore.testSource(src, '0039MnYb0qxYhV');
+  testResults[src.id] = result;
+  testingId.value = '';
+}
 
 // --- 音乐库管理 State ---
 const showEditLibraryModal = ref(false);
@@ -197,6 +210,40 @@ function togglePlatformVisibility(platformId: string) {
           <FAIcon name="plus" size="xl" color="secondary" />
           <span>添加新库</span>
         </div>
+      </div>
+    </div>
+
+    <!-- 第三方下载源管理 -->
+    <div class="mb-6 max-md:mb-4">
+      <h3 class="text-sm text-content-secondary mb-4 border-b border-line-base pb-2 font-medium max-md:text-[13px]">第三方下载源管理</h3>
+      <div class="text-[10px] text-content-tertiary mb-3 leading-relaxed">
+        配置第三方下载源，在搜索页面可选用第三方源下载歌曲。源由社区维护，失效时可在此处关闭。
+      </div>
+      <div class="flex flex-col gap-2">
+        <div v-for="src in thirdpartyDownloadStore.sources" :key="src.id"
+          class="flex items-center justify-between py-2 px-3 bg-surface-overlay rounded-lg">
+          <div class="flex items-center gap-3">
+            <CustomCheckbox :checked="src.enabled" size="small"
+              @change="thirdpartyDownloadStore.toggleSource(src.id)" />
+            <div>
+              <span class="text-sm text-content-base">{{ src.name }}</span>
+              <span class="text-xs text-content-tertiary ml-2">{{ src.platform.toUpperCase() }}</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs" :class="testResults[src.id]?.ok ? 'text-accent-green' : 'text-content-disabled'">
+              {{ testResults[src.id] ? (testResults[src.id].ok ? testResults[src.id].ms + 'ms' : '失败') : '' }}
+            </span>
+            <CustomButton type="secondary" size="small" :loading="testingId === src.id"
+              @click="testSource(src)">测试</CustomButton>
+          </div>
+        </div>
+      </div>
+      <div class="mt-3 flex items-center gap-3">
+        <CustomButton type="secondary" size="small" @click="thirdpartyDownloadStore.resetToDefaults()">
+          重置默认
+        </CustomButton>
+        <span class="text-[10px] text-content-disabled">共 {{ thirdpartyDownloadStore.sources.length }} 个源</span>
       </div>
     </div>
 

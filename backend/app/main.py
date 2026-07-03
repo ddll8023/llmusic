@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.qqmusic import router as qqmusic_router
+from app.api.thirdparty import router as thirdparty_router
 from app.core.config import settings
 from app.schemas.common import ErrorCode
 from app.schemas.response import error
@@ -20,6 +21,7 @@ app.add_middleware(
 )
 
 app.include_router(qqmusic_router, prefix="/api/v1/qqmusic")
+app.include_router(thirdparty_router, prefix="/api/v1")
 
 
 @app.get("/health")
