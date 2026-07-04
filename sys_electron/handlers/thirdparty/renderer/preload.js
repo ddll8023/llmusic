@@ -94,23 +94,28 @@ const handleResponse = (context, { requestKey, data }) => {
         const sendData = { requestKey }
         switch (data.action) {
           case 'musicUrl':
-            // lx-music 脚本可返回 string URL 或各种对象格式
-            let url = ''
-            if (typeof response === 'string') {
-              url = response
-            } else if (response && typeof response === 'object') {
-              // 尝试多种常见响应结构: { url }, { body: { url } }, { data: { url } }
-              url = response?.body?.url || response?.url || response?.data?.url || ''
-            }
-            if (typeof url !== 'string' || url.length > 2048 || !/^https?:/.test(url)) {
-              // debug: 记录实际响应结构以便排查
-              console.log('[preload] musicUrl 返回值异常:', typeof response, response && typeof response === 'object' ? Object.keys(response) : 'N/A', String(response).slice(0, 100))
-              throw new Error('failed')
+            // lx-music 标准：脚本返回 string URL
+            // 不校验 http/https 前缀——脚本可能返回错误消息字符串
+            // 让主进程的校验逻辑处理无效返回值
+            if (typeof response !== 'string') {
+              // 少数脚本返回 { url } 对象
+              if (response && typeof response === 'object') {
+                const objUrl = response?.body?.url || response?.url || response?.data?.url || ''
+                if (objUrl && typeof objUrl === 'string') {
+                  response = objUrl
+                } else {
+                  console.log('[preload] musicUrl 对象返回值无 url 字段:', Object.keys(response))
+                  throw new Error('failed')
+                }
+              } else {
+                console.log('[preload] musicUrl 返回值非 string/object:', typeof response)
+                throw new Error('failed')
+              }
             }
             sendData.result = {
               source: data.source,
               action: data.action,
-              data: { type: data.info.type, url },
+              data: { type: data.info.type, url: response },
             }
             break
           case 'lyric':
