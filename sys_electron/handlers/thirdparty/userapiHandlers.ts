@@ -148,9 +148,23 @@ export function createThirdpartyHandlers(
     return builtin.search(keyword, page, pageSize)
   }
 
-  /** 构建符合 lx-music 协议的 musicInfo，展平 platformIds 到顶层 */
+  /** 构建符合 lx-music 协议的 musicInfo，展平 platformIds 到顶层 + 映射字段名为 lx-music 标准命名 */
   function buildMusicInfo(song: any): Record<string, unknown> {
-    const info: Record<string, unknown> = { ...song }
+    const info: Record<string, unknown> = {}
+    // lx-music 标准字段名（脚本期望的命名）
+    info.name = song.songName ?? song.name ?? ''
+    info.singer = song.artist ?? song.singer ?? ''
+    info.album = song.albumName ?? song.album ?? ''
+    info.img = song.albumCoverUrl ?? song.img ?? ''
+    info.interval = song.duration ?? song.interval ?? 0
+    info.id = song.id ?? ''
+    // 展开原始字段，方便脚本按需取用
+    info.songName = song.songName ?? ''
+    info.artist = song.artist ?? ''
+    info.albumName = song.albumName ?? ''
+    info.albumCoverUrl = song.albumCoverUrl ?? ''
+    info.duration = song.duration ?? 0
+
     if (song.platformIds && typeof song.platformIds === 'object') {
       const pIds = song.platformIds as Record<string, any>
       if (pIds.tx?.songMid) info.songmid = pIds.tx.songMid
@@ -158,6 +172,9 @@ export function createThirdpartyHandlers(
       if (pIds.kg?.albumId) info.albumId = pIds.kg.albumId
       if (pIds.kw?.rid) info.rid = pIds.kw.rid
       if (pIds.mg?.copyrightId) info.copyrightId = pIds.mg.copyrightId
+      // lx-music iSource 工具脚本可能读取的字段
+      if (pIds.wy?.id) info.wyId = pIds.wy.id
+      if (pIds.mg?.id) info.mgId = pIds.mg.id
     }
     // 展平后清理 platformIds 冗余字段
     delete info.platformIds
@@ -191,7 +208,8 @@ export function createThirdpartyHandlers(
           const musicInfo = buildMusicInfo(song)
           const result = await sendRequest(hiddenWin, {
             requestKey,
-            data: { source: source as any, action: 'musicUrl', info: { type: quality, musicInfo, ...musicInfo } },
+            // info 格式严格匹配 lx-music 协议：{ type, musicInfo }
+            data: { source: source as any, action: 'musicUrl', info: { type: quality, musicInfo } },
           })
           // UserAPI 返回格式：{ source, action, data: { type, url } }，提取 url
           if (result === null || result === undefined) return null
@@ -242,7 +260,7 @@ export function createThirdpartyHandlers(
           const musicInfo = buildMusicInfo(song)
           const result = await sendRequest(hiddenWin, {
             requestKey,
-            data: { source: source as any, action: 'lyric', info: { musicInfo, ...musicInfo } },
+            data: { source: source as any, action: 'lyric', info: { musicInfo } },
           })
           if (result === null || result === undefined) return null
           // UserAPI 返回格式：{ source, action, data: { lyric, tlyric, rlyric, lxlyric } }

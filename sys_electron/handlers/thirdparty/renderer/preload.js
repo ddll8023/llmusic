@@ -1,15 +1,14 @@
 /**
- * UserAPI 隐藏窗口 preload 脚本
- * 注入 globalThis.lx API，供第三方脚本访问
- * 完全兼容 lx-music 的 UserAPI 协议
+ * lx-music 官方 UserAPI preload 脚本（精确移植版）
+ * 注入 globalThis.lx API，供第三方 UserAPI 脚本调用
+ * 源码参考：https://github.com/lyswhut/lx-music-desktop/blob/master/src/main/modules/userApi/renderer/preload.js
  */
-const { contextBridge, ipcRenderer } = require('electron')
+const { contextBridge, ipcRenderer, webFrame } = require('electron')
 const needle = require('needle')
 const zlib = require('zlib')
 const { createCipheriv, publicEncrypt, constants, randomBytes, createHash } = require('crypto')
 const { httpOverHttp, httpsOverHttp } = require('tunnel')
 
-// ── 事件名 ──
 const EVT = {
   initEnv: 'userApi_initEnv',
   init: 'userApi_init',
@@ -25,14 +24,12 @@ const sendMessage = (action, data, status, message) => {
   ipcRenderer.send(action, { data, status, message })
 }
 
-// ── 状态 ──
 let isInitedApi = false
-let isShowedUpdateAlert = false
 const proxy = { host: '', port: '' }
+let isShowedUpdateAlert = false
 const EVENT_NAMES = { request: 'request', inited: 'inited', updateAlert: 'updateAlert' }
 const eventNames = Object.values(EVENT_NAMES)
 const events = { request: null }
-
 const allSources = ['kw', 'kg', 'tx', 'wy', 'mg', 'local']
 const supportQualitys = {
   kw: ['128k', '320k', 'flac', 'flac24bit'],
@@ -48,12 +45,18 @@ const supportActions = {
   tx: ['musicUrl'],
   wy: ['musicUrl'],
   mg: ['musicUrl'],
+  xm: ['musicUrl'],
   local: ['musicUrl', 'lyric', 'pic'],
 }
 
 const httpsRxp = /^https:/
+const getRequestAgent = url => {
+  return proxy.host ? (httpsRxp.test(url) ? httpsOverHttp : httpOverHttp)({
+    proxy: { host: proxy.host, port: proxy.port },
+  }) : undefined
+}
 
-// ── SSRF 防护：检测是否为私有 IP ──
+// ── SSRF 防护 ──
 const PRIVATE_IP_RANGES = [
   /^127\./, /^10\./, /^172\.(1[6-9]|2\d|3[01])\./, /^192\.168\./,
   /^0\./, /^169\.254\./, /^::1$/, /^fe80:/i, /^fc00:/i, /^fd:/i,
@@ -62,13 +65,6 @@ function isPrivateHost(hostname) {
   const clean = hostname.replace(/^\[|\]$/g, '')
   const ipv4Mapped = clean.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i)
   return PRIVATE_IP_RANGES.some(r => r.test(ipv4Mapped ? ipv4Mapped[1] : clean))
-}
-const getRequestAgent = url => {
-  return proxy.host
-    ? (httpsRxp.test(url) ? httpsOverHttp : httpOverHttp)({
-        proxy: { host: proxy.host, port: proxy.port },
-      })
-    : undefined
 }
 
 const verifyLyricInfo = (info) => {
@@ -82,65 +78,45 @@ const verifyLyricInfo = (info) => {
   }
 }
 
-const handleResponse = (context, { requestKey, data }) => {
-  if (!events.request) {
-    sendMessage(EVT.response, { requestKey }, false, 'Request event is not defined')
-    return
-  }
+// ════════════════════════════════════════════════
+// 精确匹配 lx-music 官方的 handleRequest 逻辑
+// ════════════════════════════════════════════════
+const handleRequest = (context, { requestKey, data }) => {
+  if (!events.request) return sendMessage(EVT.response, { requestKey }, false, 'Request event is not defined')
   try {
-    events.request
-      .call(context, { source: data.source, action: data.action, info: data.info })
-      .then((response) => {
-        const sendData = { requestKey }
-        switch (data.action) {
-          case 'musicUrl':
-            // lx-music 标准：脚本返回 string URL
-            // 不校验 http/https 前缀——脚本可能返回错误消息字符串
-            // 让主进程的校验逻辑处理无效返回值
-            if (typeof response !== 'string') {
-              // 少数脚本返回 { url } 对象
-              if (response && typeof response === 'object') {
-                const objUrl = response?.body?.url || response?.url || response?.data?.url || ''
-                if (objUrl && typeof objUrl === 'string') {
-                  response = objUrl
-                } else {
-                  console.log('[preload] musicUrl 对象返回值无 url 字段:', Object.keys(response))
-                  throw new Error('failed')
-                }
-              } else {
-                console.log('[preload] musicUrl 返回值非 string/object:', typeof response)
-                throw new Error('failed')
-              }
-            }
-            sendData.result = {
-              source: data.source,
-              action: data.action,
-              data: { type: data.info.type, url: response },
-            }
-            break
-          case 'lyric':
-            sendData.result = {
-              source: data.source,
-              action: data.action,
-              data: verifyLyricInfo(response),
-            }
-            break
-          case 'pic':
-            if (typeof response != 'string' || response.length > 2048 || !/^https?:/.test(response)) throw new Error('failed')
-            sendData.result = {
-              source: data.source,
-              action: data.action,
-              data: response,
-            }
-            break
-        }
-        sendMessage(EVT.response, sendData, true)
-      })
-      .catch((err) => {
-        sendMessage(EVT.response, { requestKey }, false, `[脚本错误][${data.source}][${data.action}] ${err.message}`)
-      })
+    events.request.call(context, { source: data.source, action: data.action, info: data.info }).then(response => {
+      let sendData = { requestKey }
+      switch (data.action) {
+        case 'musicUrl':
+          if (typeof response != 'string' || response.length > 2048 || !/^https?:/.test(response)) throw new Error('failed')
+          sendData.result = {
+            source: data.source,
+            action: data.action,
+            data: { type: data.info.type, url: response },
+          }
+          break
+        case 'lyric':
+          sendData.result = {
+            source: data.source,
+            action: data.action,
+            data: verifyLyricInfo(response),
+          }
+          break
+        case 'pic':
+          if (typeof response != 'string' || response.length > 2048 || !/^https?:/.test(response)) throw new Error('failed')
+          sendData.result = {
+            source: data.source,
+            action: data.action,
+            data: response,
+          }
+          break
+      }
+      sendMessage(EVT.response, sendData, true)
+    }).catch(err => {
+      sendMessage(EVT.response, { requestKey }, false, err.message)
+    })
   } catch (err) {
-    sendMessage(EVT.response, { requestKey }, false, `[脚本错误][${data.source}][${data.action}] ${err.message}`)
+    sendMessage(EVT.response, { requestKey }, false, err.message)
   }
 }
 
@@ -161,8 +137,8 @@ const handleInit = (context, info) => {
       const actions = supportActions[source]
       sourceInfo.sources[source] = {
         type: 'music',
-        actions: actions.filter((a) => userSource.actions.includes(a)),
-        qualitys: qualitys.filter((q) => userSource.qualitys.includes(q)),
+        actions: actions.filter(a => userSource.actions.includes(a)),
+        qualitys: qualitys.filter(q => userSource.qualitys.includes(q)),
       }
     }
   } catch (error) {
@@ -170,9 +146,8 @@ const handleInit = (context, info) => {
     return
   }
   sendMessage(EVT.init, sourceInfo, true)
-
-  ipcRenderer.on(EVT.request, (_event, data) => {
-    handleResponse(context, data)
+  ipcRenderer.on(EVT.request, (event, data) => {
+    handleRequest(context, data)
   })
 }
 
@@ -199,11 +174,7 @@ const initEnv = (userApi) => {
   contextBridge.exposeInMainWorld('lx', {
     EVENT_NAMES,
     request(url, { method = 'get', timeout, headers, body, form, formData } = {}, callback) {
-      const options = {
-        headers,
-        agent: getRequestAgent(url),
-      }
-      // SSRF 防护：检查目标主机是否为私有 IP
+      let options = { headers, agent: getRequestAgent(url) }
       try {
         const parsedUrl = new URL(url)
         if (isPrivateHost(parsedUrl.hostname)) {
@@ -226,7 +197,7 @@ const initEnv = (userApi) => {
         data = formData
         options.json = false
       }
-      options.response_timeout = typeof timeout == 'number' && timeout > 0 ? Math.min(timeout, 60000) : 60000
+      options.response_timeout = typeof timeout == 'number' && timeout > 0 ? Math.min(timeout, 60_000) : 60_000
 
       let request = needle.request(method, url, data, options, (err, resp, body) => {
         try {
@@ -234,7 +205,7 @@ const initEnv = (userApi) => {
             callback.call(this, err, null, null)
           } else {
             body = resp.body = resp.raw.toString()
-            try { resp.body = JSON.parse(resp.body) } catch (_) { /* ignore */ }
+            try { resp.body = JSON.parse(resp.body) } catch (_) {}
             body = resp.body
             callback.call(this, null, {
               statusCode: resp.statusCode,
@@ -338,8 +309,7 @@ const initEnv = (userApi) => {
     sendError(errorMessage) { onError(errorMessage) },
   })
 
-  // 注入错误监听 + 执行用户脚本
-  require('electron').webFrame.executeJavaScript(`(() => {
+  webFrame.executeJavaScript(`(() => {
 window.addEventListener('error', (event) => {
   if (event.isTrusted) globalThis.__lx_init_error_handler__.sendError(event.message.replace(/^Uncaught\\sError:\\s/, ''))
 })
@@ -350,15 +320,9 @@ window.addEventListener('unhandledrejection', (event) => {
 })
 })()`)
 
-  require('electron').webFrame.executeJavaScript(userApi.script).catch((_) => _)
+  webFrame.executeJavaScript(userApi.script).catch(_ => _)
 }
 
-// ── 启动：收到 initEnv 后开始初始化 ──
-ipcRenderer.on(EVT.initEnv, (_event, data) => {
-  initEnv(data)
-})
-
-ipcRenderer.on(EVT.proxyUpdate, (_event, data) => {
-  proxy.host = data.host
-  proxy.port = data.port
-})
+// ── 启动 ──
+ipcRenderer.on(EVT.initEnv, (event, data) => { initEnv(data) })
+ipcRenderer.on(EVT.proxyUpdate, (event, data) => { proxy.host = data.host; proxy.port = data.port })
