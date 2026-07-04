@@ -298,10 +298,52 @@ async function musicUrlMG(song: NormalizedSongInfo, quality: QualityLevel): Prom
 
 // ========== 获取歌词 ==========
 
-async function lyricTX(song: NormalizedSongInfo): Promise<LyricResult | null> { return null }
+async function lyricTX(song: NormalizedSongInfo): Promise<LyricResult | null> {
+  try {
+    const songmid = song.platformIds?.tx?.songMid
+    if (!songmid) return null
+    const data = await fetchJSON(
+      `https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg?songmid=${songmid}&format=json`,
+      undefined, 8000,
+      { 'Referer': 'https://y.qq.com' },
+    )
+    if (data?.retcode !== 0 || !data.lyric) return null
+    // QQ 歌词 API 返回 base64 编码的 LRC 文本
+    const lrcText = Buffer.from(data.lyric, 'base64').toString('utf8')
+    if (!lrcText) return null
+    const result: LyricResult = { lyric: lrcText }
+    // 翻译歌词（如果存在）
+    if (data.trans) {
+      const transText = Buffer.from(data.trans, 'base64').toString('utf8')
+      if (transText) result.tlyric = transText
+    }
+    return result
+  } catch {
+    return null
+  }
+}
 async function lyricKW(song: NormalizedSongInfo): Promise<LyricResult | null> { return null }
 async function lyricKG(song: NormalizedSongInfo): Promise<LyricResult | null> { return null }
-async function lyricWY(song: NormalizedSongInfo): Promise<LyricResult | null> { return null }
+async function lyricWY(song: NormalizedSongInfo): Promise<LyricResult | null> {
+  try {
+    const songId = song.platformIds?.wy?.id
+    if (!songId) return null
+    const data = await fetchJSON(
+      `https://music.163.com/api/song/lyric?id=${songId}&lv=-1&kv=-1&tv=-1`,
+      undefined, 8000,
+      { 'Referer': 'https://music.163.com' },
+    )
+    if (data?.code !== 200) return null
+    const result: LyricResult = { lyric: '' }
+    if (data.lrc?.lyric) result.lyric = data.lrc.lyric
+    if (data.tlyric?.lyric) result.tlyric = data.tlyric.lyric
+    if (data.romalrc?.lyric) result.rlyric = data.romalrc.lyric
+    if (!result.lyric) return null
+    return result
+  } catch {
+    return null
+  }
+}
 async function lyricMG(song: NormalizedSongInfo): Promise<LyricResult | null> { return null }
 
 // ========== 获取封面 ==========
