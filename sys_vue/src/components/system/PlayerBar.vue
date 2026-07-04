@@ -240,7 +240,7 @@ const playAudioBuffer = (offset = 0) => {
     if (!window.decodedAudioBuffer || !window.audioContext) return;
     if (window.sourceNode) {
         window.sourceNode.onended = null;
-        window.sourceNode.stop();
+        try { window.sourceNode.stop(); } catch (e) { /* source 可能已结束，忽略 */ }
     }
     window.sourceNode = window.audioContext.createBufferSource();
     window.sourceNode.buffer = window.decodedAudioBuffer;
@@ -257,7 +257,7 @@ const resetAudioPlayer = () => {
     if (window.sourceNode) {
         window.isAudioPlaying = false;
         window.sourceNode.onended = null;
-        window.sourceNode.stop();
+        try { window.sourceNode.stop(); } catch (e) { /* source 可能已结束，忽略 */ }
         window.sourceNode = null;
     }
     window.decodedAudioBuffer = null;

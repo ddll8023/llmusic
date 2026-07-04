@@ -1,6 +1,6 @@
 *.pyc
 __pycache__/
-
+.workbuddy
 
 node_modules
 build

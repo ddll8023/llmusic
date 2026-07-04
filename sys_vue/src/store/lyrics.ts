@@ -69,6 +69,7 @@ export const useLyricsStore = defineStore("lyrics", {
 					this.format = _r.format ?? null
 					this.metadata = _r.metadata ?? {}
 					this.currentIndex = -1
+					this.isAutoScrolling = true
 					return
 				}
 				this.reset()

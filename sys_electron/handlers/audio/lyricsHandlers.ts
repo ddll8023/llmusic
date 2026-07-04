@@ -181,6 +181,41 @@ function parseLrc(lrcText: string): ParsedLrc {
 }
 
 /**
+ * 尝试从文件直接读取原生歌词元数据（VorbisComment LYRICS 标签）
+ * 用于兜底修复入库时丢失时间戳的存量数据
+ */
+async function tryReadFileLyrics(filePath: string | undefined): Promise<LyricResult | null> {
+	if (!filePath) return null
+	try {
+		const { parseFile } = await import("music-metadata" /* webpackIgnore: true */)
+		const meta = await parseFile(filePath, { skipCovers: true, skipPostHeaders: true })
+		if (meta.native?.vorbis) {
+			const lyricsFrame = meta.native.vorbis.find((f: { id: string }) => f.id === "LYRICS")
+			if (lyricsFrame) {
+				const raw = String(lyricsFrame.value)
+				if (/\[\d{2}:\d{2}[\.:]\d{2,3}\]/.test(raw)) {
+					const parsed = parseLrc(raw)
+					if (parsed.lyrics.length > 0) {
+						console.log(`[lyricsHandler] 从文件 ${filePath} 成功提取 LRC 歌词（${parsed.lyrics.length} 行）`)
+						return {
+							success: true,
+							lyrics: parsed.lyrics,
+							metadata: parsed.metadata,
+							format: "lrc",
+							source: "file-reextract",
+						}
+					}
+				}
+			}
+		}
+	} catch (e) {
+		const err = e as Error
+		console.warn(`[lyricsHandler] 从文件读取歌词失败: ${filePath}`, err.message)
+	}
+	return null
+}
+
+/**
  * 获取歌曲歌词
  */
 async function getLyrics(songId: string): Promise<LyricResult> {
@@ -192,7 +227,7 @@ async function getLyrics(songId: string): Promise<LyricResult> {
 		const text = song.lyrics
 
 		// 1. 检查 LRC 格式
-		if (/\[\d{2}:\d{2}\.\d{2,3}\]/.test(text)) {
+		if (/\[\d{2}:\d{2}[\.:]\d{2,3}\]/.test(text)) {
 			const parsed = parseLrc(text)
 			return {
 				success: true,
@@ -236,7 +271,11 @@ async function getLyrics(songId: string): Promise<LyricResult> {
 			}
 		}
 
-		// 3. 作为纯文本处理
+		// 3. 作为纯文本处理 — 尝试从文件读取原生歌词元数据
+		// 处理入库时丢失时间戳的存量数据（ScannerWorker 曾只提取 item.text 丢弃了 syncText）
+		const fileLyrics = await tryReadFileLyrics(song.filePath)
+		if (fileLyrics) return fileLyrics
+
 		return {
 			success: true,
 			lyrics: text.split(/\r?\n/).map((t: string) => ({ time: -1, text: t.trim(), timeText: "" })),

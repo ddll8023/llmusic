@@ -313,6 +313,18 @@ async function extractLyrics(metadata: IAudioMetadata, filePath: string): Promis
 		}
 	}
 
+	// 1.5 尝试提取 VorbisComment 原生歌词 (FLAC/OGG 等)
+	if (!hasLyrics && metadata.native?.vorbis) {
+		const lyricsFrames = metadata.native.vorbis.filter((frame: { id: string }) => frame.id === "LYRICS")
+		if (lyricsFrames && lyricsFrames.length > 0) {
+			lyrics = String(lyricsFrames[0].value)
+			if (lyrics) {
+				hasLyrics = true
+				return { lyrics, hasLyrics }
+			}
+		}
+	}
+
 	// 2. 检查其他格式的歌词
 	const common = metadata.common
 	if (!hasLyrics && common.lyrics) {
@@ -375,7 +387,19 @@ function extractLyricsFromCommon(lyrics: string | unknown[] | Record<string, unk
 				if (typeof item === "string") {
 					return item
 				} else if (typeof item === "object" && item !== null) {
-					const itemObj = item as { text?: string }
+					const itemObj = item as { text?: string; syncText?: Array<{ timestamp: number; text: string }> }
+					// 如果有 syncText，重建 LRC 格式（保留时间戳）
+					if (itemObj.syncText && Array.isArray(itemObj.syncText) && itemObj.syncText.length > 0) {
+						return itemObj.syncText
+							.map((st) => {
+								const ts = st.timestamp ?? 0
+								const min = Math.floor(ts / 60000)
+								const sec = Math.floor((ts % 60000) / 1000)
+								const ms = Math.floor((ts % 1000) / 10)
+								return `[${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}.${String(ms).padStart(2, "0")}]${st.text}`
+							})
+							.join("\n")
+					}
 					if (itemObj.text) return itemObj.text
 					try {
 						return JSON.stringify(item)
@@ -395,7 +419,19 @@ function extractLyricsFromCommon(lyrics: string | unknown[] | Record<string, unk
 	}
 
 	if (typeof lyrics === "object" && lyrics !== null) {
-		const lyricsObj = lyrics as { text?: string }
+		const lyricsObj = lyrics as { text?: string; syncText?: Array<{ timestamp: number; text: string }> }
+		// 如果有 syncText，重建 LRC 格式
+		if (lyricsObj.syncText && Array.isArray(lyricsObj.syncText) && lyricsObj.syncText.length > 0) {
+			return lyricsObj.syncText
+				.map((st) => {
+					const ts = st.timestamp ?? 0
+					const min = Math.floor(ts / 60000)
+					const sec = Math.floor((ts % 60000) / 1000)
+					const ms = Math.floor((ts % 1000) / 10)
+					return `[${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}.${String(ms).padStart(2, "0")}]${st.text}`
+				})
+				.join("\n")
+		}
 		try {
 			if (lyricsObj.text) return lyricsObj.text
 			return JSON.stringify(lyrics)

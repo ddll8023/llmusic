@@ -117,7 +117,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { usePlayerStore } from '../../store/player'
 import { useLyricsStore } from '../../store/lyrics'
 import { useUiStore } from '../../store/ui'
@@ -216,15 +216,7 @@ const handleManualScroll = () => {
 const resumeAutoScroll = () => {
 	clearTimeout(manualScrollTimer.value)
 	lyricsStore.setAutoScrolling(true)
-
-	// 立即滚动到当前行
-	const currentIndex = lyricsStore.currentIndex
-	if (currentIndex >= 0 && lyricLineRefs.value[currentIndex]) {
-		lyricLineRefs.value[currentIndex].scrollIntoView({
-			behavior: 'smooth',
-			block: 'center',
-		})
-	}
+	scrollToCurrentLine('smooth')
 }
 
 // 获取歌曲信息
@@ -254,8 +246,39 @@ const hasLyricsToShow = computed(() => {
 	return lyricsStore.hasLyrics && displayLines.value.length > 0
 })
 
-watch(displayLines, () => {
+// ===== 自动滚动逻辑 =====
+
+/** 滚动到当前歌词行 */
+async function scrollToCurrentLine(behavior: ScrollBehavior = 'auto') {
+	const index = lyricsStore.currentIndex
+	if (index < 0 || !lyricsStore.isAutoScrolling) return
+	await nextTick()
+	const el = lyricLineRefs.value[index]
+	if (el) {
+		el.scrollIntoView({ behavior, block: 'center' })
+	}
+}
+
+// 歌词行数据变化时（新歌加载/歌词异步返回），清空 refs 后重新滚动
+watch(displayLines, async () => {
 	lyricLineRefs.value = []
+	await nextTick()
+	scrollToCurrentLine('auto')
+})
+
+// 当前歌词行变化时自动滚动（播放中实时更新）
+watch(() => lyricsStore.currentIndex, async (newIndex) => {
+	if (newIndex < 0 || !lyricsStore.isAutoScrolling) return
+	await nextTick()
+	const el = lyricLineRefs.value[newIndex]
+	if (el) {
+		el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+	}
+})
+
+// 组件挂载后，滚动到当前歌词位置
+onMounted(() => {
+	scrollToCurrentLine('auto')
 })
 
 // 格式化当前时间
@@ -292,20 +315,7 @@ const seekToLyric = (index: number) => {
 	playerStore.seekToLyricPosition(index)
 }
 
-// 监听当前歌词行变化，自动滚动
-watch(() => lyricsStore.currentIndex, async (newIndex) => {
-	if (newIndex < 0 || !lyricsStore.isAutoScrolling) return
 
-	await nextTick()
-
-	const currentLineEl = lyricLineRefs.value[newIndex]
-	if (currentLineEl) {
-		currentLineEl.scrollIntoView({
-			behavior: 'smooth',
-			block: 'center'
-		})
-	}
-}, { immediate: true })
 
 // 监听动画样式变化，确保平滑过渡
 watch(() => uiStore.lyricsAnimationStyle, () => {
