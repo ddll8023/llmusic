@@ -94,11 +94,18 @@ const handleResponse = (context, { requestKey, data }) => {
         const sendData = { requestKey }
         switch (data.action) {
           case 'musicUrl':
-            if (typeof response != 'string' || response.length > 2048 || !/^https?:/.test(response)) throw new Error('failed')
+            // lx-music 脚本可返回 string URL 或 { url, type } 对象
+            let url = ''
+            if (typeof response === 'string') {
+              url = response
+            } else if (response && typeof response === 'object') {
+              url = response.url || ''
+            }
+            if (typeof url !== 'string' || url.length > 2048 || !/^https?:/.test(url)) throw new Error('failed')
             sendData.result = {
               source: data.source,
               action: data.action,
-              data: { type: data.info.type, url: response },
+              data: { type: data.info.type, url },
             }
             break
           case 'lyric':
@@ -120,10 +127,10 @@ const handleResponse = (context, { requestKey, data }) => {
         sendMessage(EVT.response, sendData, true)
       })
       .catch((err) => {
-        sendMessage(EVT.response, { requestKey }, false, err.message)
+        sendMessage(EVT.response, { requestKey }, false, `[脚本错误][${data.source}][${data.action}] ${err.message}`)
       })
   } catch (err) {
-    sendMessage(EVT.response, { requestKey }, false, err.message)
+    sendMessage(EVT.response, { requestKey }, false, `[脚本错误][${data.source}][${data.action}] ${err.message}`)
   }
 }
 
