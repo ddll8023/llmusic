@@ -322,7 +322,22 @@ async function lyricTX(song: NormalizedSongInfo): Promise<LyricResult | null> {
     return null
   }
 }
-async function lyricKW(song: NormalizedSongInfo): Promise<LyricResult | null> { return null }
+async function lyricKW(song: NormalizedSongInfo): Promise<LyricResult | null> {
+  try {
+    const rid = song.platformIds?.kw?.rid
+    if (!rid) return null
+    // 酷我歌词 API — antiserver 方式，返回 LRC 文本
+    const lrcText = await fetchText(
+      `http://antiserver.kuwo.cn/anti.s?type=convert_url2&rid=MUSIC_${rid}&format=lrc`,
+    )
+    if (lrcText && /\[\d{2}:\d{2}[\.:]\d{2,3}\]/.test(lrcText)) {
+      return { lyric: lrcText }
+    }
+    return null
+  } catch {
+    return null
+  }
+}
 async function lyricKG(song: NormalizedSongInfo): Promise<LyricResult | null> { return null }
 async function lyricWY(song: NormalizedSongInfo): Promise<LyricResult | null> {
   try {
@@ -344,7 +359,26 @@ async function lyricWY(song: NormalizedSongInfo): Promise<LyricResult | null> {
     return null
   }
 }
-async function lyricMG(song: NormalizedSongInfo): Promise<LyricResult | null> { return null }
+async function lyricMG(song: NormalizedSongInfo): Promise<LyricResult | null> {
+  try {
+    const copyrightId = song.platformIds?.mg?.copyrightId
+    if (!copyrightId) return null
+    const data = await fetchJSON(
+      `https://music.migu.cn/v3/api/music/audioPlayer/getLyric?copyrightId=${copyrightId}`,
+      undefined, 8000,
+      { 'Referer': 'https://music.migu.cn' },
+    )
+    if (data?.result?.lyric) {
+      return { lyric: data.result.lyric }
+    }
+    if (data?.lyric) {
+      return { lyric: data.lyric }
+    }
+    return null
+  } catch {
+    return null
+  }
+}
 
 // ========== 获取封面 ==========
 
