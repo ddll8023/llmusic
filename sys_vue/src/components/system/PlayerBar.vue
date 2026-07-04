@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
+import { ref, nextTick, onMounted, onUnmounted, watch, computed } from 'vue';
 import { usePlayerStore, PlayMode } from '../../store/player';
 import { useMediaStore } from '../../store/media';
 import { useLyricsStore } from '../../store/lyrics';
@@ -8,6 +8,7 @@ import defaultCoverImage from '../../assets/default_img.jpg';
 import { formatTime } from '../../utils/timeUtils';
 import { useAlbumColors } from '../../composables/useAlbumColors';
 import { useAutoHideTimer } from '../../composables/useAutoHideTimer';
+import { useDraggable } from '../../composables/useDraggable';
 
 declare global {
   interface Window {
@@ -72,11 +73,71 @@ const progressDeg = computed(() => progressPct.value * 360)
 
 // 自动隐藏定时器
 const autoHide = useAutoHideTimer(5000)
-watch(isCollapsed, (v) => { if (!v) autoHide.reset() })
 
+// === 收缩态拖拽 ===
+const barWrapRef = ref<HTMLElement | null>(null)
+const savedDragPos = ref<{ x: number; y: number } | null>(null)
 
+const draggable = useDraggable({
+  enabled: () => isCollapsed.value,
+  excludeSelector: 'button, a, .n-cover, .n-toggle, .n-play-c',
+  bounds: true,
+})
 
-// 切歌时自动展开
+/** 计算收缩态的居中位置 */
+function computeCenterPosition(el: HTMLElement): { x: number; y: number } {
+  const { width, height } = el.getBoundingClientRect()
+  return {
+    x: (window.innerWidth - width) / 2,
+    y: window.innerHeight - 24 - height,
+  }
+}
+
+// 监听收缩/展开状态变化：展开时保存位置，收缩时恢复
+watch(isCollapsed, (collapsed) => {
+  if (collapsed) {
+    // 收缩 → 恢复上次拖拽位置或居中
+    if (savedDragPos.value) {
+      draggable.initPosition(savedDragPos.value.x, savedDragPos.value.y)
+    } else {
+      nextTick(() => {
+        if (barWrapRef.value) {
+          const pos = computeCenterPosition(barWrapRef.value)
+          draggable.initPosition(pos.x, pos.y)
+        }
+      })
+    }
+  } else {
+    // 展开 → 保存当前位置以便后续恢复
+    if (draggable.hasMoved.value) {
+      savedDragPos.value = draggable.savePosition()
+    }
+    autoHide.reset()
+  }
+})
+
+/** 收缩态拖拽样式 — 用 left/top 覆盖 CSS 居中定位 */
+const dragInlineStyle = computed(() => {
+  if (!isCollapsed.value || !draggable.hasMoved.value) return undefined
+  return {
+    left: `${draggable.x.value}px`,
+    top: `${draggable.y.value}px`,
+    bottom: 'auto',
+    transform: 'none',
+  }
+})
+
+/** 窗口 resize 时修正坐标（防止被裁出视口） */
+function clampDragPosition() {
+  if (!draggable.hasMoved.value || !barWrapRef.value) return
+  const { width, height } = barWrapRef.value.getBoundingClientRect()
+  const cx = Math.max(0, Math.min(window.innerWidth - width, draggable.x.value))
+  const cy = Math.max(0, Math.min(window.innerHeight - height, draggable.y.value))
+  if (cx !== draggable.x.value || cy !== draggable.y.value) {
+    draggable.initPosition(cx, cy)
+  }
+}
+
 watch(() => playerStore.currentSong, (newSong, oldSong) => {
   if (newSong && newSong.id !== (oldSong ? oldSong.id : null)) {
     uiStore.expandPlayerBar()
@@ -673,6 +734,8 @@ onMounted(async () => {
             } catch (error) { console.error('清理媒体会话处理程序失败:', error); }
         }
         window.electronAPI.playerStop().catch(error => { console.error('停止播放失败:', error); });
+        draggable.unbind();
+        window.removeEventListener('resize', clampDragPosition);
     });
     playerStore.loadPlayerState();
     initAudioContext();
@@ -745,12 +808,18 @@ onMounted(async () => {
       }
     }, 2400);
 
+    // 收缩态拖拽绑定
+    if (barWrapRef.value) draggable.bind(barWrapRef.value)
+    window.addEventListener('resize', clampDragPosition);
+
     autoHide.start();
 });
 </script>
 
 <template>
-  <div :class="['ribbon-wrap', { collapsed: isCollapsed }]"
+  <div ref="barWrapRef"
+    :class="['ribbon-wrap', { collapsed: isCollapsed, 'is-dragging': draggable.isDragging.value }]"
+    :style="dragInlineStyle"
     role="region" aria-label="播放控制栏"
     @mouseenter="autoHide.reset()" @mouseleave="autoHide.start()">
     <div :class="['ribbon', { 'ribbon-pulse': isPulsing }]"
@@ -1374,5 +1443,21 @@ onMounted(async () => {
 }
 @media (max-width: 600px) {
   .ribbon-wrap.collapsed { max-width: calc(100% - 32px); }
+}
+
+/* ===== 收缩态拖拽 ===== */
+.ribbon-wrap.collapsed {
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.ribbon-wrap.collapsed:active {
+  cursor: grabbing;
+}
+.ribbon-wrap.is-dragging {
+  box-shadow:
+    0 8px 32px rgba(0,0,0,.45),
+    0 0 0 1px rgba(255,255,255,.08);
+  transition: none !important;
 }
 </style>
