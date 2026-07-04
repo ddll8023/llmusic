@@ -230,23 +230,6 @@ const compatAPI: Record<string, unknown> = {
 
 	// 文件下载（带元数据嵌入）
 	downloadSongWithMetadata: API.download.saveSongWithMetadata,
-
-	// ═══ 第三方源 / UserAPI ═══
-	thirdparty: {
-		listSources: () => invokeIPC<any[]>("thirdparty:list-sources"),
-		setSource: (id: string) => invokeIPC<void>("thirdparty:set-source", id),
-		search: (params: Record<string, unknown>) => invokeIPC<any>("thirdparty:search", params),
-		getMusicUrl: (params: Record<string, unknown>) => invokeIPC<string | null>("thirdparty:get-music-url", params),
-		getLyric: (params: Record<string, unknown>) => invokeIPC<string | null>("thirdparty:get-lyric", params),
-		importScript: () => invokeIPC<any | null>("thirdparty:import-script"),
-		importScriptFromUrl: (url: string) => invokeIPC<any | null>("thirdparty:import-script-url", url),
-		testScript: (id: string) => invokeIPC<boolean>("thirdparty:test-script", id),
-		removeScript: (id: string) => invokeIPC<void>("thirdparty:remove-script", id),
-		toggleScript: (id: string, enabled: boolean) => invokeIPC<void>("thirdparty:toggle-script", id, enabled),
-		getStatus: () => invokeIPC<any>("thirdparty:get-status"),
-		openDevTools: () => invokeIPC<void>("thirdparty:open-devtools"),
-		closeDevTools: () => invokeIPC<void>("thirdparty:close-devtools"),
-	},
 }
 
 // 安全地暴露主进程的API给渲染进程

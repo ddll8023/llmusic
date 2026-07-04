@@ -95,19 +95,4 @@ export const CHANNELS = {
 	GET_TAGS_FROM_FILE: "get-tags-from-file",
 	UPDATE_TAGS_TO_FILE: "update-tags-to-file",
 
-	// --- 第三方源 / UserAPI ---
-	THIRDPARTY_LIST_SOURCES: "thirdparty:list-sources",
-	THIRDPARTY_SET_SOURCE: "thirdparty:set-source",
-	THIRDPARTY_SEARCH: "thirdparty:search",
-	THIRDPARTY_GET_MUSIC_URL: "thirdparty:get-music-url",
-	THIRDPARTY_IMPORT_SCRIPT: "thirdparty:import-script",
-	THIRDPARTY_IMPORT_SCRIPT_URL: "thirdparty:import-script-url",
-	THIRDPARTY_TEST_SCRIPT: "thirdparty:test-script",
-	THIRDPARTY_REMOVE_SCRIPT: "thirdparty:remove-script",
-	THIRDPARTY_TOGGLE_SCRIPT: "thirdparty:toggle-script",
-	THIRDPARTY_GET_STATUS: "thirdparty:get-status",
-	THIRDPARTY_OPEN_DEVTOOLS: "thirdparty:open-devtools",
-	THIRDPARTY_CLOSE_DEVTOOLS: "thirdparty:close-devtools",
-	THIRDPARTY_GET_LYRIC: "thirdparty:get-lyric",
-	THIRDPARTY_GET_PIC: "thirdparty:get-pic",
 } as const

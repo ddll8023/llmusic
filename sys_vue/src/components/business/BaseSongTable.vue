@@ -45,11 +45,8 @@ interface BaseSongTableProps {
   showCover?: boolean
   showFormat?: boolean
   showAction?: boolean
-  showThirdpartyAction?: boolean
   unifyActions?: boolean
   officialDisabled?: boolean
-  thirdpartySources?: Array<{ id: string; name: string }>
-  thirdpartyDownloadingIds?: Set<string>
   emptyText?: string
   emptyIcon?: string
   containerHeight?: string
@@ -70,11 +67,8 @@ const props = withDefaults(defineProps<BaseSongTableProps>(), {
   showCover: true,
   showFormat: false,
   showAction: false,
-  showThirdpartyAction: false,
   officialDisabled: false,
   unifyActions: false,
-  thirdpartySources: () => [],
-  thirdpartyDownloadingIds: () => new Set<string>(),
   emptyText: '暂无歌曲',
   emptyIcon: 'music',
   containerHeight: '100%',
@@ -88,18 +82,12 @@ const emit = defineEmits<{
   (e: 'batch-download', songs: SongItem[]): void
   (e: 'selection-change', songs: SongItem[]): void
   (e: 'click-song', song: SongItem): void
-  (e: 'thirdparty-play', song: SongItem): void
-  (e: 'thirdparty-download', payload: { song: SongItem; sourceId: string }): void
 }>()
 
 const playerStore = usePlayerStore()
 
 const hoveredSongId = ref<any>(null)
 const selectedIds = ref(new Set<string>())
-
-function handleThirdpartyDownload(song: SongItem) {
-  emit('thirdparty-download', { song, sourceId: '' })
-}
 
 const songCovers = reactive<Record<string, string>>({})
 const coverErrorFlags = reactive<Record<string, boolean>>({})
@@ -277,7 +265,6 @@ const headers = computed(() => {
         h.push({ key: 'action', label: '', width: '72px' })
       } else {
         h.push({ key: 'action_official', label: '官方', width: '72px' })
-        h.push({ key: 'action_thirdparty', label: '三方', width: '96px' })
       }
     }
   }
@@ -540,23 +527,6 @@ const gridTemplateStyle = computed(() => {
               </button>
             </div>
 
-            <!-- 第三方操作 -->
-            <div v-if="showThirdpartyAction" class="flex items-center justify-center gap-1" @click.stop>
-              <button
-                class="w-[26px] h-[26px] inline-flex items-center justify-center cursor-pointer select-none hover:brightness-125 transition-all duration-150"
-                style="color:#d4832a"
-                title="三方试听"
-                @click="emit('thirdparty-play', song)">
-                <FAIcon name="play" size="small" color="current" />
-              </button>
-              <button
-                class="w-[26px] h-[26px] inline-flex items-center justify-center cursor-pointer select-none hover:brightness-125 transition-all duration-150"
-                style="color:#d4832a"
-                title="三方下载"
-                @click="handleThirdpartyDownload(song)">
-                <FAIcon name="download" size="small" color="current" />
-              </button>
-            </div>
           </div>
         </template>
       </div>
