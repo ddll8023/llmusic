@@ -102,6 +102,7 @@ function handleThirdpartyDownload(song: SongItem) {
 }
 
 const songCovers = reactive<Record<string, string>>({})
+const coverErrorFlags = reactive<Record<string, boolean>>({})
 const placeholderCover = 'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=='
 
 const currentSongId = computed(() => {
@@ -145,6 +146,10 @@ function getDuration(song: SongItem): string {
 watch(() => props.songs, (songs) => {
   if (props.mode === 'local') {
     songs.forEach(s => { if (s.id) loadCover(s.id) })
+  }
+  // online 模式：切换搜索结果时清除旧的封面错误标记
+  if (props.mode === 'online') {
+    Object.keys(coverErrorFlags).forEach(k => delete coverErrorFlags[k])
   }
 }, { immediate: true })
 
@@ -455,14 +460,17 @@ const gridTemplateStyle = computed(() => {
 
             <!-- 封面 -->
             <div v-if="showCover" class="flex items-center">
-              <img v-if="(song.album as any)?.albumCoverUrl"
-                :src="(song.album as any).albumCoverUrl"
-                :alt="getTitle(song)" loading="lazy"
-                class="w-9 h-9 rounded object-cover bg-surface-overlay"
-                @error.once="(e: any) => { e.target.style.display = 'none' }" />
-              <div v-else class="w-9 h-9 rounded bg-surface-overlay flex items-center justify-center">
-                <FAIcon name="music" size="small" color="disabled" />
-              </div>
+              <template v-if="(song.album as any)?.albumCoverUrl && !coverErrorFlags[getSongId(song)]">
+                <img :src="(song.album as any).albumCoverUrl"
+                  :alt="getTitle(song)" loading="lazy"
+                  class="w-9 h-9 rounded object-cover bg-surface-overlay"
+                  @error.once="coverErrorFlags[getSongId(song)] = true" />
+              </template>
+              <template v-else>
+                <div class="w-9 h-9 rounded bg-surface-overlay flex items-center justify-center">
+                  <FAIcon name="music" size="small" color="disabled" />
+                </div>
+              </template>
             </div>
 
             <!-- 歌名 -->

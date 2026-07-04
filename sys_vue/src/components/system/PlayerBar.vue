@@ -775,7 +775,6 @@ onMounted(async () => {
         </template>
         <template v-else>
           <div class="rt-name" style="color:var(--color-content-disabled);letter-spacing:2px;font-weight:400">LLMusic</div>
-          <div class="rt-artist" style="color:var(--color-line-light)">&nbsp;</div>
         </template>
       </div>
 
@@ -991,6 +990,9 @@ onMounted(async () => {
   min-width: 0;
   max-width: 200px;
   margin: 0 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   transition: max-width 0.35s cubic-bezier(.16,1,.3,1),
               margin 0.35s cubic-bezier(.16,1,.3,1);
 }

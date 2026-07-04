@@ -13,12 +13,12 @@ import type { SourcePlatform, QualityLevel, SearchResult, NormalizedSongInfo, Bu
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
-async function fetchJSON(url: string, signal?: AbortSignal, timeoutMs = 8000): Promise<any> {
+async function fetchJSON(url: string, signal?: AbortSignal, timeoutMs = 8000, extraHeaders?: Record<string, string>): Promise<any> {
   return new Promise((resolve, reject) => {
     const req = net.request({
       method: 'GET',
       url,
-      headers: { 'User-Agent': UA },
+      headers: { 'User-Agent': UA, ...extraHeaders },
     })
     const timeout = setTimeout(() => {
       req.abort()
@@ -48,23 +48,25 @@ async function fetchJSON(url: string, signal?: AbortSignal, timeoutMs = 8000): P
 
 async function searchTX(keyword: string, page: number, pageSize: number): Promise<SearchResult> {
   try {
-    // QQ 音乐搜索 API（公开接口）
+    // QQ 音乐搜索 API — client_search_cp 更稳定，需 Referer
     const data = await fetchJSON(
-      `https://c.y.qq.com/splcloud/fcgi-bin/smartbox_new.fcg?key=${encodeURIComponent(keyword)}&format=json&inCharset=utf-8&outCharset=utf-8`,
+      `https://c.y.qq.com/soso/fcgi-bin/client_search_cp?w=${encodeURIComponent(keyword)}&p=${page}&n=${pageSize}&format=json&inCharset=utf-8&outCharset=utf-8`,
+      undefined, 8000,
+      { 'Referer': 'https://y.qq.com' },
     )
-    const songs = data?.data?.song?.itemlist || []
+    const songs = data?.data?.song?.list || []
     const items: NormalizedSongInfo[] = songs.map((s: any) => ({
       source: 'tx' as SourcePlatform,
-      id: s.mid || '',
-      songName: s.name || '',
-      artist: s.singer?.map((sg: any) => sg.name).join(' / ') || '',
-      albumName: s.album?.name || '',
-      albumCoverUrl: s.album?.mid ? `https://y.gtimg.cn/music/photo_new/T002R300x300M000${s.album.mid}.jpg` : '',
-      duration: 0,
+      id: s.songmid || '',
+      songName: s.songname || '',
+      artist: (s.singer || []).map((sg: any) => sg.name).join(' / ') || '',
+      albumName: s.albumname || '',
+      albumCoverUrl: s.albummid ? `https://y.gtimg.cn/music/photo_new/T002R300x300M000${s.albummid}.jpg` : '',
+      duration: s.interval || 0,
       quality: '320k' as QualityLevel,
-      platformIds: { tx: { songMid: s.mid || '' } },
+      platformIds: { tx: { songMid: s.songmid || '' } },
     }))
-    return { total: items.length, songs: items }
+    return { total: data?.data?.song?.totalnum || items.length, songs: items }
   } catch {
     return { total: 0, songs: [] }
   }
@@ -74,18 +76,19 @@ async function searchTX(keyword: string, page: number, pageSize: number): Promis
 
 async function searchKW(keyword: string, page: number, pageSize: number): Promise<SearchResult> {
   try {
+    // 酷我搜索 — r.s 对 HTTPS 支持不稳定，改用 HTTP，补充 User-Agent
     const data = await fetchJSON(
-      `https://search.kuwo.cn/r.s?all=${encodeURIComponent(keyword)}&ft=music&itemset=web_2013&client=kt&pn=${page - 1}&rn=${pageSize}&rformat=json&encoding=utf8`,
+      `http://search.kuwo.cn/r.s?all=${encodeURIComponent(keyword)}&ft=music&itemset=web_2013&client=kt&pn=${page - 1}&rn=${pageSize}&rformat=json&encoding=utf-8&vipver=MUSIC_9.0.3.1`,
     )
     const songs = data?.abslist || []
     const items: NormalizedSongInfo[] = songs.map((s: any) => ({
       source: 'kw' as SourcePlatform,
       id: String(s.MUSICRID || '').replace('MUSIC_', ''),
-      songName: s.NAME || '',
-      artist: s.ARTIST || '',
-      albumName: s.ALBUM || '',
-      albumCoverUrl: '',
-      duration: s.DURATION || 0,
+      songName: s.NAME || s.name || '',
+      artist: s.ARTIST || s.artist || '',
+      albumName: s.ALBUM || s.album || '',
+      albumCoverUrl: s.MUSICPIC || s.IMAGE || s.albumpic || s.WEB_ALBUM_PIC || '',
+      duration: s.DURATION || Number(s.duration) || 0,
       quality: '320k' as QualityLevel,
       platformIds: { kw: { rid: String(s.MUSICRID || '').replace('MUSIC_', '') } },
     }))
@@ -109,7 +112,11 @@ async function searchKG(keyword: string, page: number, pageSize: number): Promis
       songName: s.SongName || '',
       artist: s.SingerName || '',
       albumName: s.AlbumName || '',
-      albumCoverUrl: s.AlbumID ? `https://img.kugou.com/v2/album/${s.AlbumID}_240.jpg` : '',
+      albumCoverUrl: s.AlbumID
+        ? `https://img.kugou.com/v2/album/${s.AlbumID}_240.jpg`
+        : s.FileHash
+          ? `https://img.kugou.com/v2/album/${s.FileHash}_240.jpg`
+          : '',
       duration: s.Duration || 0,
       quality: '320k' as QualityLevel,
       platformIds: { kg: { hash: s.FileHash || '', albumId: String(s.AlbumID || '') } },
@@ -134,7 +141,7 @@ async function searchWY(keyword: string, page: number, pageSize: number): Promis
       songName: s.name || '',
       artist: (s.artists || []).map((a: any) => a.name).join(' / ') || '',
       albumName: s.album?.name || '',
-      albumCoverUrl: s.album?.picUrl || '',
+      albumCoverUrl: (s.album?.picUrl || '').replace(/^http:/, 'https:'),
       duration: s.duration ? Math.floor(s.duration / 1000) : 0,
       quality: '320k' as QualityLevel,
       platformIds: { wy: { id: String(s.id || '') } },
@@ -149,22 +156,25 @@ async function searchWY(keyword: string, page: number, pageSize: number): Promis
 
 async function searchMG(keyword: string, page: number, pageSize: number): Promise<SearchResult> {
   try {
+    // 咪咕搜索 API，需 Referer
     const data = await fetchJSON(
       `https://m.music.migu.cn/migu/remoting/scr_search_tag?keyword=${encodeURIComponent(keyword)}&pgc=${page}&rows=${pageSize}&type=2`,
+      undefined, 8000,
+      { 'Referer': 'https://m.music.migu.cn' },
     )
-    const songs = data?.musics || []
+    const songs = data?.musics || data?.data?.musics || []
     const items: NormalizedSongInfo[] = songs.map((s: any) => ({
       source: 'mg' as SourcePlatform,
-      id: s.id || '',
-      songName: s.songName || '',
-      artist: s.singerName || '',
+      id: s.id || String(s.copyrightId || ''),
+      songName: s.songName || s.name || '',
+      artist: s.singerName || s.artist || '',
       albumName: s.albumName || '',
-      albumCoverUrl: s.cover ? `https:${s.cover}` : '',
-      duration: s.length ? parseInt(s.length) || 0 : 0,
+      albumCoverUrl: s.cover ? `https:${s.cover}` : (s.albumPic || ''),
+      duration: s.length ? parseInt(s.length) || 0 : (s.duration || 0),
       quality: '320k' as QualityLevel,
       platformIds: { mg: { id: s.id || '', copyrightId: s.copyrightId || '' } },
     }))
-    return { total: Number(data?.totalCount || items.length), songs: items }
+    return { total: Number(data?.totalCount || data?.data?.totalCount || items.length), songs: items }
   } catch {
     return { total: 0, songs: [] }
   }

@@ -92,6 +92,10 @@ const thirdpartyPageSize = ref(20)
 const thirdpartySongs = computed(() =>
   thirdpartyStore.searchResults.map(s => ({
     ...s,
+    album: {
+      albumName: s.albumName,
+      albumCoverUrl: s.albumCoverUrl,
+    },
     songUrl: { url: 'thirdparty://placeholder', urlType: 'mp3' },
   })),
 )
