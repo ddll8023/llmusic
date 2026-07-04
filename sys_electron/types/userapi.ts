@@ -116,7 +116,7 @@ export interface UserApiRequestParams {
 
 /** UserAPI musicUrl 请求详情 */
 export interface MusicUrlInfo {
-  songMid?: string
+  songmid?: string    // lx-music 协议用小写 songmid
   hash?: string
   albumId?: string
   id?: string | number
@@ -224,4 +224,20 @@ export const USER_API_EVENTS = {
 export interface ProxyConfig {
   host: string
   port: string
+}
+
+/** UserAPI 脚本请求的 info 结构（lx-music 协议兼容） */
+export interface MusicUrlRequestInfo {
+  type: QualityLevel
+  musicInfo: {
+    id?: string
+    songName?: string
+    artist?: string
+    songmid?: string       // tx
+    hash?: string          // kg
+    albumId?: string       // kg
+    rid?: string           // kw
+    copyrightId?: string   // mg
+    [key: string]: unknown
+  }
 }
