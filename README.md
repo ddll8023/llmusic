@@ -38,7 +38,27 @@ llmusic/
 
 ## 启动方式
 
-一键全栈开发（推荐）：
+### 安装依赖
+
+项目为多包结构，根目录仅做调度，实际依赖分布在 `sys_vue/`（前端）和 `sys_electron/`（Electron 主进程）中，需分别安装：
+
+```bash
+# 安装前端依赖
+npm --prefix sys_vue install
+
+# 安装 Electron 主进程依赖
+npm --prefix sys_electron install
+
+# （可选）安装 Python 后端依赖，不跑后端可跳过
+uv sync --directory backend
+```
+
+> 如果遇到 Electron 下载慢的问题，可以设置镜像源：
+> ```bash
+> export ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/"
+> ```
+
+### 一键全栈开发（推荐）
 
 ```bash
 start-dev.bat

@@ -6,7 +6,7 @@
 	"scripts": {
 		"dev": "vite --host 127.0.0.1 --port 9753",
 		"build": "vue-tsc --noEmit && vite build",
-			"type-check": "vue-tsc --noEmit",
+		"type-check": "vue-tsc --noEmit",
 		"preview": "vite preview --host 127.0.0.1 --port 9753"
 	},
 	"dependencies": {
