@@ -94,14 +94,19 @@ const handleResponse = (context, { requestKey, data }) => {
         const sendData = { requestKey }
         switch (data.action) {
           case 'musicUrl':
-            // lx-music 脚本可返回 string URL 或 { url, type } 对象
+            // lx-music 脚本可返回 string URL 或各种对象格式
             let url = ''
             if (typeof response === 'string') {
               url = response
             } else if (response && typeof response === 'object') {
-              url = response.url || ''
+              // 尝试多种常见响应结构: { url }, { body: { url } }, { data: { url } }
+              url = response?.body?.url || response?.url || response?.data?.url || ''
             }
-            if (typeof url !== 'string' || url.length > 2048 || !/^https?:/.test(url)) throw new Error('failed')
+            if (typeof url !== 'string' || url.length > 2048 || !/^https?:/.test(url)) {
+              // debug: 记录实际响应结构以便排查
+              console.log('[preload] musicUrl 返回值异常:', typeof response, response && typeof response === 'object' ? Object.keys(response) : 'N/A', String(response).slice(0, 100))
+              throw new Error('failed')
+            }
             sendData.result = {
               source: data.source,
               action: data.action,

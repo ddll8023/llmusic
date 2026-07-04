@@ -191,7 +191,7 @@ export function createThirdpartyHandlers(
           const musicInfo = buildMusicInfo(song)
           const result = await sendRequest(hiddenWin, {
             requestKey,
-            data: { source: source as any, action: 'musicUrl', info: { type: quality, musicInfo } },
+            data: { source: source as any, action: 'musicUrl', info: { type: quality, musicInfo, ...musicInfo } },
           })
           // UserAPI 返回格式：{ source, action, data: { type, url } }，提取 url
           if (result === null || result === undefined) return null
@@ -242,7 +242,7 @@ export function createThirdpartyHandlers(
           const musicInfo = buildMusicInfo(song)
           const result = await sendRequest(hiddenWin, {
             requestKey,
-            data: { source: source as any, action: 'lyric', info: { musicInfo } },
+            data: { source: source as any, action: 'lyric', info: { musicInfo, ...musicInfo } },
           })
           if (result === null || result === undefined) return null
           // UserAPI 返回格式：{ source, action, data: { lyric, tlyric, rlyric, lxlyric } }
