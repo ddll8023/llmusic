@@ -4,8 +4,14 @@
  * 发现音乐页面 — [官方] [第三方] 双 Tab
  * 官方 Tab: 现有 QQ 音乐搜索/下载逻辑（不变）
  * 第三方 Tab: 插件化源搜索/播放/下载
+ *
+ * 方案B 重构：
+ * - 搜索源选择（内置平台）与播放脚本选择（UserAPI）分离
+ * - 搜索源下拉绑定 searchSourceId（纯前端，不触 IPC）
+ * - 播放脚本下拉绑定本地 ref，@change 调用 setPlaybackScript
+ * - 新增 UserAPI 脚本状态展示区
  */
-import { computed, ref, watch, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useDiscoverStore } from '../../store/discover'
 import { usePlayerStore } from '../../store/player'
 import { useAuthStore } from '../../store/auth'
@@ -56,7 +62,6 @@ const searchBtnEnabled = computed(() => {
 
 const totalPages = computed(() => Math.ceil(discoverStore.total / discoverStore.pageSize))
 const jumpPage = ref('')
-watch(() => discoverStore.page, () => { jumpPage.value = '' })
 
 const visiblePages = computed(() => {
   const total = totalPages.value
@@ -83,10 +88,12 @@ function toggleSearchMode() {
   discoverStore.searchMode = discoverStore.searchMode === 'link' ? 'keyword' : 'link'
 }
 
-// ── 三方 Tab ──
+// ── 第三方 Tab ──
 const thirdpartyKeyword = ref('')
 const thirdpartyPage = ref(1)
 const thirdpartyPageSize = ref(20)
+
+/** 搜索源下拉框直接绑定 thirdpartyStore.searchSourceId（纯前端，无竞争条件） */
 
 /** 给第三方搜索结果注入 songUrl，使 BaseSongTable 的播放按钮可用 */
 const thirdpartySongs = computed(() =>
@@ -109,6 +116,29 @@ const pageSizeOptionsThirdparty = [
   { label: '50', value: 50 },
 ]
 
+// ── P1-4：脚本状态计算属性 ──
+/** 是否有已导入的 UserAPI 脚本 */
+const hasUserApiScripts = computed(() => thirdpartyStore.userApiSources.length > 0)
+/** 是否有已选中的播放脚本 */
+const hasSelectedScript = computed(() => !!thirdpartyStore.playbackScriptId)
+/** 当前选中的脚本是否已成功加载 */
+const isScriptLoaded = computed(() => thirdpartyStore.status.isScriptLoaded)
+/** 当前活跃脚本的详情 */
+const activeScriptName = computed(() => {
+  const script = thirdpartyStore.activePlaybackScript
+  return script ? `${script.name} v${script.version || '?'}` : ''
+})
+
+// ── 搜索源切换 ──
+function handleSearchSourceChange(id: string): void {
+  if (thirdpartyStore.searchSourceId === id) return
+  thirdpartyStore.setSearchSource(id)
+  // 切换搜索源后清空搜索结果
+  thirdpartyStore.searchResults.splice(0)
+  thirdpartyStore.searchTotal = 0
+  thirdpartyKeyword.value = ''
+}
+
 async function handleThirdpartySearch() {
   if (!thirdpartyKeyword.value.trim()) return
   thirdpartyPage.value = 1
@@ -121,11 +151,28 @@ async function handleThirdpartyPageChange(page: number) {
 }
 
 async function handleThirdpartyPlay(song: any) {
+  console.log('[debug] handleThirdpartyPlay 开始:', {
+    songId: song?.id,
+    songName: song?.songName,
+    source: song?.source,
+    searchSourceId: thirdpartyStore.searchSourceId,
+    playbackScriptId: thirdpartyStore.playbackScriptId,
+    isScriptLoaded: thirdpartyStore.status.isScriptLoaded,
+    hasUrl: !!song?.songUrl?.url,
+  })
   const url = await thirdpartyStore.getMusicUrl(song)
   if (!url) {
-    showToast('获取播放链接失败，请检查源是否可用')
+    console.warn('[debug] 获取播放链接失败，歌曲详情:', {
+      songId: song?.id,
+      songName: song?.songName,
+      artist: song?.artist,
+      source: song?.source,
+      platformIds: song?.platformIds,
+    })
+    showToast('获取播放链接失败，当前脚本可能不支持该平台')
     return
   }
+  console.log('[debug] handleThirdpartyPlay 播放成功:', { songName: song?.songName, url: url.slice(0, 60) })
   playerStore.playOnlineSong({
     songMid: song.id,
     songName: song.songName || '',
@@ -134,15 +181,27 @@ async function handleThirdpartyPlay(song: any) {
     url,
     urlType: 'mp3',
   })
+
+  // 异步加载歌词（不阻塞播放）
+  const lyricsStore = (await import('../../store/lyrics')).useLyricsStore()
+  lyricsStore.loadThirdpartyLyrics(song)
 }
 
 async function handleThirdpartyDownload(song: any) {
+  console.log('[debug] handleThirdpartyDownload 开始:', {
+    songId: song?.id,
+    songName: song?.songName,
+    source: song?.source,
+    isScriptLoaded: thirdpartyStore.status.isScriptLoaded,
+  })
   const url = await thirdpartyStore.getMusicUrl(song)
   if (!url) {
+    console.warn('[debug] 获取下载链接失败')
     showToast('获取下载链接失败')
     return
   }
   const filename = `${song.songName || '未知'} - ${song.artist || '未知'}.mp3`
+  console.log('[debug] 开始下载:', { filename, url: url.slice(0, 60) })
   window.electronAPI.downloadSongWithMetadata({
     url,
     filename,
@@ -158,11 +217,6 @@ async function handleThirdpartyDownload(song: any) {
       format: 'mp3',
     },
   })
-}
-
-function handleThirdpartySelectSource(id: string) {
-  thirdpartyStore.setSource(id)
-  showSourceMenu.value = false
 }
 
 // ── 官方 Tab 事件 ──
@@ -200,10 +254,17 @@ function showToast(msg: string) {
   setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300) }, 2500)
 }
 
+// ── P1-5：onMounted 适配新状态 ──
 onMounted(async () => {
+  // 步骤①：搜索源 UI 初始化（搜索源下拉通过 localStorage 已恢复，无需额外操作）
+
+  // 步骤②：异步加载脚本列表和状态（数据迁移在 refreshSources 内自动完成）
   await thirdpartyStore.refreshSources()
-  if (thirdpartyStore.currentSourceId) {
-    await thirdpartyStore.setSource(thirdpartyStore.currentSourceId)
+
+  // 步骤③：如果 playbackScriptId 不为空，异步加载播放脚本
+  const savedPlaybackScript = thirdpartyStore.playbackScriptId
+  if (savedPlaybackScript) {
+    await thirdpartyStore.setPlaybackScript(savedPlaybackScript)
   }
 })
 </script>
@@ -272,22 +333,43 @@ onMounted(async () => {
       </div>
 
       <!-- ═══ 第三方 Tab 搜索栏 ═══ -->
-      <div v-else class="flex items-center gap-3 px-6 py-4 border-t border-line-base">
-        <div class="w-[140px]">
-          <CustomSelect
-            v-model="thirdpartyStore.currentSourceId"
-            :options="thirdpartyStore.enabledSources.map((s: any) => ({ label: `${s.name} (${s.platform})`, value: s.id }))"
-            size="medium" @change="(v: string | number) => handleThirdpartySelectSource(String(v))" />
+      <div v-else class="flex flex-col px-6 py-4 border-t border-line-base gap-3">
+        <!-- 第一行：搜索源选择 + 关键词搜索 -->
+        <div class="flex items-center gap-3">
+          <div class="w-[160px]">
+            <CustomSelect
+              :model-value="thirdpartyStore.searchSourceId"
+              :options="thirdpartyStore.builtinSources.map((s: any) => ({
+                label: s.name + ' (' + s.platform + ')',
+                value: s.id
+              }))"
+              size="medium"
+              @change="(v: string | number) => handleSearchSourceChange(String(v))" />
+          </div>
+          <div class="flex-1">
+            <CustomInput v-model="thirdpartyKeyword" type="text"
+              placeholder="输入歌曲名称搜索..." size="medium"
+              @enter="handleThirdpartySearch" />
+          </div>
+          <CustomButton type="primary" size="medium" icon="search"
+            :loading="thirdpartyStore.loading"
+            :disabled="!thirdpartyKeyword.trim()"
+            @click="handleThirdpartySearch">搜索</CustomButton>
         </div>
-        <div class="flex-1">
-          <CustomInput v-model="thirdpartyKeyword" type="text"
-            placeholder="输入歌曲名称搜索..." size="medium"
-            @enter="handleThirdpartySearch" />
+
+        <!-- 第二行：当前播放脚本状态（只读提示，不带下拉选择） -->
+        <div v-if="hasSelectedScript" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs"
+          :class="isScriptLoaded
+            ? 'bg-accent-green/10 text-accent-green border border-accent-green/20'
+            : 'bg-accent-danger/10 text-accent-danger border border-accent-danger/20'">
+          <FAIcon :name="isScriptLoaded ? 'check-circle' : 'exclamation-circle'"
+            :color="isScriptLoaded ? 'accent' : 'danger'" size="small" />
+          <span>{{ activeScriptName }}{{ isScriptLoaded ? '（已加载）' : '（加载失败）' }}</span>
         </div>
-        <CustomButton type="primary" size="medium" icon="search"
-          :loading="thirdpartyStore.loading"
-          :disabled="!thirdpartyKeyword.trim()"
-          @click="handleThirdpartySearch">搜索</CustomButton>
+        <div v-else class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs text-content-disabled border border-line-base bg-surface-overlay">
+          <FAIcon name="info-circle" size="small" color="disabled" />
+          <span>{{ hasUserApiScripts ? '已在设置页选择播放脚本' : '请先在设置中导入 UserAPI 脚本' }}</span>
+        </div>
       </div>
     </header>
 
@@ -352,17 +434,6 @@ onMounted(async () => {
       <!-- 第三方 Tab 内容 -->
       <template v-else>
         <div class="flex-1 overflow-hidden flex flex-col">
-          <!-- 源状态提示 -->
-          <div v-if="thirdpartyStore.currentSource?.type === 'userapi'"
-            class="mx-4 mt-3 flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs"
-            :class="thirdpartyStore.status.isScriptLoaded
-              ? 'bg-accent-green/10 text-accent-green border border-accent-green/20'
-              : 'bg-accent-warning/10 text-accent-warning border border-accent-warning/20'">
-            <FAIcon :name="thirdpartyStore.status.isScriptLoaded ? 'check-circle' : 'exclamation-triangle'"
-              size="small" :color="thirdpartyStore.status.isScriptLoaded ? 'accent' : 'danger'" />
-            <span>{{ thirdpartyStore.status.isScriptLoaded ? '脚本已加载' : '脚本未加载，部分功能可能不可用' }}</span>
-          </div>
-
           <BaseSongTable mode="online"
             :songs="thirdpartySongs"
             :loading="thirdpartyStore.loading"

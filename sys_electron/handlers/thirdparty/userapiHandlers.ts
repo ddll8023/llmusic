@@ -148,26 +148,26 @@ export function createThirdpartyHandlers(
     return builtin.search(keyword, page, pageSize)
   }
 
+  /** 构建符合 lx-music 协议的 musicInfo，展平 platformIds 到顶层 */
+  function buildMusicInfo(song: any): Record<string, unknown> {
+    const info: Record<string, unknown> = { ...song }
+    if (song.platformIds && typeof song.platformIds === 'object') {
+      const pIds = song.platformIds as Record<string, any>
+      if (pIds.tx?.songMid) info.songmid = pIds.tx.songMid
+      if (pIds.kg?.hash) info.hash = pIds.kg.hash
+      if (pIds.kg?.albumId) info.albumId = pIds.kg.albumId
+      if (pIds.kw?.rid) info.rid = pIds.kw.rid
+      if (pIds.mg?.copyrightId) info.copyrightId = pIds.mg.copyrightId
+    }
+    // 展平后清理 platformIds 冗余字段
+    delete info.platformIds
+    return info
+  }
+
   async function handleGetMusicUrl(params: {
     source: string; song: any; quality: string
   }): Promise<string | null> {
     const { source, song, quality } = params
-
-    /** 构建符合 lx-music 协议的 musicInfo，展平 platformIds 到顶层 */
-    function buildMusicInfo(song: any): Record<string, unknown> {
-      const info: Record<string, unknown> = { ...song }
-      if (song.platformIds && typeof song.platformIds === 'object') {
-        const pIds = song.platformIds as Record<string, any>
-        if (pIds.tx?.songMid) info.songmid = pIds.tx.songMid
-        if (pIds.kg?.hash) info.hash = pIds.kg.hash
-        if (pIds.kg?.albumId) info.albumId = pIds.kg.albumId
-        if (pIds.kw?.rid) info.rid = pIds.kw.rid
-        if (pIds.mg?.copyrightId) info.copyrightId = pIds.mg.copyrightId
-      }
-      // 展平后清理 platformIds 冗余字段
-      delete info.platformIds
-      return info
-    }
 
     const logPrefix = `[debug][getMusicUrl][${song?.id || '?'}]`
     console.log(`${logPrefix} 收到请求:`, {
@@ -217,6 +217,57 @@ export function createThirdpartyHandlers(
     }
 
     console.warn(`${logPrefix} 无可用路径，返回 null`)
+    return null
+  }
+
+  async function handleGetLyric(params: {
+    source: string; song: any
+  }): Promise<string | null> {
+    const { source, song } = params
+    const logPrefix = `[debug][getLyric][${song?.id || '?'}]`
+    console.log(`${logPrefix} 收到请求:`, {
+      source, songId: song?.id, songName: song?.songName,
+      isScriptLoaded: isScriptLoaded(),
+      hiddenWin: getHiddenWindow() ? '存在' : 'null',
+      scriptSources: undefined, // 简化
+    })
+
+    // 优先走 UserAPI 脚本的 lyric action
+    if (isScriptLoaded()) {
+      const hiddenWin = getHiddenWindow()
+      if (hiddenWin && !hiddenWin.isDestroyed()) {
+        const requestKey = generateRequestKey()
+        console.log(`${logPrefix} 走 UserAPI 路径，请求 key: ${requestKey}`)
+        try {
+          const musicInfo = buildMusicInfo(song)
+          const result = await sendRequest(hiddenWin, {
+            requestKey,
+            data: { source: source as any, action: 'lyric', info: { musicInfo } },
+          })
+          if (result === null || result === undefined) return null
+          // UserAPI 返回格式：{ source, action, data: { lyric, tlyric, rlyric, lxlyric } }
+          const lyricData = result?.data
+          if (lyricData?.lyric && typeof lyricData.lyric === 'string') {
+            console.log(`${logPrefix} UserAPI 返回歌词: ${lyricData.lyric.slice(0, 60)}...`)
+            return lyricData.lyric
+          }
+          return null
+        } catch (scriptErr) {
+          console.warn(`${logPrefix} UserAPI 脚本 lyric 执行异常:`, (scriptErr as Error).message)
+          return null
+        }
+      }
+    }
+
+    // 降级：尝试内置源
+    if (isBuiltinSource(source)) {
+      const builtin = BUILTIN_SOURCES.find((b) => b.id === source)
+      const builtinResult = builtin?.getLyric(song) ?? null
+      console.log(`${logPrefix} 降级走内置源:`, builtinResult ? '有结果' : 'null(stub)')
+      if (builtinResult?.lyric) return builtinResult.lyric
+      return null
+    }
+
     return null
   }
 
@@ -411,6 +462,7 @@ export function createThirdpartyHandlers(
       { channel: CHANNELS.THIRDPARTY_SET_SOURCE, handler: async (_e: any, id: string) => handleSetPlaybackScript(id) },
       { channel: CHANNELS.THIRDPARTY_SEARCH, handler: async (_e: any, p: any) => handleSearch(p) },
       { channel: CHANNELS.THIRDPARTY_GET_MUSIC_URL, handler: async (_e: any, p: any) => handleGetMusicUrl(p) },
+      { channel: CHANNELS.THIRDPARTY_GET_LYRIC, handler: async (_e: any, p: any) => handleGetLyric(p) },
       { channel: CHANNELS.THIRDPARTY_IMPORT_SCRIPT, handler: async () => handleImportScript() },
       { channel: CHANNELS.THIRDPARTY_IMPORT_SCRIPT_URL, handler: async (_e: any, url: string) => handleImportScriptFromUrl(url) },
       { channel: CHANNELS.THIRDPARTY_REMOVE_SCRIPT, handler: async (_e: any, id: string) => handleRemoveScript(id) },

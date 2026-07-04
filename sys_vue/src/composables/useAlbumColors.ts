@@ -20,7 +20,8 @@ export function useAlbumColors() {
     }
 
     const img = new Image()
-    img.crossOrigin = 'anonymous'
+    // 不设置 crossOrigin——y.gtimg.cn 等 CDN 不返回 CORS 头
+    // canvas.getImageData 在跨域时会抛 SecurityError，由下方 catch 兜底到默认色
     img.onload = () => {
       try {
         const canvas = document.createElement('canvas')

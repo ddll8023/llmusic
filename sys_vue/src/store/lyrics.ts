@@ -159,6 +159,24 @@ export const useLyricsStore = defineStore("lyrics", {
 			}
 		},
 
+		/**
+		 * 加载第三方源歌词
+		 * @param song NormalizedSongInfo 对象
+		 */
+		async loadThirdpartyLyrics(song: { source?: string; id?: string; songName?: string; artist?: string; albumCoverUrl?: string; [key: string]: unknown }) {
+			if (!song?.id) return
+			try {
+				const { useThirdpartyStore } = await import('./thirdpartySource')
+				const thirdpartyStore = useThirdpartyStore()
+				const lrcText = await thirdpartyStore.getThirdpartyLyric(song as any)
+				if (lrcText) {
+					this.loadOnlineLyrics(lrcText)
+				}
+			} catch {
+				// 歌词加载失败不阻塞播放
+			}
+		},
+
 		/** 重置歌词状态 */
 		reset() {
 			this.lines = []

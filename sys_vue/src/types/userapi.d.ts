@@ -25,7 +25,13 @@ declare global {
         song: NormalizedSongInfo
         quality: string
       }): Promise<string | null>
+      getLyric(params: {
+        source: string
+        song: NormalizedSongInfo
+      }): Promise<string | null>
       importScript(): Promise<any | null>
+      importScriptFromUrl(url: string): Promise<any | null>
+      testScript(id: string): Promise<boolean>
       removeScript(id: string): Promise<void>
       toggleScript(id: string, enabled: boolean): Promise<void>
       getStatus(): Promise<ThirdpartyStatus>
