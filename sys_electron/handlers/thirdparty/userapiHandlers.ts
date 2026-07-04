@@ -262,7 +262,7 @@ export function createThirdpartyHandlers(
     // 降级：尝试内置源
     if (isBuiltinSource(source)) {
       const builtin = BUILTIN_SOURCES.find((b) => b.id === source)
-      const builtinResult = builtin?.getLyric(song) ?? null
+      const builtinResult = await builtin?.getLyric(song) ?? null
       console.log(`${logPrefix} 降级走内置源:`, builtinResult ? '有结果' : 'null(stub)')
       if (builtinResult?.lyric) return builtinResult.lyric
       return null
