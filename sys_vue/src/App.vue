@@ -43,15 +43,9 @@ onMounted(async () => {
         }
     }, 200);
 
-    // 初始化媒体库和歌曲数据
+    // 初始化媒体库列表（歌曲由 MusicLibrary 页面按需加载）
     try {
-        // 加载音乐库列表
         await mediaStore.loadLibraries();
-
-        // 如果有音乐库，加载歌曲数据
-        if (mediaStore.libraries.length > 0 || mediaStore.activeLibraryId) {
-            await mediaStore.loadSongs();
-        }
     } catch (error) {
         console.error('初始化媒体库失败:', error);
     }

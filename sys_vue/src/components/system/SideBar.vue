@@ -59,7 +59,16 @@ onMounted(async () => {
 });
 
 const handleSetLibrary = (libraryId: any) => {
-  mediaStore.setActiveLibrary(libraryId);
+  // 规范化 libraryId：null / undefined 统一转为 'all'
+  const targetLibraryId = libraryId || 'all'
+
+  // 同库只切换视图，不重复触发 setActiveLibrary
+  if (mediaStore.activeLibraryId === targetLibraryId) {
+    uiStore.setView('main');
+    return
+  }
+
+  mediaStore.setActiveLibrary(targetLibraryId);
   uiStore.setView('main');
 };
 

@@ -47,6 +47,13 @@ const sizeOptionsMap: Record<string, string> = {
 	large: 'max-h-[240px]',
 };
 
+const dropdownClasses = computed(() => {
+	const base = 'absolute left-0 right-0 z-[300] bg-surface-elevated border border-line-base rounded shadow-lg overflow-y-auto';
+	const size = sizeOptionsMap[props.size] || sizeOptionsMap.medium;
+	const pos = props.placement === 'top' ? 'bottom-full mb-1' : 'top-full mt-1';
+	return [base, size, pos].join(' ');
+});
+
 const triggerClasses = computed(() => {
 	const base = 'w-full flex items-center justify-between border border-line-base rounded cursor-pointer transition-colors duration-200 hover:border-accent-green';
 	const size = sizeTriggerMap[props.size] || sizeTriggerMap.medium;
@@ -87,7 +94,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside));
 
 		<Transition name="fade">
 			<div v-if="isOpen && !disabled"
-				:class="['absolute left-0 right-0 z-[300] bg-surface-elevated border border-line-base rounded shadow-lg overflow-y-auto', sizeOptionsMap[props.size] || sizeOptionsMap.medium]">
+				:class="dropdownClasses">
 				<div v-for="(option, index) in options" :key="index"
 					class="px-3 py-2 cursor-pointer text-sm transition-colors duration-150 hover:bg-overlay-light"
 					:class="option.value === props.modelValue ? 'text-accent-green bg-overlay-light/50' : 'text-content-base'"

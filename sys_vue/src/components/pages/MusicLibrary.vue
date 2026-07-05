@@ -2,7 +2,7 @@
 import { ref, onMounted, computed, reactive, onUnmounted, nextTick, toRefs, watch } from 'vue';
 import { useMediaStore } from '../../store/media';
 import { usePlayerStore, PlayMode } from '../../store/player';
-import SongTable from '../common/SongTable.vue'; // 引入新的SongTable组件
+import BaseSongTable from '../business/BaseSongTable.vue'; // 统一表格组件（virtual 模式）
 import TagEditor from '../common/TagEditor.vue'; // 引入TagEditor组件
 import DeleteConfirmDialog from '../common/DeleteConfirmDialog.vue'; // 引入删除确认对话框
 import ContentHeader from '../common/ContentHeader.vue'; // 直接使用 ContentHeader 组件
@@ -67,6 +67,10 @@ const { sortBy, sortDirection } = toRefs(reactive({
   sortDirection: ref('desc')
 }));
 
+// 排序字段白名单
+const SORT_FIELDS = ['title', 'artist', 'album', 'playCount', 'duration', 'modifiedAt'] as const
+type SortField = typeof SORT_FIELDS[number] | 'default'
+
 // 当前列表的唯一ID
 const currentListId = computed(() => {
   return `${sortBy.value}-${sortDirection.value}`;
@@ -74,22 +78,33 @@ const currentListId = computed(() => {
 
 // 排序后的歌曲
 const sortedSongs = computed(() => {
-  let songs = [...mediaStore.filteredSongs];
+  const rawSongs = mediaStore.filteredSongs
 
-  if (sortBy.value !== 'default') {
-    songs.sort((a, b) => {
-      let aValue = (a as any)[sortBy.value] || '';
-      let bValue = (b as any)[sortBy.value] || '';
+  // 小列表直接返回，避免不必要计算
+  if (rawSongs.length <= 1) return rawSongs
 
-      if (typeof aValue === 'string') {
-        const result = aValue.localeCompare(bValue);
-        return sortDirection.value === 'asc' ? result : -result;
-      } else {
-        const result = aValue - bValue;
-        return sortDirection.value === 'asc' ? result : -result;
-      }
-    });
-  }
+  const field = sortBy.value
+  if (field === 'default') return rawSongs
+  if (!(SORT_FIELDS as readonly string[]).includes(field)) return rawSongs
+
+  let songs = [...rawSongs]
+
+  songs.sort((a, b) => {
+    let aValue = (a as any)[field]
+    let bValue = (b as any)[field]
+
+    // null / undefined 统一排序到最后
+    if (aValue === null || aValue === undefined) return 1
+    if (bValue === null || bValue === undefined) return -1
+
+    if (typeof aValue === 'string') {
+      const result = aValue.localeCompare(String(bValue));
+      return sortDirection.value === 'asc' ? result : -result;
+    } else {
+      const result = Number(aValue) - Number(bValue);
+      return sortDirection.value === 'asc' ? result : -result;
+    }
+  });
 
   return songs;
 });
@@ -100,9 +115,6 @@ const tagEditorRef = ref<any>(null);
 // 删除确认对话框状态
 const deleteConfirmVisible = ref(false);
 const songToDelete = ref<any>(null);
-
-// SongTable组件引用
-const songTableRef = ref<any>(null);
 
 const showDeleteConfirm = (song: any) => {
   songToDelete.value = song;
@@ -125,7 +137,7 @@ const handleDeleteConfirm = async (song: any) => {
       playerStore.currentSong = null
       playerStore.playing = false
     }
-    await mediaStore.loadSongs()
+    await mediaStore.loadSongs({ force: true })
     if (result.warning) {
       console.warn(result.warning)
     }
@@ -222,7 +234,7 @@ onMounted(async () => {
     }
   }, 100);
 
-  await mediaStore.loadSongs();
+  await mediaStore.loadSongs({ libraryId: mediaStore.activeLibraryId });
 
   // 监听媒体库中歌曲播放次数更新事件
   watch(
@@ -305,8 +317,8 @@ const forceRefreshTable = () => {
     <ContentHeader title="本地音乐" :show-search="true" :manual-search="true" :search-value="mediaStore.searchTerm"
       search-placeholder="筛选歌曲、专辑或艺术家" :actions="headerActions" @search="handleSearch"
       @action-click="handleHeaderAction" />
-    <SongTable ref="songTableRef" :songs="sortedSongs" :loading="mediaStore.loading" :show-sortable="true"
-      :show-play-count="true" :show-action-column="false" :context-menu-type="'main'" :current-list-id="currentListId"
+    <BaseSongTable mode="virtual" :songs="sortedSongs" :loading="mediaStore.loading" :show-sortable="true"
+      :show-play-count="true" :show-scroll-buttons="true" :context-menu-type="'main'" :current-list-id="currentListId"
       :empty-text="'暂无歌曲'" :empty-icon="'music'" @play-song="handlePlaySong" @sort-change="handleSortChange"
       @context-menu-action="handleContextMenuAction" />
 

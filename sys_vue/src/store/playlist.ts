@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import type { Song, Playlist } from '@/types'
 import { usePlayerStore } from './player'
+import { useMediaStore } from './media'
 
 interface PlaylistDialogState {
 	id: string | null
@@ -78,14 +79,39 @@ export const usePlaylistStore = defineStore('playlist', {
 			}
 			this.loading = true
 			try {
-				const songs: Song[] = []
-				for (const songId of songIds) {
-					const result = await window.electronAPI.getSongById(songId)
+				// 优先从 mediaStore 内存缓存中取（避免 IPC）
+				const mediaStore = useMediaStore()
+				const cachedSongs = mediaStore.songs
+				const hasCache = cachedSongs.length > 0
+
+				if (hasCache) {
+					const idSet = new Set(songIds)
+					this.currentPlaylistSongs = cachedSongs.filter((s) => idSet.has(s.id))
+					// 如果缓存命中全部歌曲，直接返回（无需 IPC）
+					if (this.currentPlaylistSongs.length === songIds.length) return
+				}
+
+				// 缓存未命中的歌曲走 IPC 并行查询
+				const missingIds = hasCache
+					? songIds.filter((id) => !this.currentPlaylistSongs.some((s) => s.id === id))
+					: songIds
+
+				const results = await Promise.all(
+					missingIds.map((songId) => window.electronAPI.getSongById(songId))
+				)
+
+				const fetchedSongs: Song[] = []
+				for (const result of results) {
 					if (result.success && result.song) {
-						songs.push(result.song)
+						fetchedSongs.push(result.song)
 					}
 				}
-				this.currentPlaylistSongs = songs
+
+				if (hasCache) {
+					this.currentPlaylistSongs = [...this.currentPlaylistSongs, ...fetchedSongs]
+				} else {
+					this.currentPlaylistSongs = fetchedSongs
+				}
 			} catch (err) {
 				this.error = err instanceof Error ? err.message : '加载歌单歌曲出错'
 			} finally {

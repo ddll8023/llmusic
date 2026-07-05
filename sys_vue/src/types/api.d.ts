@@ -35,10 +35,12 @@ export interface Song {
   artist: string
   album: string
   duration: number
+  libraryId?: string
   playCount?: number
   hasCover?: boolean
   fileExists?: boolean
   cover?: string
+  modifiedAt?: number
 }
 
 /** 在线歌曲（QQ 音乐搜索返回） */

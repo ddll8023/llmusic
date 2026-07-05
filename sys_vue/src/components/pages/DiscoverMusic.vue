@@ -8,6 +8,7 @@ import { useDiscoverStore } from '../../store/discover'
 import { usePlayerStore } from '../../store/player'
 import { useAuthStore } from '../../store/auth'
 import BaseSongTable from '../business/BaseSongTable.vue'
+import PaginationBar from '../common/PaginationBar.vue'
 import CustomSelect from '../custom/CustomSelect.vue'
 import CustomInput from '../custom/CustomInput.vue'
 import CustomButton from '../custom/CustomButton.vue'
@@ -26,11 +27,6 @@ const urlTypeOptions = [
   { label: '歌曲链接', value: 'song' },
   { label: '歌单链接', value: 'playlist' },
 ]
-const pageSizeOptions = [
-  { label: '10', value: 10 },
-  { label: '20', value: 20 },
-  { label: '50', value: 50 },
-]
 
 const stepTextMap: Record<string, string> = {
   searching: '正在搜索歌曲...',
@@ -44,30 +40,6 @@ const searchBtnEnabled = computed(() => {
   if (discoverStore.searchMode === 'link') return discoverStore.searchUrl.trim()
   return discoverStore.keyword.trim()
 })
-
-const totalPages = computed(() => Math.ceil(discoverStore.total / discoverStore.pageSize))
-const jumpPage = ref('')
-
-const visiblePages = computed(() => {
-  const total = totalPages.value
-  const current = discoverStore.page
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
-  const pages: (number | string)[] = [1]
-  const start = Math.max(2, current - 1)
-  const end = Math.min(total - 1, current + 1)
-  if (start > 2) pages.push('...')
-  for (let i = start; i <= end; i++) pages.push(i)
-  if (end < total - 1) pages.push('...')
-  pages.push(total)
-  return pages
-})
-
-function handleJumpPage() {
-  const n = parseInt(jumpPage.value, 10)
-  if (!isNaN(n) && n >= 1 && n <= totalPages.value) {
-    discoverStore.setPage(n)
-  }
-}
 
 function toggleSearchMode() {
   discoverStore.searchMode = discoverStore.searchMode === 'link' ? 'keyword' : 'link'
@@ -170,60 +142,17 @@ function showToast(msg: string) {
           @batch-download="handleOfficialBatchDownload"
           @selection-change="handleOfficialSelectionChange" />
 
-        <!-- 官方分页 -->
-        <footer v-if="totalPages > 1"
-          class="flex-shrink-0 flex items-center justify-between px-5 py-3.5 bg-surface-base/80 backdrop-blur-md border-t border-line-base">
-          <div class="flex items-center gap-3">
-            <span class="text-xs text-content-tertiary">共 {{ discoverStore.total }} 首</span>
-            <div class="w-px h-4 bg-line-base"></div>
-            <div class="w-[72px]">
-              <CustomSelect :model-value="discoverStore.pageSize" :options="pageSizeOptions" size="small" placement="top"
-                @change="(v: any) => discoverStore.setPageSize(Number(v))" />
-            </div>
-            <span class="text-xs text-content-tertiary">首/页</span>
-          </div>
-          <div class="flex items-center gap-1">
-            <button class="page-btn page-btn--default" :class="{ 'page-btn--disabled': discoverStore.page <= 1 }"
-              :disabled="discoverStore.page <= 1" @click="discoverStore.setPage(discoverStore.page - 1)">
-              <FAIcon name="chevron-left" size="small" color="secondary" />
-            </button>
-            <template v-for="(p, idx) in visiblePages" :key="idx">
-              <button v-if="p !== '...'" class="page-btn"
-                :class="p === discoverStore.page ? 'page-btn--active' : 'page-btn--default'"
-                @click="discoverStore.setPage(Number(p))">{{ p }}</button>
-              <span v-else class="px-1 text-xs text-content-disabled select-none">...</span>
-            </template>
-            <button class="page-btn page-btn--default" :class="{ 'page-btn--disabled': discoverStore.page >= totalPages }"
-              :disabled="discoverStore.page >= totalPages" @click="discoverStore.setPage(discoverStore.page + 1)">
-              <FAIcon name="chevron-right" size="small" color="secondary" />
-            </button>
-          </div>
-          <div class="flex items-center gap-2">
-            <span class="text-xs text-content-tertiary">跳至</span>
-            <CustomInput :model-value="jumpPage" type="number" :min="1" :max="totalPages" size="small"
-              custom-class="!w-[52px]" @enter="handleJumpPage"
-              @update:model-value="jumpPage = String($event)" />
-            <span class="text-xs text-content-tertiary">页</span>
-          </div>
-        </footer>
+        <!-- 通用分页栏 -->
+        <PaginationBar
+          v-if="discoverStore.total > discoverStore.pageSize"
+          :page="discoverStore.page"
+          :page-size="discoverStore.pageSize"
+          :total="discoverStore.total"
+          @page-change="discoverStore.setPage"
+          @page-size-change="discoverStore.setPageSize" />
     </main>
   </div>
 </template>
 
 <style scoped>
-@reference "../../styles/tailwind-entry.css";
-.page-btn {
-  @apply w-8 h-8 inline-flex items-center justify-center rounded-lg text-xs font-medium
-    transition-[background-color,color,transform,box-shadow] duration-200 cursor-pointer select-none outline-none;
-}
-.page-btn--default {
-  @apply text-content-secondary hover:bg-overlay-light hover:text-content-base
-    hover:-translate-y-0.5 active:translate-y-0;
-}
-.page-btn--active {
-  @apply bg-accent-green text-white font-semibold shadow-custom cursor-default;
-}
-.page-btn--disabled {
-  @apply text-content-disabled opacity-40 cursor-not-allowed pointer-events-none;
-}
 </style>

@@ -2,7 +2,18 @@ import { defineStore } from 'pinia'
 import { usePlayerStore } from './player'
 import type { Song, Library, ScanProgress, ScanPhase } from '@/types'
 
-let _scanProgressCleanup: (() => void) | null = null
+/**
+ * 规范化 libraryId：null / undefined / 空值 统一转为 'all'
+ */
+function normalizeLibraryId(libraryId?: string | null): string {
+	return libraryId || 'all'
+}
+
+/**
+ * 模块级 pending Promise，用于复用同一库的正在加载的请求
+ */
+let _songsLoadingPromise: Promise<{ success: boolean; error?: string; skipped?: boolean }> | null = null
+let _songsLoadingPromiseForLibraryId: string | null = null
 
 interface MediaState {
 	songs: Song[]
@@ -16,6 +27,12 @@ interface MediaState {
 	lastUpdatedSong: { id: string; playCount: number; timestamp: number } | null
 	loading: boolean
 	error: string | null
+	/** 当前 songs 对应哪个 libraryId */
+	songsLoadedLibraryId: string | null
+	/** 当前正在加载哪个 libraryId */
+	songsLoadingLibraryId: string | null
+	/** 递增请求序号，用于丢弃过期响应 */
+	songsLoadRequestId: number
 }
 
 export const useMediaStore = defineStore('media', {
@@ -31,6 +48,9 @@ export const useMediaStore = defineStore('media', {
 		lastUpdatedSong: null,
 		loading: false,
 		error: null,
+		songsLoadedLibraryId: null,
+		songsLoadingLibraryId: null,
+		songsLoadRequestId: 0,
 	}),
 
 	getters: {
@@ -135,6 +155,14 @@ export const useMediaStore = defineStore('media', {
 					}
 					this.libraries = this.libraries.filter((lib) => lib.id !== libraryId)
 					this.songs = this.songs.filter((s) => s.libraryId !== libraryId)
+
+					// 如果移除的是已加载或正在加载的库，清理标记
+					if (this.songsLoadedLibraryId === libraryId) {
+						this.songsLoadedLibraryId = null
+					}
+					if (this.songsLoadingLibraryId === libraryId) {
+						this.songsLoadingLibraryId = null
+					}
 				}
 				return result
 			} catch (error) {
@@ -142,47 +170,100 @@ export const useMediaStore = defineStore('media', {
 			}
 		},
 
-		setActiveLibrary(libraryId: string) {
-			this.activeLibraryId = libraryId
-			this.loadSongs()
+		setActiveLibrary(libraryId: string | null) {
+			const targetLibraryId = normalizeLibraryId(libraryId)
+
+			// 同库且已加载完成，不重复触发
+			if (this.activeLibraryId === targetLibraryId && this.songsLoadedLibraryId === targetLibraryId) {
+				return
+			}
+
+			this.activeLibraryId = targetLibraryId
+			this.loadSongs({ libraryId: targetLibraryId })
 		},
 
 		// ── 歌曲加载与扫描 ──
-		async loadSongs() {
+		async loadSongs(options: { libraryId?: string | null; force?: boolean } = {}) {
+			const targetLibraryId = normalizeLibraryId(options.libraryId ?? this.activeLibraryId)
+			const force = options.force ?? false
+
+			// 已加载完成且不强制刷新，跳过
+			if (!force && this.songsLoadedLibraryId === targetLibraryId) {
+				return { success: true, skipped: true }
+			}
+
+			// 同一库正在加载中，复用 pending Promise
+			if (
+				!force &&
+				this.songsLoadingLibraryId === targetLibraryId &&
+				_songsLoadingPromise &&
+				_songsLoadingPromiseForLibraryId === targetLibraryId
+			) {
+				return _songsLoadingPromise
+			}
+
+			// 启动新请求
+			this.songsLoadRequestId++
+			const requestId = this.songsLoadRequestId
+			this.songsLoadingLibraryId = targetLibraryId
 			this.loading = true
 			this.error = null
 
-			try {
-				const result = await window.electronAPI.getSongs({ libraryId: this.activeLibraryId })
+			const promise = (async () => {
+				try {
+					const result = await window.electronAPI.getSongs({ libraryId: targetLibraryId })
 
-				if (result.success) {
-					const playerStore = usePlayerStore()
-					const currentSongId = playerStore.currentSong?.id
-					const currentSongPlayCount = playerStore.currentSong?.playCount
+					// 丢弃过期响应
+					if (requestId !== this.songsLoadRequestId) {
+						return { success: false, error: '请求已过期' }
+					}
 
-					this.songs = result.songs || []
+					if (result.success) {
+						const playerStore = usePlayerStore()
+						const currentSongId = playerStore.currentSong?.id
+						const currentSongPlayCount = playerStore.currentSong?.playCount
 
-					if (currentSongId) {
-						const songInNewList = this.songs.find((s) => s.id === currentSongId)
-						if (songInNewList && typeof currentSongPlayCount === 'number') {
-							songInNewList.playCount = currentSongPlayCount
+						this.songs = result.songs || []
+						this.songsLoadedLibraryId = targetLibraryId
+
+						if (currentSongId) {
+							const songInNewList = this.songs.find((s) => s.id === currentSongId)
+							if (songInNewList && typeof currentSongPlayCount === 'number') {
+								songInNewList.playCount = currentSongPlayCount
+							}
+						}
+
+						if (this.lastUpdatedSong) {
+							const songToUpdate = this.songs.find((s) => s.id === this.lastUpdatedSong!.id)
+							if (songToUpdate) {
+								songToUpdate.playCount = this.lastUpdatedSong.playCount
+							}
+						}
+					} else {
+						if (requestId === this.songsLoadRequestId) {
+							this.error = result.error || '加载歌曲失败'
 						}
 					}
 
-					if (this.lastUpdatedSong) {
-						const songToUpdate = this.songs.find((s) => s.id === this.lastUpdatedSong!.id)
-						if (songToUpdate) {
-							songToUpdate.playCount = this.lastUpdatedSong.playCount
-						}
+					return result
+				} catch (error) {
+					if (requestId === this.songsLoadRequestId) {
+						this.error = (error as Error).message || '加载歌曲时出错'
 					}
-				} else {
-					this.error = result.error || '加载歌曲失败'
+					return { success: false, error: (error as Error).message }
+				} finally {
+					if (requestId === this.songsLoadRequestId) {
+						this.loading = false
+						this.songsLoadingLibraryId = null
+						_songsLoadingPromise = null
+						_songsLoadingPromiseForLibraryId = null
+					}
 				}
-			} catch (error) {
-				this.error = (error as Error).message || '加载歌曲时出错'
-			} finally {
-				this.loading = false
-			}
+			})()
+
+			_songsLoadingPromise = promise
+			_songsLoadingPromiseForLibraryId = targetLibraryId
+			return promise
 		},
 
 		async scanMusic(libraryId: string, clearExisting = true) {
@@ -190,8 +271,8 @@ export const useMediaStore = defineStore('media', {
 			this.scanning = true
 			this.scanProgress = { phase: 'starting' as ScanPhase, processed: 0, total: 0, message: '正在准备开始扫描...' }
 
-			_scanProgressCleanup?.()
-			_scanProgressCleanup = window.electronAPI.onScanProgress((progress: ScanProgress) => {
+			// onScanProgress 不返回清理函数，仅用于接收进度
+			window.electronAPI.onScanProgress((progress: ScanProgress) => {
 				this.scanProgress = { ...this.scanProgress, ...progress }
 			})
 
@@ -208,7 +289,7 @@ export const useMediaStore = defineStore('media', {
 					}
 
 					this.scanProgress = { ...this.scanProgress, phase: 'parsing' as ScanPhase, message: '正在刷新歌曲列表...' }
-					await this.loadSongs()
+					await this.loadSongs({ libraryId, force: true })
 
 					this.scanProgress = { ...this.scanProgress, message: '扫描完成' }
 
@@ -220,10 +301,6 @@ export const useMediaStore = defineStore('media', {
 				return { success: false, error: (error as Error).message }
 			} finally {
 				this.scanning = false
-				if (_scanProgressCleanup) {
-					_scanProgressCleanup()
-					_scanProgressCleanup = null
-				}
 			}
 		},
 
@@ -281,6 +358,11 @@ export const useMediaStore = defineStore('media', {
 					this.searchTerm = ''
 					this.lastUpdatedSong = null
 					this.error = null
+					this.songsLoadedLibraryId = null
+					this.songsLoadingLibraryId = null
+					this.songsLoadRequestId++
+					_songsLoadingPromise = null
+					_songsLoadingPromiseForLibraryId = null
 
 					const playerStore = usePlayerStore()
 					if (playerStore.currentSong) {

@@ -337,21 +337,19 @@ async def _try_get_flac_urls(song_mid_list, credential):
 
 
 async def _try_get_trial_urls(song_mid_list):
-    """匿名客户端请求 ACC_96 试听链接"""
-    from qqmusic_api import Client as AnonClient
-
-    anon_client = AnonClient()
+    """通过全局客户端请求 ACC_96 试听链接（复用已有登录凭证）"""
+    client = await get_client()
     file_info = [SongFileInfo(mid=mid) for mid in song_mid_list]
 
     try:
-        result = await anon_client.execute(
-            anon_client.song.get_song_urls(
+        result = await client.execute(
+            client.song.get_song_urls(
                 file_info=file_info,
                 file_type=SongFileType.ACC_96,
             )
         )
     except Exception:
-        logging.exception("ACC_96 试听获取失败")
+        logging.warning("ACC_96 试听获取失败（部分歌曲可能没有 FLAC 且试听不可用）")
         return [SongUrlItem(url="", urlType="mp3") for _ in song_mid_list]
 
     url_map = {}
