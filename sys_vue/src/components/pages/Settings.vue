@@ -307,7 +307,8 @@ function togglePlatformVisibility(platformId: string) {
             :model-value="uiStore.lyricsAnimationStyle"
             :options="[
               { value: 'fade', label: '淡入淡出' },
-              { value: 'slide', label: '上滑动画' }
+              { value: 'slide', label: '上滑动画' },
+              { value: 'elastic', label: '弹性缩放 ✨' }
             ]"
             @change="setLyricsAnimation"
             @update:model-value="setLyricsAnimation"
