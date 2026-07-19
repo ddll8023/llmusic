@@ -80,6 +80,7 @@ export const CHANNELS = {
 
 	// --- 下载（带元数据嵌入） ---
 	DOWNLOAD_SONG_WITH_METADATA: "download-song-with-metadata",
+	DOWNLOAD_SONG_TO_DIR: "download-song-to-dir",
 
 	// --- 文件路径获取 ---
 	GET_PATH_FOR_FILE: "get-path-for-file",

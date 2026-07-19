@@ -70,6 +70,24 @@ declare global {
 				format: string
 			}
 		}) => Promise<IpcResult<{ filePath?: string }>>
+
+		/** 批量下载 — 写入指定目录, 不弹保存对话框 */
+		downloadSongToDir: (data: {
+			url: string
+			filename: string
+			metadata: {
+				title: string
+				artist: string
+				album: string
+				trackNumber: number
+				genre: string
+				year: string
+				lyrics: string
+				coverUrl: string
+				format: string
+			}
+			targetDir: string
+		}) => Promise<IpcResult<{ filePath?: string }>>
 		showItemInFolder: (filePath: string) => Promise<IpcResult>
 		copyToClipboard: (text: string) => Promise<void>
 		showOpenDialog: (options?: Record<string, unknown>) => Promise<IpcResult<{ path?: string }>>

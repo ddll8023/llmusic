@@ -14,6 +14,30 @@ interface SearchCacheEntry {
   urlsLoaded: boolean
 }
 
+/** 批量下载进度项 */
+interface BatchDownloadItem {
+  songName: string
+  singer: string
+  status: 'pending' | 'downloading' | 'success' | 'failed'
+  error?: string
+}
+
+/** 批量下载进度 */
+interface BatchDownloadProgress {
+  total: number
+  completed: number
+  succeeded: number
+  failed: number
+  items: BatchDownloadItem[]
+  active: boolean
+}
+
+/** 文件名非法字符正则 */
+const INVALID_FILENAME_CHARS = /[/:*?"<>|]/g
+
+function sanitizeFilename(name: string): string {
+  return name.replace(INVALID_FILENAME_CHARS, '_') || '未知'
+}
 
 export const useDiscoverStore = defineStore('discover', () => {
 	const searchUrl = ref('')
@@ -29,6 +53,14 @@ export const useDiscoverStore = defineStore('discover', () => {
 	const errorMsg = ref('')
 
 	const downloadingIds = ref(new Set<string>())
+	const batchProgress = ref<BatchDownloadProgress>({
+	  total: 0,
+	  completed: 0,
+	  succeeded: 0,
+	  failed: 0,
+	  items: [],
+	  active: false,
+	})
 
 	const searchStep = ref<SearchStep>('')
 
@@ -185,7 +217,7 @@ export const useDiscoverStore = defineStore('discover', () => {
 
 		try {
 			const ext = song.songUrl?.urlType || 'mp3'
-			const filename = `${song.songName?.replace(/[/:*?"<>|]/g, "_") || "未知"} - ${song.singer?.replace(/[/:*?"<>|]/g, "_") || "未知"}.${ext}`
+			const filename = `${sanitizeFilename(song.songName || '未知')} - ${sanitizeFilename(song.singer || '未知')}.${ext}`
 
 			let bundle
 			try {
@@ -232,11 +264,97 @@ export const useDiscoverStore = defineStore('discover', () => {
 		}
 	}
 
+	/**
+	 * 批量下载 — 选目录 + 并发下载（同时最多 3 个）
+	 */
 	async function batchDownload(songs: OnlineSong[]) {
-		for (const song of songs) {
-			if (!song.songUrl?.url) continue
-			await downloadSong(song)
-		}
+	  // 筛选有播放链接的歌曲
+	  const validSongs = songs.filter(s => s.songUrl?.url)
+	  if (validSongs.length === 0) return
+
+	  // 选择目标目录
+	  const dirResult = await window.electronAPI.selectDirectory()
+	  if (!dirResult || !dirResult.path || dirResult.canceled) return
+	  const targetDir = dirResult.path
+
+	  // 初始化进度
+	  batchProgress.value = {
+	    total: validSongs.length,
+	    completed: 0,
+	    succeeded: 0,
+	    failed: 0,
+	    items: validSongs.map(s => ({
+	      songName: s.songName || '未知',
+	      singer: s.singer || '未知',
+	      status: 'pending' as const,
+	    })),
+	    active: true,
+	  }
+
+	  const CONCURRENCY = 3
+
+	  // 分块并发：每次 CONCURRENCY 首
+	  for (let i = 0; i < validSongs.length; i += CONCURRENCY) {
+	    const chunk = validSongs.slice(i, i + CONCURRENCY)
+	    const tasks = chunk.map(async (song, offset) => {
+	      const idx = i + offset
+	      const id = song.songMid || song.songId
+	      if (id) downloadingIds.value.add(id)
+
+	      // 标记下载中
+	      batchProgress.value.items[idx].status = 'downloading'
+
+	      try {
+	        const ext = song.songUrl?.urlType || 'mp3'
+	        const filename = `${sanitizeFilename(song.songName || '未知')} - ${sanitizeFilename(song.singer || '未知')}.${ext}`
+
+	        // 获取元数据包
+	        let bundle: SongDownloadBundle | undefined
+	        try {
+	          const res = await getSongDownloadBundle(String(Date.now()), song.songMid)
+	          bundle = (res as any).data as SongDownloadBundle
+	        } catch {
+	          // 降级：使用 songUrl 直接下载，无元数据
+	        }
+
+	        const result = await window.electronAPI.downloadSongToDir({
+	          url: bundle?.songUrl?.url || song.songUrl!.url,
+	          filename,
+	          targetDir,
+	          metadata: {
+	            title: bundle?.songName || song.songName || '',
+	            artist: bundle?.singer || song.singer || '',
+	            album: bundle?.album?.albumName || '',
+	            trackNumber: bundle?.trackNumber || 0,
+	            genre: bundle?.genre || '',
+	            year: bundle?.year || '',
+	            lyrics: bundle?.lyrics || '',
+	            coverUrl: bundle?.album?.albumCoverUrl || song.album?.albumCoverUrl || '',
+	            format: ext,
+	          },
+	        })
+
+	        if (result.success) {
+	          batchProgress.value.items[idx].status = 'success'
+	          batchProgress.value.succeeded++
+	        } else {
+	          batchProgress.value.items[idx].status = 'failed'
+	          batchProgress.value.items[idx].error = result.error || '下载失败'
+	          batchProgress.value.failed++
+	        }
+	      } catch (e) {
+	        batchProgress.value.items[idx].status = 'failed'
+	        batchProgress.value.items[idx].error = e instanceof Error ? e.message : '未知错误'
+	        batchProgress.value.failed++
+	      } finally {
+	        batchProgress.value.completed++
+	        if (id) downloadingIds.value.delete(id)
+	      }
+	    })
+	    await Promise.allSettled(tasks)
+	  }
+
+	  batchProgress.value.active = false
 	}
 
 	function setPage(n: number) {
@@ -274,6 +392,7 @@ export const useDiscoverStore = defineStore('discover', () => {
 		loading,
 		errorMsg,
 		downloadingIds,
+		batchProgress,
 		searchStep,
 		searchCache,
 		handleSearch,

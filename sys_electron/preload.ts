@@ -126,6 +126,7 @@ const API = {
 
 	download: {
 		saveSongWithMetadata: (options: Record<string, unknown>) => ipcRenderer.invoke("download-song-with-metadata", options),
+		saveSongToDir: (options: Record<string, unknown>) => ipcRenderer.invoke("download-song-to-dir", options),
 	},
 }
 
@@ -230,6 +231,9 @@ const compatAPI: Record<string, unknown> = {
 
 	// 文件下载（带元数据嵌入）
 	downloadSongWithMetadata: API.download.saveSongWithMetadata,
+
+	// 批量下载（选择目录, 不弹保存对话框）
+	downloadSongToDir: API.download.saveSongToDir,
 }
 
 // 安全地暴露主进程的API给渲染进程

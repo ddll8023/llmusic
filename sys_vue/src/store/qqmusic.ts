@@ -8,6 +8,31 @@ interface PlaylistCacheEntry {
   total: number
 }
 
+/** 文件名非法字符正则 */
+const INVALID_FILENAME_CHARS = /[/:*?"<>|]/g
+
+function sanitizeFilename(name: string): string {
+  return name.replace(INVALID_FILENAME_CHARS, '_') || '未知'
+}
+
+/** 批量下载进度项 */
+interface BatchDownloadItem {
+  songName: string
+  singer: string
+  status: 'pending' | 'downloading' | 'success' | 'failed'
+  error?: string
+}
+
+/** 批量下载进度 */
+interface BatchDownloadProgress {
+  total: number
+  completed: number
+  succeeded: number
+  failed: number
+  items: BatchDownloadItem[]
+  active: boolean
+}
+
 export const useQqmusicStore = defineStore('qqmusic', () => {
   // ========== 用户创建的歌单 ==========
   const userPlaylists = ref<QMPlaylistItem[]>([])
@@ -50,6 +75,14 @@ export const useQqmusicStore = defineStore('qqmusic', () => {
   const isRefreshing = ref(false)
   const loadingError = ref('')
   const downloadingIds = ref(new Set<string>())
+  const batchProgress = ref<BatchDownloadProgress>({
+    total: 0,
+    completed: 0,
+    succeeded: 0,
+    failed: 0,
+    items: [],
+    active: false,
+  })
 
   function setCurrentPlaylistId(id: number | null) {
     currentPlaylistId.value = id
@@ -186,6 +219,93 @@ export const useQqmusicStore = defineStore('qqmusic', () => {
     }
   }
 
+  /**
+   * 批量下载歌单歌曲 — 选目录 + 并发下载（同时最多 3 个）
+   */
+  async function batchDownload(songs: OnlineSong[]) {
+    const validSongs = songs.filter(s => s.songUrl?.url)
+    if (validSongs.length === 0) return
+
+    const dirResult = await window.electronAPI.selectDirectory()
+    if (!dirResult || !dirResult.path || dirResult.canceled) return
+    const targetDir = dirResult.path
+
+    batchProgress.value = {
+      total: validSongs.length,
+      completed: 0,
+      succeeded: 0,
+      failed: 0,
+      items: validSongs.map(s => ({
+        songName: s.songName || '未知',
+        singer: s.singer || '未知',
+        status: 'pending' as const,
+      })),
+      active: true,
+    }
+
+    const CONCURRENCY = 3
+
+    for (let i = 0; i < validSongs.length; i += CONCURRENCY) {
+      const chunk = validSongs.slice(i, i + CONCURRENCY)
+      const tasks = chunk.map(async (song, offset) => {
+        const idx = i + offset
+        const id = song.songMid || song.songId
+        if (id) downloadingIds.value.add(String(id))
+
+        batchProgress.value.items[idx].status = 'downloading'
+
+        try {
+          const ext = song.songUrl?.urlType || 'mp3'
+          const filename = `${sanitizeFilename(song.songName || '未知')} - ${sanitizeFilename(song.singer || '未知')}.${ext}`
+
+          let bundle: SongDownloadBundle | undefined
+          try {
+            const res = await getSongDownloadBundle(String(Date.now()), song.songMid)
+            bundle = (res as any).data as SongDownloadBundle
+          } catch {
+            // 降级
+          }
+
+          const result = await window.electronAPI.downloadSongToDir({
+            url: bundle?.songUrl?.url || song.songUrl!.url,
+            filename,
+            targetDir,
+            metadata: {
+              title: bundle?.songName || song.songName || '',
+              artist: bundle?.singer || song.singer || '',
+              album: bundle?.album?.albumName || '',
+              trackNumber: bundle?.trackNumber || 0,
+              genre: bundle?.genre || '',
+              year: bundle?.year || '',
+              lyrics: bundle?.lyrics || '',
+              coverUrl: bundle?.album?.albumCoverUrl || song.album?.albumCoverUrl || '',
+              format: ext,
+            },
+          })
+
+          if (result.success) {
+            batchProgress.value.items[idx].status = 'success'
+            batchProgress.value.succeeded++
+          } else {
+            batchProgress.value.items[idx].status = 'failed'
+            batchProgress.value.items[idx].error = result.error || '下载失败'
+            batchProgress.value.failed++
+          }
+        } catch (e) {
+          batchProgress.value.items[idx].status = 'failed'
+          batchProgress.value.items[idx].error = e instanceof Error ? e.message : '未知错误'
+          batchProgress.value.failed++
+        } finally {
+          batchProgress.value.completed++
+          if (id) downloadingIds.value.delete(String(id))
+        }
+      })
+      await Promise.allSettled(tasks)
+    }
+
+    batchProgress.value.active = false
+  }
+
   function clearCurrentPlaylist() {
     currentPlaylistId.value = null
     currentPlaylistSongs.value = []
@@ -205,12 +325,14 @@ export const useQqmusicStore = defineStore('qqmusic', () => {
     isRefreshing,
     loadingError,
     downloadingIds,
+    batchProgress,
     loadUserPlaylists,
     setCurrentPlaylistId,
     loadAllPlaylistSongs,
     refreshPlaylistSongs,
     clearAllCache,
     downloadSong,
+    batchDownload,
     clearCurrentPlaylist,
   }
 })
