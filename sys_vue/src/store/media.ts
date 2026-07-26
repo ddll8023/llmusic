@@ -15,6 +15,12 @@ function normalizeLibraryId(libraryId?: string | null): string {
 let _songsLoadingPromise: Promise<{ success: boolean; error?: string; skipped?: boolean }> | null = null
 let _songsLoadingPromiseForLibraryId: string | null = null
 
+/** 扫描进度监听器只注册一次（onScanProgress 不返回清理函数） */
+let _scanProgressListenerRegistered = false
+
+/** 音乐库列表加载的并发去重 Promise */
+let _librariesLoadingPromise: Promise<{ success: boolean; error?: string; libraries?: Library[] }> | null = null
+
 interface MediaState {
 	songs: Song[]
 	libraries: Library[]
@@ -56,24 +62,6 @@ export const useMediaStore = defineStore('media', {
 	getters: {
 		songCount: (state) => state.songs.length,
 
-		songsByArtist: (state) => {
-			const artists: Record<string, Song[]> = {}
-			state.songs.forEach((song) => {
-				if (!artists[song.artist]) artists[song.artist] = []
-				artists[song.artist].push(song)
-			})
-			return artists
-		},
-
-		songsByAlbum: (state) => {
-			const albums: Record<string, Song[]> = {}
-			state.songs.forEach((song) => {
-				if (!albums[song.album]) albums[song.album] = []
-				albums[song.album].push(song)
-			})
-			return albums
-		},
-
 		filteredSongs: (state) => {
 			if (!state.searchTerm) return state.songs
 			const term = state.searchTerm.toLowerCase()
@@ -98,18 +86,29 @@ export const useMediaStore = defineStore('media', {
 
 		// ── 库管理 ──
 		async loadLibraries() {
-			try {
-				const result = await window.electronAPI.getLibraries()
-				if (result.success) {
-					this.libraries = result.libraries || []
-					if (!this.activeLibraryId && this.libraries.length > 0) {
-						this.setActiveLibrary(this.libraries[0].id)
+			// 并发去重：启动期 App/SideBar/Settings 同时调用只发一次 IPC
+			if (_librariesLoadingPromise) return _librariesLoadingPromise
+
+			_librariesLoadingPromise = (async () => {
+				try {
+					const result = await window.electronAPI.getLibraries()
+					if (result.success) {
+						this.libraries = result.libraries || []
+						if (!this.activeLibraryId && this.libraries.length > 0) {
+							this.setActiveLibrary(this.libraries[0].id)
+						}
+					} else {
+						this.error = result.error || '加载音乐库失败'
 					}
+					return result
+				} catch (error) {
+					this.error = (error as Error).message || '加载音乐库出错'
+					return { success: false, error: (error as Error).message }
+				} finally {
+					_librariesLoadingPromise = null
 				}
-				return result
-			} catch (error) {
-				return { success: false, error: (error as Error).message }
-			}
+			})()
+			return _librariesLoadingPromise
 		},
 
 		async addLibrary() {
@@ -124,9 +123,12 @@ export const useMediaStore = defineStore('media', {
 					this.libraries = [...this.libraries, result.library].filter(Boolean)
 					if (result.library) this.setActiveLibrary(result.library.id)
 					this.scanMusic(result.library.id, true)
+				} else {
+					this.error = result.error || '添加音乐库失败'
 				}
 				return result
 			} catch (error) {
+				this.error = (error as Error).message || '添加音乐库出错'
 				return { success: false, error: (error as Error).message }
 			}
 		},
@@ -139,9 +141,12 @@ export const useMediaStore = defineStore('media', {
 					if (index !== -1 && result.library) {
 						this.libraries[index] = { ...this.libraries[index], ...result.library }
 					}
+				} else {
+					this.error = result.error || '更新音乐库失败'
 				}
 				return result
 			} catch (error) {
+				this.error = (error as Error).message || '更新音乐库出错'
 				return { success: false, error: (error as Error).message }
 			}
 		},
@@ -163,9 +168,12 @@ export const useMediaStore = defineStore('media', {
 					if (this.songsLoadingLibraryId === libraryId) {
 						this.songsLoadingLibraryId = null
 					}
+				} else {
+					this.error = result.error || '移除音乐库失败'
 				}
 				return result
 			} catch (error) {
+				this.error = (error as Error).message || '移除音乐库出错'
 				return { success: false, error: (error as Error).message }
 			}
 		},
@@ -271,10 +279,13 @@ export const useMediaStore = defineStore('media', {
 			this.scanning = true
 			this.scanProgress = { phase: 'starting' as ScanPhase, processed: 0, total: 0, message: '正在准备开始扫描...' }
 
-			// onScanProgress 不返回清理函数，仅用于接收进度
-			window.electronAPI.onScanProgress((progress: ScanProgress) => {
-				this.scanProgress = { ...this.scanProgress, ...progress }
-			})
+			// 模块级标记保证进度监听只注册一次，避免多次扫描时重复回调
+			if (!_scanProgressListenerRegistered) {
+				_scanProgressListenerRegistered = true
+				window.electronAPI.onScanProgress((progress: ScanProgress) => {
+					this.scanProgress = { ...this.scanProgress, ...progress }
+				})
+			}
 
 			try {
 				const result = await window.electronAPI.scanMusic({ libraryId, clearExisting })
@@ -309,8 +320,12 @@ export const useMediaStore = defineStore('media', {
 				this.scanning = false
 				this.scanProgress = { phase: 'idle' as ScanPhase, processed: 0, total: 0, message: '扫描已取消' }
 				const result = await window.electronAPI.cancelScan()
+				if (!result.success) {
+					this.error = result.error || '取消扫描失败'
+				}
 				return result
 			} catch (error) {
+				this.error = (error as Error).message || '取消扫描出错'
 				return { success: false, error: (error as Error).message }
 			}
 		},
@@ -368,9 +383,12 @@ export const useMediaStore = defineStore('media', {
 					if (playerStore.currentSong) {
 						playerStore.stop()
 					}
+				} else {
+					this.error = result.error || '清除歌曲失败'
 				}
 				return result
 			} catch (error) {
+				this.error = (error as Error).message || '清除歌曲出错'
 				return { success: false, error: (error as Error).message }
 			} finally {
 				this.clearingSongs = false

@@ -1,4 +1,4 @@
-import { scanMusic, cancelScan } from "./MusicScanner"
+import { scanMusic, cancelScan, terminateScan } from "./MusicScanner"
 import { CHANNELS } from "../../constants/ipcChannels"
 import type { IpcHandlerModule } from "../../types"
 
@@ -73,7 +73,14 @@ function createScanHandlers(mainWindow: Electron.BrowserWindow): IpcHandlerModul
 		},
 	]
 
-	return { handlers, cleanup: () => {} }
+	return {
+		handlers,
+		cleanup: () => {
+			// 取消并终止当前扫描 worker（无扫描时为空操作）
+			void terminateScan()
+			_isScanActive = false
+		},
+	}
 }
 
 export { createScanHandlers, isScanRunning }

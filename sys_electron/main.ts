@@ -8,18 +8,39 @@ import {
 	Menu,
 	Tray,
 	nativeImage,
-	ipcMain,
+	protocol,
 	session,
 	shell,
 	dialog,
 } from "electron"
 import path from "path"
+import fs from "fs"
 import http from "http"
 import { spawn, type ChildProcess } from "child_process"
 import { initDb, validateSongFiles } from "./handlers/data/Database"
+import { closeDb } from "./handlers/data/db"
 import { setupIpcHandlers } from "./handlers"
+import { terminateScan } from "./handlers/scan/MusicScanner"
+import { registerAudioProtocol } from "./handlers/system/audioProtocol"
 import { CHANNELS } from "./constants/ipcChannels"
+import { SUPPORTED_AUDIO_EXTENSIONS } from "./constants/formats"
 import type { BackendState, AppState } from "./types"
+
+// 全局异常兜底：仅记录日志，不主动退出
+process.on("uncaughtException", (err: Error) => {
+	console.error("[Main] uncaughtException:", err)
+})
+process.on("unhandledRejection", (reason: unknown) => {
+	console.error("[Main] unhandledRejection:", reason)
+})
+
+// llmusic:// 音频流协议：特权声明必须在 app ready 之前完成
+protocol.registerSchemesAsPrivileged([
+	{
+		scheme: "llmusic",
+		privileges: { standard: true, secure: true, stream: true, supportFetchAPI: true, bypassCSP: true },
+	},
+])
 
 // ===== 后端服务配置 =====
 const BACKEND_HOST = "127.0.0.1"
@@ -41,14 +62,19 @@ const backendState: BackendState = {
 }
 
 /**
- * 获取后端可执行文件路径
+ * 获取后端可执行文件路径（win32 / darwin / linux）
  */
 function getBackendExecutable(): string {
 	const projectRoot = path.resolve(__dirname, "..")
 	if (app.isPackaged) {
-		return path.join(process.resourcesPath, "backend", "backend.exe")
+		const executableName = process.platform === "win32" ? "backend.exe" : "backend"
+		return path.join(process.resourcesPath, "backend", executableName)
 	}
-	return path.join(projectRoot, "backend", ".venv", "Scripts", "python.exe")
+	const venvPython =
+		process.platform === "win32"
+			? path.join("Scripts", "python.exe")
+			: path.join("bin", "python")
+	return path.join(projectRoot, "backend", ".venv", venvPython)
 }
 
 /**
@@ -243,7 +269,9 @@ function createWindow(): BrowserWindow {
 		mainWindow.loadURL("http://localhost:9753")
 	}
 
-	mainWindow.webContents.openDevTools()
+	if (!app.isPackaged) {
+		mainWindow.webContents.openDevTools()
+	}
 
 	return mainWindow
 }
@@ -252,14 +280,10 @@ function createWindow(): BrowserWindow {
  * 创建系统托盘图标及菜单
  */
 function createTray(): Tray {
-	const iconPath = path.join(
-		__dirname,
-		"..",
-		"sys_vue",
-		"src",
-		"assets",
-		"tray-icon.png"
-	)
+	// 打包后托盘图标由 extraResources 复制到 resources/assets 下
+	const iconPath = app.isPackaged
+		? path.join(process.resourcesPath, "assets", "tray-icon.png")
+		: path.join(__dirname, "..", "sys_vue", "src", "assets", "tray-icon.png")
 	const icon = nativeImage
 		.createFromPath(iconPath)
 		.resize({ width: 16, height: 16 })
@@ -316,24 +340,20 @@ function setCloseWindowBehavior(behavior: string): boolean {
 function handleFileOpen(filePath: string): void {
 	if (!filePath) return
 
-	// 路径归一化 + 目录遍历防护
+	// 路径归一化
 	const resolved = path.resolve(filePath)
-	if (resolved.includes("..")) return
 
-	const fs = require("fs") as typeof import("fs")
 	if (!fs.existsSync(resolved)) {
 		return
 	}
 
-	const supportedExtensions = [".mp3", ".flac", ".wav", ".m4a", ".ogg", ".aac"]
 	const ext = path.extname(resolved).toLowerCase()
-
-	if (!supportedExtensions.includes(ext)) {
+	if (!SUPPORTED_AUDIO_EXTENSIONS.includes(ext)) {
 		return
 	}
 
 	if (appState.mainWindow && !appState.mainWindow.isDestroyed()) {
-		appState.mainWindow.webContents.send("open-audio-file", resolved)
+		appState.mainWindow.webContents.send(CHANNELS.OPEN_AUDIO_FILE, resolved)
 		appState.mainWindow.show()
 		appState.mainWindow.focus()
 	} else {
@@ -342,11 +362,9 @@ function handleFileOpen(filePath: string): void {
 }
 
 /**
- * 解析命令行参数获取文件路径
+ * 从命令行参数中提取音频文件路径（启动参数与 second-instance 共用）
  */
-function getFilePathFromArgs(): string | null {
-	const args = process.argv
-
+function extractAudioFilePath(args: string[]): string | null {
 	for (let i = 1; i < args.length; i++) {
 		const arg = args[i]
 
@@ -355,10 +373,9 @@ function getFilePathFromArgs(): string | null {
 		}
 
 		if (arg && !arg.startsWith("-")) {
-			const supportedExtensions = [".mp3", ".flac", ".wav", ".m4a", ".ogg", ".aac"]
 			const ext = path.extname(arg).toLowerCase()
 
-			if (path.isAbsolute(arg) || supportedExtensions.includes(ext)) {
+			if (path.isAbsolute(arg) || SUPPORTED_AUDIO_EXTENSIONS.includes(ext)) {
 				return arg
 			}
 		}
@@ -367,54 +384,43 @@ function getFilePathFromArgs(): string | null {
 	return null
 }
 
-/**
- * 从命令行参数中提取文件路径
- */
-function getFilePathFromCommandLine(commandLine: string[]): string | null {
-	for (let i = 1; i < commandLine.length; i++) {
-		const arg = commandLine[i]
-
-		if (arg === "." || arg.includes("electron") || arg.includes("main.js")) {
-			continue
-		}
-
-		if (arg && !arg.startsWith("-")) {
-			const supportedExtensions = [".mp3", ".flac", ".wav", ".m4a", ".ogg", ".aac"]
-			const ext = path.extname(arg).toLowerCase()
-
-			if (path.isAbsolute(arg) || supportedExtensions.includes(ext)) {
-				return arg
-			}
-		}
-	}
-
-	return null
-}
+// cleanup 防重入标记：任何退出路径只执行一次清理
+let cleanupDone = false
 
 /**
- * 注册IPC处理程序
- */
-function registerIpcHandlers(): void {
-	ipcMain.handle(CHANNELS.SET_CLOSE_BEHAVIOR, (_event: Electron.IpcMainInvokeEvent, behavior: string) => {
-		return setCloseWindowBehavior(behavior)
-	})
-
-	ipcMain.handle(CHANNELS.GET_CLOSE_BEHAVIOR, () => {
-		return appState.closeWindowBehavior
-	})
-}
-
-/**
- * 清理资源
+ * 清理资源（IPC 卸载、扫描 Worker 终止、托盘销毁、数据库关闭）
+ * 幂等：任何退出路径都可安全调用
  */
 function cleanup(): void {
+	if (cleanupDone) return
+	cleanupDone = true
+
 	if (appState.ipcDisposer) {
-		appState.ipcDisposer()
+		try {
+			appState.ipcDisposer()
+		} catch (error) {
+			console.error("[Main] IPC 卸载失败:", error)
+		}
 		appState.ipcDisposer = null
 	}
 
-	ipcMain.removeHandler(CHANNELS.SET_CLOSE_BEHAVIOR)
-	ipcMain.removeHandler(CHANNELS.GET_CLOSE_BEHAVIOR)
+	// 扫描 Worker 兜底终止（IPC disposer 之外的双保险，幂等）
+	void terminateScan()
+
+	if (appState.tray) {
+		try {
+			appState.tray.destroy()
+		} catch (error) {
+			console.error("[Main] 托盘销毁失败:", error)
+		}
+		appState.tray = null
+	}
+
+	try {
+		closeDb()
+	} catch (error) {
+		console.error("[Main] 数据库关闭失败:", error)
+	}
 }
 
 /**
@@ -435,6 +441,8 @@ async function initializeApp(): Promise<void> {
 		await initDb()
 		console.log("数据库已成功初始化。")
 
+		registerAudioProtocol()
+
 		validateSongFiles().catch((err: Error) => {
 			console.error("文件验证失败:", err)
 		})
@@ -443,15 +451,16 @@ async function initializeApp(): Promise<void> {
 
 		appState.mainWindow = createWindow()
 
-		registerIpcHandlers()
-
-		appState.ipcDisposer = setupIpcHandlers(appState.mainWindow)
+		appState.ipcDisposer = setupIpcHandlers(appState.mainWindow, {
+			get: () => appState.closeWindowBehavior,
+			set: setCloseWindowBehavior,
+		})
 
 		if (appState.pendingFileToOpen) {
 			appState.mainWindow.webContents.once("did-finish-load", () => {
 				setTimeout(() => {
 					appState.mainWindow!.webContents.send(
-						"open-audio-file",
+						CHANNELS.OPEN_AUDIO_FILE,
 						appState.pendingFileToOpen
 					)
 					appState.pendingFileToOpen = null
@@ -470,19 +479,20 @@ if (!gotTheLock) {
 	app.quit()
 } else {
 	app.on("second-instance", (_event: Electron.Event, commandLine: string[]) => {
-		if (appState.mainWindow) {
+		if (appState.mainWindow && !appState.mainWindow.isDestroyed()) {
 			if (appState.mainWindow.isMinimized()) appState.mainWindow.restore()
+			appState.mainWindow.show()
 			appState.mainWindow.focus()
 		}
 
-		const filePath = getFilePathFromCommandLine(commandLine)
+		const filePath = extractAudioFilePath(commandLine)
 		if (filePath) {
 			handleFileOpen(filePath)
 		}
 	})
 
 	app.whenReady().then(() => {
-		const filePath = getFilePathFromArgs()
+		const filePath = extractAudioFilePath(process.argv)
 
 		if (filePath) {
 			appState.pendingFileToOpen = filePath
@@ -492,10 +502,32 @@ if (!gotTheLock) {
 	})
 }
 
+/**
+ * 重建主窗口（macOS activate）：
+ * 先 dispose 持有旧 window 引用的 IPC handlers，再创建新窗口并重新注册
+ */
+function recreateWindow(): void {
+	if (appState.ipcDisposer) {
+		try {
+			appState.ipcDisposer()
+		} catch (error) {
+			console.error("[Main] IPC 卸载失败:", error)
+		}
+		appState.ipcDisposer = null
+	}
+
+	appState.mainWindow = createWindow()
+
+	appState.ipcDisposer = setupIpcHandlers(appState.mainWindow, {
+		get: () => appState.closeWindowBehavior,
+		set: setCloseWindowBehavior,
+	})
+}
+
 // 应用激活事件（macOS）
 app.on("activate", () => {
 	if (BrowserWindow.getAllWindows().length === 0) {
-		appState.mainWindow = createWindow()
+		recreateWindow()
 	}
 })
 
@@ -506,12 +538,16 @@ app.on("window-all-closed", () => {
 	}
 })
 
-// 应用退出前事件
+// 应用退出前事件：
+// cleanup 型工作（IPC 卸载、扫描 Worker 终止、托盘销毁、数据库关闭）在任何退出路径都执行一次；
+// 仅"等待后端子进程退出"保留 preventDefault + 异步 quit 的模式
 app.on("before-quit", (event: Electron.Event) => {
-	if (process.env.LLMUSIC_BACKEND_MANAGED) return
-	if (!backendProcess || isWaitingBackendStop) return
-	event.preventDefault()
-	isWaitingBackendStop = true
 	cleanup()
-	stopBackend().finally(() => app.quit())
+
+	const backendManaged = !!process.env.LLMUSIC_BACKEND_MANAGED
+	if (!backendManaged && backendProcess && !isWaitingBackendStop) {
+		event.preventDefault()
+		isWaitingBackendStop = true
+		stopBackend().finally(() => app.quit())
+	}
 })

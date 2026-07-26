@@ -19,30 +19,32 @@ export const useAuthStore = defineStore('auth', () => {
 	const qrMessage = ref('')
 
 	let pollTimer: ReturnType<typeof setInterval> | null = null
+	// 并发去重：启动期多处同时 initAuth 只发一次请求
+	let initAuthPromise: Promise<void> | null = null
 
-	async function initAuth() {
-		try {
-			const res = await getLoginStatus()
-			const data = res.data as unknown as {
-				is_logged_in: boolean
-				is_expired: boolean
-				music_id: number
-				encrypt_uin: string
-				login_type: number
-			}
-			isLoggedIn.value = data.is_logged_in
-			isExpired.value = data.is_expired || false
-			if (data.is_logged_in) {
-				userInfo.value = {
-					music_id: data.music_id,
-					encrypt_uin: data.encrypt_uin,
-					login_type: data.login_type,
+	function initAuth() {
+		if (initAuthPromise) return initAuthPromise
+		initAuthPromise = (async () => {
+			try {
+				const res = await getLoginStatus()
+				const data = res.data
+				isLoggedIn.value = data.is_logged_in
+				isExpired.value = data.is_expired || false
+				if (data.is_logged_in) {
+					userInfo.value = {
+						music_id: data.music_id,
+						encrypt_uin: data.encrypt_uin,
+						login_type: data.login_type,
+					}
 				}
+			} catch {
+				isLoggedIn.value = false
+				isExpired.value = false
+			} finally {
+				initAuthPromise = null
 			}
-		} catch {
-			isLoggedIn.value = false
-			isExpired.value = false
-		}
+		})()
+		return initAuthPromise
 	}
 
 	async function startQRLogin(type = 'qq') {
@@ -54,12 +56,8 @@ export const useAuthStore = defineStore('auth', () => {
 
 		try {
 			const res = await createQRCode(type)
-			const data = res.data as unknown as {
-				session_id: string
-				qrcode_base64: string
-			}
-			sessionId.value = data.session_id
-			qrCodeBase64.value = data.qrcode_base64
+			sessionId.value = res.data.session_id
+			qrCodeBase64.value = res.data.qrcode_base64
 			qrStatus.value = 'waiting'
 			startPolling()
 		} catch (e) {
@@ -73,10 +71,7 @@ export const useAuthStore = defineStore('auth', () => {
 		pollTimer = setInterval(async () => {
 			try {
 				const res = await checkQRCode(sessionId.value)
-				const data = res.data as unknown as {
-					status: string
-					message?: string
-				}
+				const data = res.data
 				qrStatus.value = data.status as QRStatus
 				qrMessage.value = data.message || ''
 

@@ -1,5 +1,4 @@
 import { ipcMain, type IpcMainInvokeEvent } from "electron"
-import { CHANNELS } from "../../constants/ipcChannels"
 
 // 简化的节流函数实现
 export const throttle = <T extends (...args: never[]) => void>(
@@ -33,24 +32,19 @@ export const throttle = <T extends (...args: never[]) => void>(
  */
 const _registry: Map<string, (...args: unknown[]) => unknown> = new Map()
 
-interface RegisterOptions {
-	throttleMs?: number
-}
-
 /**
  * 注册 ipcMain.handle，并对错误统一封装 { success: false, error }
  */
 function registerIPC(
 	channel: string,
-	handler: (event: IpcMainInvokeEvent, ...args: unknown[]) => unknown,
-	options: RegisterOptions = {}
+	handler: (event: IpcMainInvokeEvent, ...args: unknown[]) => unknown
 ): void {
 	if (_registry.has(channel)) {
 		console.warn(`[ipcWrapper] channel "${channel}" 已存在，将被覆盖`)
 		ipcMain.removeHandler(channel)
 	}
 
-	let wrapped = async function (event: IpcMainInvokeEvent, ...args: unknown[]): Promise<Record<string, unknown>> {
+	const wrapped = async function (event: IpcMainInvokeEvent, ...args: unknown[]): Promise<Record<string, unknown>> {
 		try {
 			const res = await handler(event, ...args)
 			// 若 handler 未显式返回 success 字段，则自动包裹成功
@@ -65,17 +59,8 @@ function registerIPC(
 		}
 	}
 
-	if (typeof options.throttleMs === "number") {
-		const throttled = throttle(
-			wrapped as (...args: never[]) => void,
-			options.throttleMs
-		)
-		ipcMain.handle(channel, throttled as any)
-		_registry.set(channel, throttled as any)
-	} else {
-		ipcMain.handle(channel, wrapped as any)
-		_registry.set(channel, wrapped as any)
-	}
+	ipcMain.handle(channel, wrapped)
+	_registry.set(channel, wrapped as (...args: unknown[]) => unknown)
 }
 
 /** 卸载指定通道 */

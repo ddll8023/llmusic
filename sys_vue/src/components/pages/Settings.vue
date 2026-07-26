@@ -3,6 +3,7 @@ import { useMediaStore } from '../../store/media';
 import { usePlayerStore } from '../../store/player';
 import { useUiStore } from '../../store/ui';
 import { useAuthStore } from '../../store/auth';
+import { useNotificationStore } from '../../store/notification';
 import { ref, reactive, onMounted } from 'vue';
 import FAIcon from '../common/FAIcon.vue';
 import CustomButton from '../custom/CustomButton.vue';
@@ -16,6 +17,7 @@ const mediaStore = useMediaStore();
 const playerStore = usePlayerStore();
 const uiStore = useUiStore();
 const authStore = useAuthStore();
+const notification = useNotificationStore();
 
 // --- 音乐库管理 State ---
 const showEditLibraryModal = ref(false);
@@ -65,7 +67,13 @@ const handleUpdateLibrary = async () => {
     showInfoModal.value = true;
     return;
   }
-  if (editingLibrary.value) { await mediaStore.updateLibrary(editingLibrary.value.id, { name: newLibraryName.value }); }
+  if (editingLibrary.value) {
+    const result = await mediaStore.updateLibrary(editingLibrary.value.id, { name: newLibraryName.value });
+    if (!result.success) {
+      notification.error(`重命名音乐库失败: ${result.error || '未知错误'}`);
+      return;
+    }
+  }
   showEditLibraryModal.value = false;
 };
 
@@ -84,7 +92,10 @@ const handleRemoveLibrary = (library: any) => {
 };
 
 const handleRescanLibrary = async (library: any) => {
-  await mediaStore.scanMusic(library.id, true);
+  const result = await mediaStore.scanMusic(library.id, true);
+  if (result && !result.success) {
+    notification.error(`扫描音乐库失败: ${result.error || '未知错误'}`);
+  }
 };
 
 
@@ -317,6 +328,20 @@ function togglePlatformVisibility(platformId: string) {
       </div>
       <div class="text-[10px] text-content-secondary -mt-2 pb-4 leading-normal max-md:mt-0 max-md:pb-3">
         选择歌词页面显示和隐藏时的动画效果。
+      </div>
+
+      <div class="flex justify-between items-center py-3 max-md:flex-col max-md:items-start max-md:gap-2">
+        <span class="text-xs text-content-base max-md:text-[10px]">性能模式</span>
+        <div>
+          <CustomCheckbox
+            :model-value="uiStore.performanceMode"
+            label="减少装饰动画"
+            @update:model-value="uiStore.setPerformanceMode"
+          />
+        </div>
+      </div>
+      <div class="text-[10px] text-content-secondary -mt-2 pb-4 leading-normal max-md:mt-0 max-md:pb-3">
+        关闭歌词页面的粒子、波纹、扫光等装饰动画，降低低配置设备的资源占用。
       </div>
 
       <div class="flex justify-between items-center py-3 max-md:flex-col max-md:items-start max-md:gap-2">

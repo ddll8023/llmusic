@@ -3,13 +3,14 @@
  * 侧边栏组件
  * 包含：在线音乐 → 平台导航（动态） → 本地音乐 → 底部功能项
  */
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useUiStore } from '../../store/ui';
 import { useQqmusicStore } from '../../store/qqmusic';
 import { usePlaylistStore } from '../../store/playlist';
 import { useMediaStore } from '../../store/media';
 import { useAuthStore } from '../../store/auth';
 import { usePlayerStore } from '../../store/player';
+import { useNotificationStore } from '../../store/notification';
 import { musicPlatforms, PLATFORM_VISIBILITY_PREFIX } from '../../config/platforms';
 import type { MusicPlatform } from '../../config/platforms';
 import FAIcon from '../common/FAIcon.vue';
@@ -21,6 +22,7 @@ const playlistStore = usePlaylistStore();
 const mediaStore = useMediaStore();
 const authStore = useAuthStore();
 const playerStore = usePlayerStore();
+const notification = useNotificationStore();
 
 const isCollapsed = computed(() => uiStore.isSidebarCollapsed);
 const collapseIcon = computed(() => isCollapsed.value ? 'chevron-right' : 'chevron-left');
@@ -44,8 +46,17 @@ const visiblePlatforms = computed(() =>
 );
 
 onMounted(async () => {
+  // 初始化加载失败仅提示一次（onMounted 只执行一次）
   await playlistStore.loadPlaylists();
-  await mediaStore.loadLibraries();
+  if (playlistStore.error) {
+    notification.error(`加载歌单失败: ${playlistStore.error}`);
+  }
+
+  const librariesResult = await mediaStore.loadLibraries();
+  if (!librariesResult.success) {
+    notification.error(`加载音乐库失败: ${librariesResult.error || '未知错误'}`);
+  }
+
   await authStore.initAuth();
   loadPlatformVisibility();
 
@@ -56,6 +67,11 @@ onMounted(async () => {
   if (authStore.isLoggedIn) {
     qqmusicStore.loadUserPlaylists();
   }
+});
+
+onUnmounted(() => {
+  // 清理事件监听器，避免泄漏
+  window.removeEventListener('platform-visibility-change', loadPlatformVisibility);
 });
 
 const handleSetLibrary = (libraryId: any) => {
@@ -192,7 +208,7 @@ const handlePlatformNav = (view: string) => {
       :class="[
         'flex items-center rounded cursor-pointer whitespace-nowrap overflow-hidden text-sm leading-normal relative transition-[background-color,color] duration-150',
         isCollapsed ? 'justify-center px-1 py-2.5' : 'px-2 py-2.5',
-        uiStore.currentView === 'main' && mediaStore.activeLibraryId === null ? 'bg-surface-overlay text-content-base' : '',
+        uiStore.currentView === 'main' && mediaStore.activeLibraryId === 'all' ? 'bg-surface-overlay text-content-base' : '',
         'hover:bg-surface-overlay hover:text-content-base'
       ]"
     >

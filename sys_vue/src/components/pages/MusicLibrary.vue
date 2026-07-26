@@ -2,6 +2,7 @@
 import { ref, onMounted, computed, reactive, onUnmounted, nextTick, toRefs, watch } from 'vue';
 import { useMediaStore } from '../../store/media';
 import { usePlayerStore, PlayMode } from '../../store/player';
+import { useNotificationStore } from '../../store/notification';
 import BaseSongTable from '../business/BaseSongTable.vue'; // 统一表格组件（virtual 模式）
 import TagEditor from '../common/TagEditor.vue'; // 引入TagEditor组件
 import DeleteConfirmDialog from '../common/DeleteConfirmDialog.vue'; // 引入删除确认对话框
@@ -9,6 +10,15 @@ import ContentHeader from '../common/ContentHeader.vue'; // 直接使用 Content
 
 const mediaStore = useMediaStore();
 const playerStore = usePlayerStore();
+const notification = useNotificationStore();
+
+// mediaStore 层错误统一 toast 提示
+watch(
+  () => mediaStore.error,
+  (newError) => {
+    if (newError) notification.error(newError);
+  }
+);
 
 function handleSearch(value: string) {
   mediaStore.setSearchTerm(value);
@@ -139,12 +149,16 @@ const handleDeleteConfirm = async (song: any) => {
     }
     await mediaStore.loadSongs({ force: true })
     if (result.warning) {
-      console.warn(result.warning)
+      notification.warning(result.warning)
+    } else {
+      notification.success('歌曲已删除')
     }
+  } else {
+    notification.error(`删除歌曲失败: ${result.error || '未知错误'}`)
   }
 };
 
-// 处理SongTable的播放事件
+// 处理BaseSongTable的播放事件
 const handlePlaySong = ({ song, listId, songIds }: { song: any; listId: any; songIds: any }) => {
   playerStore.playSongFromList({
     listId: listId,
@@ -195,16 +209,13 @@ const handleContextMenuAction = async ({ action, song }: { action: any; song: an
         if (song.filePath) {
           const result = await window.electronAPI.showItemInFolder(song.filePath);
           if (!result.success) {
-            console.error('无法显示文件位置:', result.error);
-            alert(`无法显示文件位置: ${result.error}`);
+            notification.error(`无法显示文件位置: ${result.error}`);
           }
         } else {
-          console.warn('歌曲没有有效的文件路径');
-          alert('该歌曲无有效的文件路径信息');
+          notification.warning('该歌曲无有效的文件路径信息');
         }
       } catch (error: any) {
-        console.error('显示文件位置时出错:', error);
-        alert(`操作失败: ${error.message || '未知错误'}`);
+        notification.error(`操作失败: ${error.message || '未知错误'}`);
       }
       break;
 
@@ -212,9 +223,8 @@ const handleContextMenuAction = async ({ action, song }: { action: any; song: an
       try {
         const info = `${song.title || '未知歌曲'} - ${song.artist || '未知艺术家'} - ${song.album || '未知专辑'}`;
         await window.electronAPI.copyToClipboard(info);
-      } catch (error: any) {
-        console.error('复制歌曲信息失败:', error);
-        alert('复制歌曲信息失败');
+      } catch {
+        notification.error('复制歌曲信息失败');
       }
       break;
 
@@ -284,31 +294,10 @@ const forceRefreshTable = () => {
     return;
   }
 
-  // 1. 首先尝试通过media store更新
+  // 通过 media store 更新播放次数
   if (mediaStore && typeof mediaStore.updateSongPlayCount === 'function') {
-    const updateResult = mediaStore.updateSongPlayCount(songId, playCount);
-    if (updateResult) {
-      return; // 更新成功，不需要进一步处理
-    }
+    mediaStore.updateSongPlayCount(songId, playCount);
   }
-
-  // 2. 如果media store更新失败，尝试手动更新DOM
-  nextTick(() => {
-    const songRow = document.querySelector(`[data-song-id="${songId}"]`);
-    if (songRow) {
-      // 找到播放次数的列并更新
-      const playCountCol = songRow.querySelector('.song-col:nth-child(6)');
-      if (playCountCol) {
-        playCountCol.textContent = playCount.toString();
-      }
-
-      // 添加高亮效果
-      songRow.classList.add('highlight-update');
-      setTimeout(() => {
-        songRow.classList.remove('highlight-update');
-      }, 1500);
-    }
-  });
 };
 </script>
 
@@ -317,7 +306,7 @@ const forceRefreshTable = () => {
     <ContentHeader title="本地音乐" :show-search="true" :manual-search="true" :search-value="mediaStore.searchTerm"
       search-placeholder="筛选歌曲、专辑或艺术家" :actions="headerActions" @search="handleSearch"
       @action-click="handleHeaderAction" />
-    <BaseSongTable mode="virtual" :songs="sortedSongs" :loading="mediaStore.loading" :show-sortable="true"
+    <BaseSongTable mode="local" :songs="sortedSongs" :loading="mediaStore.loading" :show-sortable="true"
       :show-play-count="true" :show-scroll-buttons="true" :context-menu-type="'main'" :current-list-id="currentListId"
       :empty-text="'暂无歌曲'" :empty-icon="'music'" @play-song="handlePlaySong" @sort-change="handleSortChange"
       @context-menu-action="handleContextMenuAction" />

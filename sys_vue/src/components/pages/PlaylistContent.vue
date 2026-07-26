@@ -2,8 +2,9 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { usePlaylistStore } from '../../store/playlist';
 import { usePlayerStore } from '../../store/player';
+import { useNotificationStore } from '../../store/notification';
 import ContentHeader from '../common/ContentHeader.vue';
-import SongTable from '../common/SongTable.vue';
+import BaseSongTable from '../business/BaseSongTable.vue';
 import CustomButton from '../custom/CustomButton.vue';
 import CustomModal from '../custom/CustomModal.vue';
 
@@ -17,6 +18,7 @@ const props = defineProps({
 
 const playlistStore = usePlaylistStore();
 const playerStore = usePlayerStore();
+const notification = useNotificationStore();
 
 // 加载状态
 const isLoading = ref(false);
@@ -24,7 +26,7 @@ const isLoading = ref(false);
 // 显示删除确认对话框
 const showDeleteConfirm = ref(false);
 
-// SongTable组件引用
+// BaseSongTable组件引用
 const songTableRef = ref<any>(null);
 
 // 获取当前歌单
@@ -33,7 +35,7 @@ const currentPlaylist = computed(() => playlistStore.currentPlaylist);
 // 当前歌单ID作为列表ID
 const currentListId = computed(() => playlistStore.currentPlaylistId || 'playlist');
 
-// 处理SongTable的播放事件
+// 处理BaseSongTable的播放事件
 const handlePlaySong = ({ song }: { song: any }) => {
     // 创建一个播放列表，包含所有歌单中的歌曲
     playerStore.playSongFromList({
@@ -43,7 +45,7 @@ const handlePlaySong = ({ song }: { song: any }) => {
     });
 };
 
-// 处理SongTable的操作按钮点击
+// 处理表格操作列按钮点击
 const handleActionClick = ({ action, song }: { action: any; song: any }) => {
     if (action === 'remove') {
         removeSongFromPlaylist(song.id);
@@ -80,17 +82,13 @@ const handleContextMenuAction = async ({ action, song }: { action: any; song: an
                 if (song.filePath) {
                     const result = await window.electronAPI.showItemInFolder(song.filePath);
                     if (!result.success) {
-                        console.error('无法显示文件位置:', result.error);
-                        // 显示错误提示
-                        alert(`无法显示文件位置: ${result.error}`);
+                        notification.error(`无法显示文件位置: ${result.error}`);
                     }
                 } else {
-                    console.warn('歌曲没有有效的文件路径');
-                    alert('该歌曲无有效的文件路径信息');
+                    notification.warning('该歌曲无有效的文件路径信息');
                 }
             } catch (error: any) {
-                console.error('显示文件位置时出错:', error);
-                alert(`操作失败: ${error.message || '未知错误'}`);
+                notification.error(`操作失败: ${error.message || '未知错误'}`);
             }
             break;
 
@@ -98,9 +96,8 @@ const handleContextMenuAction = async ({ action, song }: { action: any; song: an
             try {
                 const info = `${song.title || '未知歌曲'} - ${song.artist || '未知艺术家'} - ${song.album || '未知专辑'}`;
                 await window.electronAPI.copyToClipboard(info);
-            } catch (error) {
-                console.error('复制歌曲信息失败:', error);
-                alert('复制歌曲信息失败');
+            } catch {
+                notification.error('复制歌曲信息失败');
             }
             break;
 
@@ -112,16 +109,16 @@ const handleContextMenuAction = async ({ action, song }: { action: any; song: an
 };
 
 // 从歌单中移除歌曲
-async function removeSongFromPlaylist(songId: any) {
+async function removeSongFromPlaylist(songId: string) {
     if (!playlistStore.currentPlaylistId) return;
 
     const result = await playlistStore.removeSongsFromPlaylist(
         playlistStore.currentPlaylistId,
-        songId
+        [songId]
     );
 
     if (!result.success) {
-        console.error('从歌单移除歌曲失败:', result.error);
+        notification.error(`从歌单移除歌曲失败: ${result.error || '未知错误'}`);
     }
 }
 
@@ -149,7 +146,7 @@ async function deletePlaylist() {
             props.navigateToMain();
         }
     } else {
-        console.error('删除歌单失败:', result.error);
+        notification.error(`删除歌单失败: ${result.error || '未知错误'}`);
     }
 }
 
@@ -227,8 +224,8 @@ onMounted(() => {
             @action-click="handleHeaderAction" />
 
         <!-- 歌曲表格 -->
-        <SongTable ref="songTableRef" :songs="playlistStore.currentPlaylistSongs" :loading="isLoading"
-            :show-sortable="false" :show-play-count="false" :show-action-column="true" :action-column-type="'remove'"
+        <BaseSongTable ref="songTableRef" mode="local" :songs="playlistStore.currentPlaylistSongs" :loading="isLoading"
+            :action-column-type="'remove'" :show-scroll-buttons="true"
             :context-menu-type="'playlist'" :current-list-id="currentListId" :empty-text="'歌单为空'" :empty-icon="'list'"
             @play-song="handlePlaySong" @action-click="handleActionClick"
             @context-menu-action="handleContextMenuAction" />

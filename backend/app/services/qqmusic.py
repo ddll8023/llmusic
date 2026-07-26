@@ -1,8 +1,9 @@
 """QQ音乐业务服务——歌曲搜索、用户歌单、歌曲链接"""
-import logging
+import asyncio
 from urllib.parse import parse_qs, urlparse
 
 import httpx
+from qqmusic_api.core.exceptions import LoginExpiredError, NotLoginError, RatelimitedError
 from qqmusic_api.modules.song import SongFileInfo, SongFileType
 from qqmusic_api.modules.search import SearchType
 
@@ -25,20 +26,27 @@ from app.schemas.qqmusic import (
 )
 from app.utils import ensure_https
 from app.utils.exception import ServiceException
+from app.utils.logger import setup_logger
+
+logger = setup_logger(__name__)
 
 ALBUM_COVER_TEMPLATE = "https://y.gtimg.cn/music/photo_new/T002R300x300M000{mid}.jpg"
 CDN_DOMAIN = "https://isure.stream.qqmusic.qq.com/"
+RESOLVE_URL_TIMEOUT_SECONDS = 10
+SONGLIST_MAX_PAGES = 50
 
 
 # ========== 公共入口函数 ==========
 
 
-def resolve_search_url(url_type, search_url):
-    """解析 QQ 音乐分享链接重定向获取参数"""
+async def resolve_search_url(url_type, search_url):
+    """解析 QQ 音乐分享链接重定向，返回歌曲/歌单 ID"""
     try:
-        response = httpx.get(search_url, follow_redirects=False)
-    except Exception:
-        raise ServiceException(ErrorCode.INTERNAL_ERROR, "链接请求失败")
+        async with httpx.AsyncClient(timeout=RESOLVE_URL_TIMEOUT_SECONDS) as http_client:
+            response = await http_client.get(search_url, follow_redirects=False)
+    except Exception as exc:
+        logger.error(f"分享链接请求失败: url={search_url} error={exc}", exc_info=True)
+        raise ServiceException(ErrorCode.AI_SERVICE_ERROR, "链接请求失败") from exc
 
     if response.status_code != 302:
         raise ServiceException(ErrorCode.PARAM_ERROR, "链接无法解析，请检查URL")
@@ -47,18 +55,17 @@ def resolve_search_url(url_type, search_url):
     if not location:
         raise ServiceException(ErrorCode.PARAM_ERROR, "重定向响应缺少Location头")
 
-    logging.info(f"重定向到: {location}")
-    parsed = urlparse(location)
-    params = parse_qs(parsed.query)
+    logger.info(f"分享链接重定向到: {location}")
+    params = parse_qs(urlparse(location).query)
 
-    if url_type == "song":
-        if "songid" not in params:
-            raise ServiceException(ErrorCode.PARAM_ERROR, "未找到 songid")
-    elif url_type == "playlist":
-        if "id" not in params:
-            raise ServiceException(ErrorCode.PARAM_ERROR, "未找到歌单ID")
+    param_key = "songid" if url_type == "song" else "id"
+    if param_key not in params:
+        raise ServiceException(ErrorCode.PARAM_ERROR, "未找到歌曲ID" if url_type == "song" else "未找到歌单ID")
 
-    return params
+    try:
+        return int(params[param_key][0])
+    except (ValueError, TypeError) as exc:
+        raise ServiceException(ErrorCode.PARAM_ERROR, "链接参数无效") from exc
 
 
 async def get_song_detail(song_id, request_id=""):
@@ -69,8 +76,10 @@ async def get_song_detail(song_id, request_id=""):
         detail = await client.execute(client.song.get_detail(song_id))
     except ServiceException:
         raise
+    except (LoginExpiredError, NotLoginError, RatelimitedError) as exc:
+        raise _convert_credential_error(exc) from exc
     except Exception:
-        logging.exception(f"获取歌曲详情失败: {song_id}")
+        logger.error(f"获取歌曲详情失败: song_id={song_id}", exc_info=True)
         raise ServiceException(ErrorCode.AI_SERVICE_ERROR, "服务调用失败，请稍后重试")
 
     item = _build_single_song_item(song_id, detail)
@@ -87,8 +96,10 @@ async def get_songlist_detail(songlist_id, page, page_size, request_id=""):
         )
     except ServiceException:
         raise
+    except (LoginExpiredError, NotLoginError, RatelimitedError) as exc:
+        raise _convert_credential_error(exc) from exc
     except Exception:
-        logging.exception(f"获取歌单详情失败: {songlist_id}")
+        logger.error(f"获取歌单详情失败: songlist_id={songlist_id}", exc_info=True)
         raise ServiceException(ErrorCode.AI_SERVICE_ERROR, "服务调用失败，请稍后重试")
 
     items = [_build_songlist_item(song) for song in result.songs]
@@ -99,41 +110,49 @@ async def get_songlist_detail_all(songlist_id, request_id=""):
     """获取歌单全部歌曲（自动迭代所有页码，一次性返回）"""
     client = await get_client()
 
-    logger = logging.getLogger(__name__)
     logger.info(f"开始获取歌单全部歌曲: songlist_id={songlist_id}")
 
     all_songs = []
     total = 0
+    page_count = 0
 
     try:
-        pager = client.songlist.get_detail(
-            songlist_id, num=100
-        ).paginate()
+        pager = client.songlist.get_detail(songlist_id, num=100).paginate()
 
         async for page in pager:
+            page_count += 1
+            if page_count > SONGLIST_MAX_PAGES:
+                logger.warning(
+                    f"歌单页数超过上限，截断返回: songlist_id={songlist_id} max_pages={SONGLIST_MAX_PAGES}"
+                )
+                break
             for song in page.songs:
                 all_songs.append(_build_songlist_item(song))
             total = page.total or total
     except ServiceException:
         raise
+    except (LoginExpiredError, NotLoginError, RatelimitedError) as exc:
+        raise _convert_credential_error(exc) from exc
     except Exception:
-        logging.exception(f"获取歌单全部歌曲失败: {songlist_id}")
+        logger.error(f"获取歌单全部歌曲失败: songlist_id={songlist_id}", exc_info=True)
         raise ServiceException(ErrorCode.AI_SERVICE_ERROR, "服务调用失败，请稍后重试")
 
-    # 一次性批量获取所有歌曲的播放 URL
+    # 一次性批量获取所有歌曲的播放 URL，按 mid 映射回填
     mids = [s.songMid for s in all_songs if s.songMid]
     if mids:
         try:
             url_items = await get_song_url_list_v2(mids, request_id)
             url_list = url_items.result if url_items and url_items.result else []
-            for i, song in enumerate(all_songs):
-                if i < len(url_list) and url_list[i].url:
+            url_by_mid = {mid: item for mid, item in zip(mids, url_list)}
+            for song in all_songs:
+                url_item = url_by_mid.get(song.songMid)
+                if url_item and url_item.url:
                     song.songUrl = SongUrlInfo(
-                        url=url_list[i].url,
-                        urlType=url_list[i].urlType or "mp3",
+                        url=url_item.url,
+                        urlType=url_item.urlType or "mp3",
                     )
         except Exception:
-            logging.warning(f"批量获取歌单歌曲 URL 失败: {songlist_id}")
+            logger.warning(f"批量获取歌单歌曲 URL 失败: songlist_id={songlist_id}")
 
     return PlaylistSongsResponse(
         result=all_songs,
@@ -157,8 +176,10 @@ async def search_by_keyword(keyword, page, page_size, request_id=""):
         )
     except ServiceException:
         raise
+    except (LoginExpiredError, NotLoginError, RatelimitedError) as exc:
+        raise _convert_credential_error(exc) from exc
     except Exception:
-        logging.exception(f"关键词搜索失败: {keyword}")
+        logger.error(f"关键词搜索失败: keyword={keyword}", exc_info=True)
         raise ServiceException(ErrorCode.AI_SERVICE_ERROR, "服务调用失败，请稍后重试")
 
     items = [_build_from_search_song(song) for song in result.song]
@@ -196,7 +217,7 @@ async def get_song_url_list_v2(song_mid_list, request_id=""):
         return SongUrlResponse(requestId=request_id, result=items)
 
     # FLAC 全部失败 → 匿名试听
-    logging.warning("FLAC 获取失败，降级到 ACC_96 试听")
+    logger.warning("FLAC 获取失败，降级到 ACC_96 试听")
     items = await _try_get_trial_urls(song_mid_list)
     return SongUrlResponse(requestId=request_id, result=items)
 
@@ -216,8 +237,10 @@ async def get_user_playlists():
         )
     except ServiceException:
         raise
+    except (LoginExpiredError, NotLoginError, RatelimitedError) as exc:
+        raise _convert_credential_error(exc) from exc
     except Exception:
-        logging.exception("获取用户歌单失败")
+        logger.error("获取用户歌单失败", exc_info=True)
         raise ServiceException(ErrorCode.AI_SERVICE_ERROR, "服务调用失败，请稍后重试")
 
     playlists = [
@@ -248,8 +271,10 @@ async def get_user_liked_songs(page=1, page_size=20):
         )
     except ServiceException:
         raise
+    except (LoginExpiredError, NotLoginError, RatelimitedError) as exc:
+        raise _convert_credential_error(exc) from exc
     except Exception:
-        logging.exception("获取用户喜欢歌曲失败")
+        logger.error("获取用户喜欢歌曲失败", exc_info=True)
         raise ServiceException(ErrorCode.AI_SERVICE_ERROR, "服务调用失败，请稍后重试")
 
     items = [_build_songlist_item(song) for song in result.songs]
@@ -257,44 +282,17 @@ async def get_user_liked_songs(page=1, page_size=20):
 
 
 async def get_song_download_bundle(song_mid, request_id=""):
-    """获取歌曲下载元数据包（详情+歌词+下载链接）"""
+    """获取歌曲下载元数据包（详情+歌词+下载链接，三段网络请求并行）"""
     client = await get_client()
 
-    try:
-        detail = await client.execute(client.song.get_detail(song_mid))
-    except ServiceException:
-        raise
-    except Exception:
-        logging.exception(f"获取歌曲详情失败: {song_mid}")
-        raise ServiceException(ErrorCode.AI_SERVICE_ERROR, "获取歌曲详情失败")
+    detail, lyrics, song_url = await asyncio.gather(
+        _fetch_bundle_detail(client, song_mid),
+        _fetch_bundle_lyrics(client, song_mid),
+        _fetch_bundle_song_url(song_mid, request_id),
+    )
 
     track = detail.track
     album_info = _build_album_info(track)
-
-    lyrics = ""
-    try:
-        lyric_result = await client.execute(client.lyric.get_lyric(song_mid, trans=True, roma=True))
-        if lyric_result:
-            lyrics = lyric_result.decrypt().lyric or ""
-            trans = lyric_result.decrypt().trans or ""
-            roma = lyric_result.decrypt().roma or ""
-            if trans:
-                lyrics += "\n\n" + trans
-            if roma:
-                lyrics += "\n\n" + roma
-    except Exception:
-        logging.warning(f"获取歌词失败: {song_mid}")
-
-    song_url = SongUrlInfo()
-    try:
-        url_items = await get_song_url_list_v2([song_mid], request_id)
-        if url_items and url_items.result and url_items.result[0]:
-            song_url = SongUrlInfo(
-                url=url_items.result[0].url or "",
-                urlType=url_items.result[0].urlType or "mp3",
-            )
-    except Exception:
-        logging.warning(f"获取下载链接失败: {song_mid}")
 
     return SongDownloadBundleResponse(
         songMid=song_mid,
@@ -313,6 +311,60 @@ async def get_song_download_bundle(song_mid, request_id=""):
 """辅助函数"""
 
 
+def _convert_credential_error(exc):
+    """将 SDK 凭证/限流异常转换为对应错误码的业务异常"""
+    if isinstance(exc, LoginExpiredError):
+        return ServiceException(ErrorCode.TOKEN_EXPIRED, "登录已过期，请重新扫码登录")
+    if isinstance(exc, NotLoginError):
+        return ServiceException(ErrorCode.NOT_LOGGED_IN, "请先登录")
+    return ServiceException(ErrorCode.RATE_LIMITED, "操作过于频繁，请稍后重试")
+
+
+async def _fetch_bundle_detail(client, song_mid):
+    """获取下载包所需的歌曲详情，失败抛业务异常"""
+    try:
+        return await client.execute(client.song.get_detail(song_mid))
+    except ServiceException:
+        raise
+    except (LoginExpiredError, NotLoginError, RatelimitedError) as exc:
+        raise _convert_credential_error(exc) from exc
+    except Exception:
+        logger.error(f"获取歌曲详情失败: song_mid={song_mid}", exc_info=True)
+        raise ServiceException(ErrorCode.AI_SERVICE_ERROR, "获取歌曲详情失败")
+
+
+async def _fetch_bundle_lyrics(client, song_mid):
+    """获取歌词文本（含翻译/音译），失败降级为空字符串"""
+    try:
+        lyric_result = await client.execute(client.lyric.get_lyric(song_mid, trans=True, roma=True))
+        if not lyric_result:
+            return ""
+        decrypted = lyric_result.decrypt()
+        lyrics = decrypted.lyric or ""
+        if decrypted.trans:
+            lyrics += "\n\n" + decrypted.trans
+        if decrypted.roma:
+            lyrics += "\n\n" + decrypted.roma
+        return lyrics
+    except Exception:
+        logger.warning(f"获取歌词失败: song_mid={song_mid}")
+        return ""
+
+
+async def _fetch_bundle_song_url(song_mid, request_id):
+    """获取歌曲下载链接，失败降级为空链接"""
+    try:
+        url_items = await get_song_url_list_v2([song_mid], request_id)
+        if url_items and url_items.result and url_items.result[0]:
+            return SongUrlInfo(
+                url=url_items.result[0].url or "",
+                urlType=url_items.result[0].urlType or "mp3",
+            )
+    except Exception:
+        logger.warning(f"获取下载链接失败: song_mid={song_mid}")
+    return SongUrlInfo()
+
+
 async def _try_get_flac_urls(song_mid_list, credential):
     """尝试获取 FLAC 无损链接，失败返回 None"""
     client = await get_client()
@@ -326,7 +378,7 @@ async def _try_get_flac_urls(song_mid_list, credential):
             )
         )
     except Exception:
-        logging.exception("FLAC 获取失败")
+        logger.error("FLAC 获取失败", exc_info=True)
         return None
 
     url_map = {}
@@ -349,7 +401,7 @@ async def _try_get_trial_urls(song_mid_list):
             )
         )
     except Exception:
-        logging.warning("ACC_96 试听获取失败（部分歌曲可能没有 FLAC 且试听不可用）")
+        logger.warning("ACC_96 试听获取失败（部分歌曲可能没有 FLAC 且试听不可用）")
         return [SongUrlItem(url="", urlType="mp3") for _ in song_mid_list]
 
     url_map = {}

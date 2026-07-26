@@ -3,26 +3,16 @@
  */
 
 import { CHANNELS } from "../../constants/ipcChannels"
-import { getSongById, parseSongFromFile } from "../data/Database"
-import { sanitizeAudioPath } from "../../utils/sanitizePath"
-import ffmpeg from "fluent-ffmpeg"
-import ffmpegPath from "ffmpeg-static"
-import ffprobeStatic from "ffprobe-static"
+import { getSongById, parseSongFromFile, updateSong } from "../data/Database"
+import { isAudioPath } from "../../utils/sanitizePath"
+import { SUPPORTED_AUDIO_EXTENSIONS } from "../../constants/formats"
+import { invalidateLyricsCache } from "./lyricsHandlers"
+import { ffmpeg } from "../../utils/ffmpeg"
 import { parseFile } from "music-metadata"
 import { promises as fs } from "fs"
 import path from "path"
 import os from "os"
 import type { IpcHandlerModule } from "../../types"
-
-// 修正打包后的二进制文件路径
-const correctedFfmpegPath = (ffmpegPath as string).replace("app.asar", "app.asar.unpacked")
-const correctedFfprobePath = ffprobeStatic.path.replace("app.asar", "app.asar.unpacked")
-
-ffmpeg.setFfmpegPath(correctedFfmpegPath)
-ffmpeg.setFfprobePath(correctedFfprobePath)
-
-// 支持的音频格式
-const SUPPORTED_FORMATS = [".mp3", ".flac", ".m4a", ".aac", ".ogg", ".wav"]
 
 interface TagData {
 	title?: string
@@ -67,7 +57,7 @@ async function getSongTags(filePath: string): Promise<TagResult> {
 		await fs.access(filePath)
 
 		const ext = path.extname(filePath).toLowerCase()
-		if (!SUPPORTED_FORMATS.includes(ext)) {
+		if (!SUPPORTED_AUDIO_EXTENSIONS.includes(ext)) {
 			throw new Error(`不支持的音频格式: ${ext}`)
 		}
 
@@ -161,7 +151,7 @@ async function updateSongTags(filePath: string, tags: TagData): Promise<UpdateRe
 		await fs.access(filePath)
 
 		const ext = path.extname(filePath).toLowerCase()
-		if (!SUPPORTED_FORMATS.includes(ext)) {
+		if (!SUPPORTED_AUDIO_EXTENSIONS.includes(ext)) {
 			throw new Error(`不支持的音频格式: ${ext}`)
 		}
 
@@ -370,15 +360,29 @@ function createTagHandlers(): IpcHandlerModule {
 						}
 					}
 
+					// 标签写回可能改写歌词，失效歌词解析缓存
+					invalidateLyricsCache(songId)
+
 					try {
 						const updatedSong = await parseSongFromFile(song.filePath, song.id, song.libraryId || null)
 						if (updatedSong) {
+							const dbUpdated = await updateSong(updatedSong)
+							if (dbUpdated) {
+								return {
+									success: true,
+									message: "标签更新成功",
+									songId,
+									updatedSong,
+									validation: updateResult.validation,
+								}
+							}
 							return {
 								success: true,
-								message: "标签更新成功",
+								message: "标签更新成功，但数据库同步失败",
 								songId,
 								updatedSong,
 								validation: updateResult.validation,
+								warning: "请重新扫描音乐库以同步数据库",
 							}
 						} else {
 							return {
@@ -390,7 +394,6 @@ function createTagHandlers(): IpcHandlerModule {
 							}
 						}
 					} catch (parseError) {
-						const err = parseError as Error
 						console.error("重新解析歌曲文件失败:", parseError)
 						return {
 							success: true,
@@ -438,6 +441,9 @@ function createTagHandlers(): IpcHandlerModule {
 		{
 			channel: CHANNELS.GET_TAGS_FROM_FILE,
 			handler: async (_event: Electron.IpcMainInvokeEvent, filePath: string) => {
+				if (!isAudioPath(filePath)) {
+					return { success: false, error: "非法路径" }
+				}
 				return await getTagsFromFile(filePath)
 			},
 		},
@@ -447,6 +453,9 @@ function createTagHandlers(): IpcHandlerModule {
 				_event: Electron.IpcMainInvokeEvent,
 				{ filePath, tags }: { filePath: string; tags: TagData }
 			) => {
+				if (!isAudioPath(filePath)) {
+					return { success: false, error: "非法路径" }
+				}
 				return await updateTagsToFile(filePath, tags)
 			},
 		},
@@ -460,4 +469,4 @@ function createTagHandlers(): IpcHandlerModule {
 	}
 }
 
-export { createTagHandlers, getSongTags, updateSongTags, validateTagChanges, SUPPORTED_FORMATS }
+export { createTagHandlers, getSongTags, updateSongTags, validateTagChanges }

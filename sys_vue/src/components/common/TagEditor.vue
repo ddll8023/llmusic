@@ -87,12 +87,14 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue';
 import { useMediaStore } from '../../store/media';
+import { useNotificationStore } from '../../store/notification';
 import FAIcon from './FAIcon.vue';
 import CustomButton from '../custom/CustomButton.vue';
 import CustomInput from '../custom/CustomInput.vue';
 import { formatDuration } from '../../utils/timeUtils';
 
 const mediaStore = useMediaStore();
+const notification = useNotificationStore();
 
 const showTagEditor = ref(false);
 const loading = ref(false);
@@ -125,7 +127,7 @@ const clearObjectProperties = (obj: any) => { Object.keys(obj).forEach(key => { 
 
 const handleTagOperationError = (error: any, operation: any) => {
   console.error(`${operation}过程中发生错误:`, error);
-  if (!operation.includes('验证')) alert(`${operation}异常: ${error.message}`);
+  if (!operation.includes('验证')) notification.error(`${operation}异常: ${error.message}`);
 };
 
 const openEditor = async (song: any) => {
@@ -175,11 +177,11 @@ const resetTags = () => { if (originalTags.value) setEditingTagsFromObject(origi
 const validateTags = async (tags: any) => {
   try {
     const plainTags = convertReactiveToPlain(tags);
-    const result: any = await (window.electronAPI as any).validateTagChanges(plainTags);
+    const result = await window.electronAPI.validateTagChanges(plainTags);
     if (result.success && result.validation) {
       clearObjectProperties(validationErrors);
       if (result.validation.errors && result.validation.errors.length > 0) {
-        result.validation.errors.forEach((error: any) => {
+        result.validation.errors.forEach((error: string) => {
           if (error.includes('标题')) validationErrors.title = error;
           else if (error.includes('年份')) validationErrors.year = error;
           else if (error.includes('音轨号')) validationErrors.track = error;
@@ -195,18 +197,18 @@ const saveTags = async () => {
   loading.value = true;
   try {
     const plainTags = convertReactiveToPlain(editingTags);
-    let result: any;
+    let result: { success: boolean; error?: string };
     if (currentSong.value.filePath && !currentSong.value.id) {
-      result = await (window.electronAPI as any).updateTagsToFile(currentSong.value.filePath, plainTags);
+      result = await window.electronAPI.updateTagsToFile(currentSong.value.filePath, plainTags);
     } else {
-      result = await (window.electronAPI as any).updateSongTags(currentSong.value.id, plainTags);
+      result = await window.electronAPI.updateSongTags(currentSong.value.id, plainTags);
     }
     if (result.success) {
       if (!(currentSong.value.filePath && !currentSong.value.id)) await mediaStore.loadSongs();
-      alert('标签保存成功！');
+      notification.success('标签保存成功');
       closeEditor();
     } else {
-      alert(`保存失败: ${result.error}`);
+      notification.error(`保存失败: ${result.error}`);
     }
   } catch (error) { handleTagOperationError(error, '保存标签'); }
   finally { loading.value = false; }

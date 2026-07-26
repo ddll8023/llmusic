@@ -2,6 +2,7 @@
 	<div class="lyric-page" :class="[
 		'lyric-page--' + animationStyle,
 		{ 'lyric-page--show': playerStore.showLyrics,
+		  'lyric-page--perf': uiStore.performanceMode,
 		  'playerbar-collapsed': uiStore.playerBarCollapsed }
 	]" @click="handleBackgroundClick">
 		<!-- 动态背景光晕 -->
@@ -245,7 +246,7 @@ const currentSong = computed(() => playerStore.currentSong)
 // 监听在线/本地状态，更新封面URL
 watch(() => playerStore.isOnlineSong, (isOnline) => {
 	if (isOnline) {
-		albumCoverUrl.value = window._onlineCoverUrl || ''
+		albumCoverUrl.value = playerStore.onlineCoverUrl || ''
 	} else if (!playerStore.currentSong) {
 		albumCoverUrl.value = ''
 	}
@@ -254,7 +255,7 @@ watch(() => playerStore.isOnlineSong, (isOnline) => {
 // 在线歌曲切歌时更新封面
 watch(() => playerStore.onlineSongName, (newName) => {
 	if (newName && playerStore.isOnlineSong) {
-		albumCoverUrl.value = window._onlineCoverUrl || ''
+		albumCoverUrl.value = playerStore.onlineCoverUrl || ''
 	}
 })
 
@@ -278,7 +279,7 @@ watch(currentSong, async (newSong) => {
 		initParticles()
 		coverLoaded.value = false
 		if (playerStore.isOnlineSong) {
-			albumCoverUrl.value = window._onlineCoverUrl || ''
+			albumCoverUrl.value = playerStore.onlineCoverUrl || ''
 			return
 		}
 		try {
@@ -357,10 +358,8 @@ const isWordActive = (word: LyricWord): boolean => {
 	return adjustedTime >= word.time && adjustedTime < word.time + word.duration
 }
 
-// 用于展示的歌词行（过滤掉空白行）
-const displayLines = computed(() => {
-	return lyricsStore.lines.filter(line => line.text.trim() !== '')
-})
+// 用于展示的歌词行（复用 store 的过滤结果，避免重复计算）
+const displayLines = computed(() => lyricsStore.displayLines)
 
 // 检查是否有歌词可显示
 const hasLyricsToShow = computed(() => {
@@ -1042,6 +1041,38 @@ onUnmounted(() => {
 @media (max-width: 768px) {
 	.lyric-page__album-section {
 		min-height: 200px;
+	}
+}
+
+/* ===== 动画资源门控 ===== */
+
+/* 页面隐藏时暂停全部动画（组件常驻挂载，避免后台空转 GPU/CPU） */
+.lyric-page:not(.lyric-page--show) *,
+.lyric-page:not(.lyric-page--show) *::before,
+.lyric-page:not(.lyric-page--show) *::after {
+	animation-play-state: paused !important;
+}
+
+/* 性能模式：关闭装饰性动画元素（粒子/声波条/扫光/波纹环/背景光斑） */
+.lyric-page--perf .lyric-page__particles,
+.lyric-page--perf .lyric-page__wave-bars,
+.lyric-page--perf .lyric-page__cover-shine,
+.lyric-page--perf .lyric-page__ripple-ring,
+.lyric-page--perf .lyric-page__bg-blobs {
+	display: none !important;
+}
+.lyric-page--perf .lyric-page__cover-border-ring,
+.lyric-page--perf .lyric-page__cover-border-ring::before {
+	animation: none !important;
+}
+
+/* 系统级减弱动态效果偏好 */
+@media (prefers-reduced-motion: reduce) {
+	.lyric-page *,
+	.lyric-page *::before,
+	.lyric-page *::after {
+		animation: none !important;
+		transition: none !important;
 	}
 }
 </style>

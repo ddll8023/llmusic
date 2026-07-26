@@ -4,17 +4,26 @@ import base64
 import json
 import os
 import time
+import uuid
 from dataclasses import dataclass, field
 
 from qqmusic_api import Client
 from qqmusic_api.models.login import QRCodeLoginEvents, QRLoginType
+from qqmusic_api.models.request import Credential
 from qqmusic_api.modules.login_utils import QRCodeLoginSession
 
+from app.qqmusic.client import get_client, refresh_client, reset_client
 from app.schemas.common import ErrorCode
 from app.utils.exception import ServiceException
+from app.utils.logger import setup_logger
+
+logger = setup_logger(__name__)
 
 CREDENTIAL_DIR = os.path.join(os.path.dirname(__file__), "..", "credential")
 CREDENTIAL_PATH = os.path.join(CREDENTIAL_DIR, "credential.json")
+
+QR_SESSION_TIMEOUT_SECONDS = 180
+CREDENTIAL_REFRESH_AHEAD_SECONDS = 21600
 
 _EVENT_STATUS_MAP = {
     QRCodeLoginEvents.SCAN: "scanned",
@@ -49,8 +58,10 @@ _active_sessions: dict[str, _LoginSession] = {}
 # ========== 公共入口函数 ==========
 
 
-def get_login_status():
+async def get_login_status():
     """查询当前登录状态及凭证是否过期"""
+    await ensure_credential_fresh()
+
     if not os.path.exists(CREDENTIAL_PATH):
         return {"is_logged_in": False, "music_id": 0, "encrypt_uin": "", "login_type": 0, "is_expired": False}
 
@@ -60,7 +71,6 @@ def get_login_status():
     except (json.JSONDecodeError, OSError):
         return {"is_logged_in": False, "music_id": 0, "encrypt_uin": "", "login_type": 0, "is_expired": False}
 
-    from qqmusic_api.models.request import Credential
     credential = Credential.model_validate(credential_dict)
 
     return {
@@ -80,14 +90,44 @@ async def check_credential_expired():
     try:
         with open(CREDENTIAL_PATH, "r", encoding="utf-8") as f:
             credential_dict = json.loads(f.read())
-        from qqmusic_api.models.request import Credential
         credential = Credential.model_validate(credential_dict)
 
-        from app.qqmusic.client import get_client
         client = await get_client()
         return await client.login.check_expired(credential)
     except Exception:
         return True
+
+
+async def ensure_credential_fresh():
+    """检测本地凭证有效期，已过期或临近过期时调用 SDK 刷新并原子写盘"""
+    if not os.path.exists(CREDENTIAL_PATH):
+        return
+
+    try:
+        with open(CREDENTIAL_PATH, "r", encoding="utf-8") as f:
+            credential = Credential.model_validate(json.load(f))
+    except Exception:
+        logger.warning("凭证文件解析失败，跳过自动刷新")
+        return
+
+    if not credential.musickey_create_time or not credential.key_expires_in:
+        return
+
+    now = int(time.time())
+    expires_at = credential.musickey_create_time + credential.key_expires_in
+    if now < expires_at - CREDENTIAL_REFRESH_AHEAD_SECONDS:
+        return
+
+    client = await get_client()
+    try:
+        new_credential = await client.login.refresh_credential(credential)
+    except Exception as exc:
+        logger.warning(f"凭证自动刷新失败，请重新扫码登录: error={exc}")
+        return
+
+    _write_credential_file(new_credential.model_dump())
+    await refresh_client(new_credential)
+    logger.info(f"凭证自动刷新成功: musicid={new_credential.musicid}")
 
 
 async def create_qrcode_session(login_type: str):
@@ -99,14 +139,17 @@ async def create_qrcode_session(login_type: str):
         raise ServiceException(ErrorCode.PARAM_ERROR, "不支持的登录方式")
 
     client = Client()
-    sdk_session = QRCodeLoginSession(api=client.login, login_type=qr_type, timeout_seconds=180)
+    sdk_session = QRCodeLoginSession(
+        api=client.login, login_type=qr_type, timeout_seconds=QR_SESSION_TIMEOUT_SECONDS
+    )
 
     try:
         qr = await sdk_session.get_qrcode()
     except Exception as e:
-        raise ServiceException(ErrorCode.AI_SERVICE_ERROR, f"获取二维码失败: {e!s}") from e
+        logger.error(f"获取二维码失败: login_type={login_type} error={e}", exc_info=True)
+        raise ServiceException(ErrorCode.AI_SERVICE_ERROR, "获取二维码失败，请稍后重试") from e
 
-    session_id = _generate_session_id()
+    session_id = uuid.uuid4().hex
     qrcode_base64 = base64.b64encode(qr.data).decode("utf-8")
 
     session = _LoginSession(
@@ -118,6 +161,8 @@ async def create_qrcode_session(login_type: str):
 
     task = asyncio.create_task(_poll_qrcode_events(session))
     session.task = task
+
+    logger.info(f"创建二维码登录会话: session_id={session_id} login_type={login_type}")
 
     return {
         "session_id": session_id,
@@ -138,7 +183,8 @@ async def check_qrcode_status(session_id: str):
     }
 
     if session.latest_event == "done" and session.credential_dict:
-        _persist_credential(session.credential_dict)
+        logger.info(f"扫码登录成功: session_id={session_id} musicid={session.credential_dict.get('musicid', 0)}")
+        await _persist_credential(session.credential_dict)
         _cleanup_all_sessions()
 
     return result
@@ -152,19 +198,13 @@ async def logout():
         try:
             os.remove(CREDENTIAL_PATH)
         except OSError:
-            pass
+            logger.warning("删除凭证文件失败", exc_info=True)
 
-    from app.qqmusic.client import reset_client
-    reset_client()
+    await reset_client()
+    logger.info("已退出登录并重置客户端")
 
 
 """辅助函数"""
-
-
-def _generate_session_id() -> str:
-    """生成唯一会话 ID"""
-    import uuid
-    return uuid.uuid4().hex
 
 
 def _map_event_to_status(event: QRCodeLoginEvents) -> tuple[str, str]:
@@ -194,39 +234,36 @@ async def _poll_qrcode_events(session: _LoginSession):
 
             if status in ("done", "expired", "error"):
                 break
-    except Exception:
+    except Exception as exc:
         session.latest_event = "error"
         session.message = "登录过程中发生异常"
+        logger.error(f"二维码轮询异常: session_id={session.session_id} error={exc}", exc_info=True)
 
 
-def _persist_credential(credential_dict: dict):
-    """将凭证写入文件并刷新 Client 单例"""
+def _write_credential_file(credential_dict: dict):
+    """原子写入凭证文件（tmp + os.replace）"""
     os.makedirs(CREDENTIAL_DIR, exist_ok=True)
-    with open(CREDENTIAL_PATH, "w", encoding="utf-8") as f:
+    tmp_path = CREDENTIAL_PATH + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
         json.dump(credential_dict, f, ensure_ascii=False, indent=2)
+    os.replace(tmp_path, CREDENTIAL_PATH)
+
+
+async def _persist_credential(credential_dict: dict):
+    """将凭证原子写盘并刷新 Client 单例"""
+    _write_credential_file(credential_dict)
+    logger.info(f"登录凭证已写盘: musicid={credential_dict.get('musicid', 0)}")
 
     try:
-        from qqmusic_api.models.request import Credential
         credential = Credential.model_validate(credential_dict)
-        from app.qqmusic.client import refresh_client
-        asyncio.create_task(refresh_client(credential))
+        await refresh_client(credential)
     except Exception:
-        pass
+        logger.error("刷新 Client 单例失败", exc_info=True)
 
 
 def _cleanup_all_sessions():
     """清理所有活跃会话"""
-    for sid, session in _active_sessions.items():
+    for session in _active_sessions.values():
         if session.task and not session.task.done():
             session.task.cancel()
     _active_sessions.clear()
-
-
-def _cleanup_stale_sessions():
-    """清理超过 3 分钟的旧会话"""
-    now = time.time()
-    stale_ids = [sid for sid, s in _active_sessions.items() if now - s.created_at > 180]
-    for sid in stale_ids:
-        session = _active_sessions.pop(sid, None)
-        if session and session.task and not session.task.done():
-            session.task.cancel()

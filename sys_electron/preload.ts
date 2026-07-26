@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron"
+import { CHANNELS } from "./constants/ipcChannels"
 
 /**
  * 创建事件监听器并返回清理函数
@@ -17,223 +18,98 @@ function createListener(channel: string, callback: (...args: unknown[]) => void,
 	}
 }
 
-
-// 按功能域分组的API
-const API = {
-	scan: {
-		start: (options: Record<string, unknown>) => ipcRenderer.invoke("scan-music-start", options),
-		cancel: () => ipcRenderer.invoke("scan-music-cancel"),
-		onProgress: (callback: (...args: unknown[]) => void) => createListener("scan-progress", callback),
-	},
-
-	songs: {
-		getAll: (options: Record<string, unknown>) => ipcRenderer.invoke("get-songs", options),
-		getById: (songId: string) => ipcRenderer.invoke("get-song-by-id", songId),
-		parseFromFile: (filePath: string) => ipcRenderer.invoke("parse-song-from-file", filePath),
-		incrementPlayCount: (songId: string) => ipcRenderer.invoke("increment-play-count", songId),
-		deleteSong: (songId: string) => ipcRenderer.invoke("delete-song", songId),
-		import: (filePaths: string[]) => ipcRenderer.invoke("import-music-files", filePaths),
-		clearAll: () => ipcRenderer.invoke("clear-all-songs"),
-	},
-
-	library: {
-		getAll: () => ipcRenderer.invoke("get-libraries"),
-		add: (options: Record<string, unknown>) => ipcRenderer.invoke("add-library", options),
-		remove: (options: Record<string, unknown>) => ipcRenderer.invoke("remove-library", options),
-		update: (options: Record<string, unknown>) => ipcRenderer.invoke("update-library", options),
-		selectDirectory: () => ipcRenderer.invoke("select-directory"),
-	},
-
-	cover: {
-		get: (songId: string) => ipcRenderer.invoke("get-song-cover", songId),
-		forceExtract: (songId: string) => ipcRenderer.invoke("force-extract-cover", songId),
-		getFromFile: (filePath: string) => ipcRenderer.invoke("get-cover-from-file", filePath),
-	},
-
-	lyrics: {
-		get: (songId: string) => ipcRenderer.invoke("get-lyrics", songId),
-	},
-
-	file: {
-		showInFolder: (filePath: string) => ipcRenderer.invoke("show-item-in-folder", filePath),
-		copyToClipboard: (text: string) => ipcRenderer.invoke("copy-to-clipboard", text),
-		showOpenDialog: (options?: Record<string, unknown>) => ipcRenderer.invoke("show-open-dialog", options),
-		getPathForFile: (file: File) => ipcRenderer.invoke("get-path-for-file", file),
-	},
-
-	player: {
-		play: (options: Record<string, unknown>) => ipcRenderer.invoke("player-play", options),
-		stop: () => ipcRenderer.invoke("player-stop"),
-		seek: (position: number) => ipcRenderer.invoke("player-seek", { position }),
-		getStatus: () => ipcRenderer.invoke("player-get-status"),
-		onEnded: (callback: (...args: unknown[]) => void) => createListener("player-ended", callback),
-		onError: (callback: (...args: unknown[]) => void) => createListener("player-error", callback),
-		onAudioData: (callback: (...args: unknown[]) => void) => createListener("player-audio-data", callback),
-	},
-
-	playlist: {
-		getAll: () => ipcRenderer.invoke("get-playlists"),
-		getById: (playlistId: string) => ipcRenderer.invoke("get-playlist-by-id", playlistId),
-		create: (playlistData: Record<string, unknown>) => ipcRenderer.invoke("create-playlist", playlistData),
-		update: (playlistId: string, playlistData: Record<string, unknown>) =>
-			ipcRenderer.invoke("update-playlist", playlistId, playlistData),
-		delete: (playlistId: string) => ipcRenderer.invoke("delete-playlist", playlistId),
-		addSongs: (playlistId: string, songIds: string[]) =>
-			ipcRenderer.invoke("add-songs-to-playlist", playlistId, songIds),
-		removeSongs: (playlistId: string, songIds: string[]) =>
-			ipcRenderer.invoke("remove-songs-from-playlist", playlistId, songIds),
-	},
-
-	navigation: {
-		toMain: () => ipcRenderer.send("navigate-to-main"),
-		onNavigateToMain: (callback: (...args: unknown[]) => void) =>
-			createListener("navigate-to-main", callback),
-	},
-
-	fileOpen: {
-		onOpenAudioFile: (callback: (...args: unknown[]) => void) =>
-			createListener("open-audio-file", callback),
-	},
-
-	window: {
-		minimize: () => ipcRenderer.invoke("window-minimize"),
-		maximize: () => ipcRenderer.invoke("window-maximize"),
-		restore: () => ipcRenderer.invoke("window-restore"),
-		close: () => ipcRenderer.invoke("window-close"),
-		show: () => ipcRenderer.invoke("window-show"),
-		isMaximized: () => ipcRenderer.invoke("is-window-maximized"),
-		onMaximizedChange: (callback: (...args: unknown[]) => void) =>
-			createListener("window-maximized-change", callback),
-		setCloseBehavior: (behavior: string) => ipcRenderer.invoke("set-close-behavior", behavior),
-		getCloseBehavior: () => ipcRenderer.invoke("get-close-behavior"),
-	},
-
-	tags: {
-		getSongTags: (songId: string) => ipcRenderer.invoke("get-song-tags", songId),
-		updateSongTags: (songId: string, tags: Record<string, unknown>) =>
-			ipcRenderer.invoke("update-song-tags", { songId, tags }),
-		validateTagChanges: (tags: Record<string, unknown>) =>
-			ipcRenderer.invoke("validate-tag-changes", tags),
-		getFromFile: (filePath: string) => ipcRenderer.invoke("get-tags-from-file", filePath),
-		updateToFile: (filePath: string, tags: Record<string, unknown>) =>
-			ipcRenderer.invoke("update-tags-to-file", { filePath, tags }),
-	},
-
-	online: {
-		searchMetadata: (searchParams: Record<string, unknown>) =>
-			ipcRenderer.invoke("search-online-metadata", searchParams),
-	},
-
-	download: {
-		saveSongWithMetadata: (options: Record<string, unknown>) => ipcRenderer.invoke("download-song-with-metadata", options),
-		saveSongToDir: (options: Record<string, unknown>) => ipcRenderer.invoke("download-song-to-dir", options),
-	},
-}
-
-/**
- * IPC 调用辅助 — 解包 { success, data, error } 格式
- * 成功时返回 data，失败时 reject(error)
- */
-async function invokeIPC<T>(channel: string, ...args: unknown[]): Promise<T> {
-	const result = await ipcRenderer.invoke(channel, ...args) as { success: boolean; data?: T; error?: string }
-	if (result.success === false) {
-		throw new Error(result.error || "IPC 调用失败")
-	}
-	return result.data as T
-}
-
-// 创建扁平化API结构以保持向后兼容性
+// 暴露给渲染进程的扁平化 API（与 sys_vue/src/types/electron.d.ts 的 ElectronAPI 声明一一对应）
 const compatAPI: Record<string, unknown> = {
-	scanMusic: API.scan.start,
-	cancelScan: API.scan.cancel,
-	onScanProgress: API.scan.onProgress,
+	// 扫描
+	scanMusic: (options: Record<string, unknown>) => ipcRenderer.invoke(CHANNELS.SCAN_MUSIC_START, options),
+	cancelScan: () => ipcRenderer.invoke(CHANNELS.SCAN_MUSIC_CANCEL),
+	onScanProgress: (callback: (...args: unknown[]) => void) => createListener(CHANNELS.SCAN_PROGRESS, callback),
 
 	// 歌曲数据
-	getSongs: API.songs.getAll,
-	getSongById: API.songs.getById,
-	parseSongFromFile: API.songs.parseFromFile,
-	incrementPlayCount: API.songs.incrementPlayCount,
-	deleteSong: API.songs.deleteSong,
+	getSongs: (options: Record<string, unknown>) => ipcRenderer.invoke(CHANNELS.GET_SONGS, options),
+	getSongById: (songId: string) => ipcRenderer.invoke(CHANNELS.GET_SONG_BY_ID, songId),
+	parseSongFromFile: (filePath: string) => ipcRenderer.invoke(CHANNELS.PARSE_SONG_FROM_FILE, filePath),
+	incrementPlayCount: (songId: string) => ipcRenderer.invoke(CHANNELS.INCREMENT_PLAY_COUNT, songId),
+	deleteSong: (songId: string) => ipcRenderer.invoke(CHANNELS.DELETE_SONG, songId),
 
 	// 目录选择
-	selectDirectory: API.library.selectDirectory,
+	selectDirectory: () => ipcRenderer.invoke(CHANNELS.SELECT_DIRECTORY),
 
 	// 音乐库
-	getLibraries: API.library.getAll,
-	addLibrary: API.library.add,
-	removeLibrary: API.library.remove,
-	updateLibrary: API.library.update,
+	getLibraries: () => ipcRenderer.invoke(CHANNELS.GET_LIBRARIES),
+	addLibrary: (options: Record<string, unknown>) => ipcRenderer.invoke(CHANNELS.ADD_LIBRARY, options),
+	removeLibrary: (options: Record<string, unknown>) => ipcRenderer.invoke(CHANNELS.REMOVE_LIBRARY, options),
+	updateLibrary: (options: Record<string, unknown>) => ipcRenderer.invoke(CHANNELS.UPDATE_LIBRARY, options),
 
 	// 封面
-	getSongCover: API.cover.get,
-	forceExtractCover: API.cover.forceExtract,
-	getCoverFromFile: API.cover.getFromFile,
+	getSongCover: (songId: string) => ipcRenderer.invoke(CHANNELS.GET_SONG_COVER, songId),
+	forceExtractCover: (songId: string) => ipcRenderer.invoke(CHANNELS.FORCE_EXTRACT_COVER, songId),
+	getCoverFromFile: (filePath: string) => ipcRenderer.invoke(CHANNELS.GET_COVER_FROM_FILE, filePath),
 
 	// 歌词
-	getLyrics: API.lyrics.get,
+	getLyrics: (songId: string) => ipcRenderer.invoke(CHANNELS.GET_LYRICS, songId),
 
 	// 文件系统
-	showItemInFolder: API.file.showInFolder,
-	copyToClipboard: API.file.copyToClipboard,
-	showOpenDialog: API.file.showOpenDialog,
-	getPathForFile: API.file.getPathForFile,
-
-	// 播放器
-	playerPlay: API.player.play,
-	playerStop: API.player.stop,
-	playerSeek: API.player.seek,
-	playerGetStatus: API.player.getStatus,
-	onPlayerEnded: API.player.onEnded,
-	onPlayerError: API.player.onError,
-	onPlayerAudioData: API.player.onAudioData,
+	showItemInFolder: (filePath: string) => ipcRenderer.invoke(CHANNELS.SHOW_ITEM_IN_FOLDER, filePath),
+	copyToClipboard: (text: string) => ipcRenderer.invoke(CHANNELS.COPY_TO_CLIPBOARD, text),
+	showOpenDialog: (options?: Record<string, unknown>) => ipcRenderer.invoke(CHANNELS.SHOW_OPEN_DIALOG, options),
+	getPathForFile: (file: File) => ipcRenderer.invoke(CHANNELS.GET_PATH_FOR_FILE, file),
 
 	// 播放列表
-	getPlaylists: API.playlist.getAll,
-	getPlaylistById: API.playlist.getById,
-	createPlaylist: API.playlist.create,
-	updatePlaylist: API.playlist.update,
-	deletePlaylist: API.playlist.delete,
-	addSongsToPlaylist: API.playlist.addSongs,
-	removeSongsFromPlaylist: API.playlist.removeSongs,
+	getPlaylists: () => ipcRenderer.invoke(CHANNELS.GET_PLAYLISTS),
+	getPlaylistById: (playlistId: string) => ipcRenderer.invoke(CHANNELS.GET_PLAYLIST_BY_ID, playlistId),
+	createPlaylist: (playlistData: Record<string, unknown>) => ipcRenderer.invoke(CHANNELS.CREATE_PLAYLIST, playlistData),
+	updatePlaylist: (playlistId: string, playlistData: Record<string, unknown>) =>
+		ipcRenderer.invoke(CHANNELS.UPDATE_PLAYLIST, playlistId, playlistData),
+	deletePlaylist: (playlistId: string) => ipcRenderer.invoke(CHANNELS.DELETE_PLAYLIST, playlistId),
+	addSongsToPlaylist: (playlistId: string, songIds: string[]) =>
+		ipcRenderer.invoke(CHANNELS.ADD_SONGS_TO_PLAYLIST, playlistId, songIds),
+	removeSongsFromPlaylist: (playlistId: string, songIds: string[]) =>
+		ipcRenderer.invoke(CHANNELS.REMOVE_SONGS_FROM_PLAYLIST, playlistId, songIds),
 
-	// 导航
-	onNavigateToMain: API.navigation.onNavigateToMain,
-
-	// 文件打开
-	onOpenAudioFile: API.fileOpen.onOpenAudioFile,
+	// 文件打开（主进程 → 渲染进程）
+	onOpenAudioFile: (callback: (...args: unknown[]) => void) =>
+		createListener(CHANNELS.OPEN_AUDIO_FILE, callback),
 
 	// 窗口控制
-	windowMinimize: API.window.minimize,
-	windowMaximize: API.window.maximize,
-	windowRestore: API.window.restore,
-	windowClose: API.window.close,
-	showWindow: API.window.show,
-	isWindowMaximized: API.window.isMaximized,
-	onWindowMaximizedChange: API.window.onMaximizedChange,
-	setCloseBehavior: API.window.setCloseBehavior,
-	getCloseBehavior: API.window.getCloseBehavior,
+	windowMinimize: () => ipcRenderer.invoke(CHANNELS.WINDOW_MINIMIZE),
+	windowMaximize: () => ipcRenderer.invoke(CHANNELS.WINDOW_MAXIMIZE),
+	windowRestore: () => ipcRenderer.invoke(CHANNELS.WINDOW_RESTORE),
+	windowClose: () => ipcRenderer.invoke(CHANNELS.WINDOW_CLOSE),
+	showWindow: () => ipcRenderer.invoke(CHANNELS.WINDOW_SHOW),
+	isWindowMaximized: () => ipcRenderer.invoke(CHANNELS.IS_WINDOW_MAXIMIZED),
+	onWindowMaximizedChange: (callback: (...args: unknown[]) => void) =>
+		createListener(CHANNELS.WINDOW_MAXIMIZED_CHANGE, callback),
+	setCloseBehavior: (behavior: string) => ipcRenderer.invoke(CHANNELS.SET_CLOSE_BEHAVIOR, behavior),
+	getCloseBehavior: () => ipcRenderer.invoke(CHANNELS.GET_CLOSE_BEHAVIOR),
 
 	// 标签编辑
-	getSongTags: API.tags.getSongTags,
-	updateSongTags: API.tags.updateSongTags,
-	validateTagChanges: API.tags.validateTagChanges,
-	getTagsFromFile: API.tags.getFromFile,
-	updateTagsToFile: API.tags.updateToFile,
+	getSongTags: (songId: string) => ipcRenderer.invoke(CHANNELS.GET_SONG_TAGS, songId),
+	updateSongTags: (songId: string, tags: Record<string, unknown>) =>
+		ipcRenderer.invoke(CHANNELS.UPDATE_SONG_TAGS, { songId, tags }),
+	validateTagChanges: (tags: Record<string, unknown>) =>
+		ipcRenderer.invoke(CHANNELS.VALIDATE_TAG_CHANGES, tags),
+	getTagsFromFile: (filePath: string) => ipcRenderer.invoke(CHANNELS.GET_TAGS_FROM_FILE, filePath),
+	updateTagsToFile: (filePath: string, tags: Record<string, unknown>) =>
+		ipcRenderer.invoke(CHANNELS.UPDATE_TAGS_TO_FILE, { filePath, tags }),
 
 	// 音乐导入
-	importMusicFiles: API.songs.import,
+	importMusicFiles: (filePaths: string[]) => ipcRenderer.invoke(CHANNELS.IMPORT_MUSIC_FILES, filePaths),
 
 	// 歌曲管理
-	clearAllSongs: API.songs.clearAll,
+	clearAllSongs: () => ipcRenderer.invoke(CHANNELS.CLEAR_ALL_SONGS),
 
 	// 在线搜索
-	searchOnlineMetadata: API.online.searchMetadata,
+	searchOnlineMetadata: (searchParams: Record<string, unknown>) =>
+		ipcRenderer.invoke(CHANNELS.SEARCH_ONLINE_METADATA, searchParams),
 
 	// 文件下载（带元数据嵌入）
-	downloadSongWithMetadata: API.download.saveSongWithMetadata,
+	downloadSongWithMetadata: (options: Record<string, unknown>) =>
+		ipcRenderer.invoke(CHANNELS.DOWNLOAD_SONG_WITH_METADATA, options),
 
 	// 批量下载（选择目录, 不弹保存对话框）
-	downloadSongToDir: API.download.saveSongToDir,
+	downloadSongToDir: (options: Record<string, unknown>) =>
+		ipcRenderer.invoke(CHANNELS.DOWNLOAD_SONG_TO_DIR, options),
 }
 
 // 安全地暴露主进程的API给渲染进程

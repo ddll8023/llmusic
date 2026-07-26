@@ -1,4 +1,6 @@
 """QQ音乐数据模型"""
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -34,7 +36,7 @@ class SongItem(BaseModel):
     genre: str = Field(default="", description="流派")
     lan: str = Field(default="", description="语言")
     createTime: str = Field(default="", description="发行时间")
-    album: AlbumInfo = Field(default=AlbumInfo(), description="专辑信息")
+    album: AlbumInfo = Field(default_factory=AlbumInfo, description="专辑信息")
     duration: str = Field(default="", description="时长 mm:ss")
     songUrl: SongUrlInfo | None = Field(default=None, description="歌曲播放链接")
 
@@ -44,7 +46,7 @@ class SongItem(BaseModel):
 
 class SearchRequest(BaseModel):
     requestId: str = Field(default="0", description="请求 ID 用于跟踪")
-    urlType: str = Field(..., description="链接类型: song 或 playlist")
+    urlType: Literal["song", "playlist"] = Field(..., description="链接类型: song 或 playlist")
     searchUrl: str = Field(..., description="QQ 音乐分享链接")
     page: int = Field(default=1, ge=1, description="页码")
     pageSize: int = Field(default=10, ge=1, le=100, description="每页数量")
@@ -52,12 +54,12 @@ class SearchRequest(BaseModel):
 
 class AlbumImgRequest(BaseModel):
     requestId: str = Field(default="0", description="请求 ID 用于跟踪")
-    albumIdList: list[str] = Field(..., description="专辑 MID 列表")
+    albumIdList: list[str] = Field(..., max_length=200, description="专辑 MID 列表")
 
 
 class SongUrlRequest(BaseModel):
     requestId: str = Field(default="0", description="请求 ID 用于跟踪")
-    songIdList: list[str] = Field(..., description="歌曲 MID 列表")
+    songIdList: list[str] = Field(..., max_length=200, description="歌曲 MID 列表")
 
 
 class KeywordSearchRequest(BaseModel):
@@ -73,6 +75,7 @@ class GetUserLikedRequest(BaseModel):
 
 
 class GetPlaylistSongsRequest(BaseModel):
+    requestId: str = Field(default="0", description="请求 ID 用于跟踪")
     page: int = Field(default=1, ge=1, description="页码")
     pageSize: int = Field(default=20, ge=1, le=100, description="每页数量")
 
@@ -91,21 +94,21 @@ class SongDownloadBundleRequest(BaseModel):
 
 
 class UserPlaylistsResponse(BaseModel):
-    playlists: list[QMPlaylistItem] = Field(default=[], description="用户创建的歌单列表")
+    playlists: list[QMPlaylistItem] = Field(default_factory=list, description="用户创建的歌单列表")
     total: int = Field(default=0, description="歌单总数")
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class LikedSongsResponse(BaseModel):
-    result: list[SongItem] = Field(default=[], description="用户喜欢的歌曲列表")
+    result: list[SongItem] = Field(default_factory=list, description="用户喜欢的歌曲列表")
     total: int = Field(default=0, description="歌曲总数")
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class PlaylistSongsResponse(BaseModel):
-    result: list[SongItem] = Field(default=[], description="歌单歌曲列表")
+    result: list[SongItem] = Field(default_factory=list, description="歌单歌曲列表")
     total: int = Field(default=0, description="歌曲总数")
     requestId: str = Field(default="", description="请求 ID")
 
@@ -113,7 +116,7 @@ class PlaylistSongsResponse(BaseModel):
 
 
 class SearchResponse(BaseModel):
-    result: list[SongItem] = Field(default=[], description="搜索结果列表")
+    result: list[SongItem] = Field(default_factory=list, description="搜索结果列表")
     total: int = Field(default=0, description="结果总数")
     requestId: str = Field(default="", description="请求 ID")
 
@@ -122,7 +125,7 @@ class SearchResponse(BaseModel):
 
 class AlbumImgResponse(BaseModel):
     requestId: str = Field(default="", description="请求 ID")
-    result: list[str] = Field(default=[], description="封面 URL 列表")
+    result: list[str] = Field(default_factory=list, description="封面 URL 列表")
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -136,7 +139,7 @@ class SongUrlItem(BaseModel):
 
 class SongUrlResponse(BaseModel):
     requestId: str = Field(default="", description="请求 ID")
-    result: list[SongUrlItem] = Field(default=[], description="歌曲 URL 列表")
+    result: list[SongUrlItem] = Field(default_factory=list, description="歌曲 URL 列表")
 
     model_config = ConfigDict(from_attributes=True)
 

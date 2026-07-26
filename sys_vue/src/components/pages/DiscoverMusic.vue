@@ -7,6 +7,7 @@ import { computed, ref } from 'vue'
 import { useDiscoverStore } from '../../store/discover'
 import { usePlayerStore } from '../../store/player'
 import { useAuthStore } from '../../store/auth'
+import { useNotificationStore } from '../../store/notification'
 import BaseSongTable from '../business/BaseSongTable.vue'
 import PaginationBar from '../common/PaginationBar.vue'
 import CustomSelect from '../custom/CustomSelect.vue'
@@ -18,6 +19,7 @@ import FAIcon from '../common/FAIcon.vue'
 const discoverStore = useDiscoverStore()
 const playerStore = usePlayerStore()
 const authStore = useAuthStore()
+const notification = useNotificationStore()
 
 // ── 官方 Tab ──
 const isLoggedIn = computed(() => authStore.isLoggedIn)
@@ -63,12 +65,33 @@ function handleOfficialSelectionChange(songs: any) {
   officialSelectedSongs.value = songs
 }
 
+/** 下载 IPC 返回结构（warning：元数据写入失败但已保存纯音频） */
+type DownloadResult = IpcResult<{ filePath?: string; warning?: string }>
+
 async function handleOfficialDownload(song: any) {
-  await discoverStore.downloadSong(song)
+  try {
+    const result = (await discoverStore.downloadSong(song)) as DownloadResult | undefined
+    if (!result) return
+    if (result.success) {
+      if (result.warning) {
+        notification.warning(result.warning)
+      } else {
+        notification.success(result.filePath ? `已保存到 ${result.filePath}` : '下载完成')
+      }
+    } else if (!result.canceled) {
+      notification.error(`下载失败: ${result.error || '未知错误'}`)
+    }
+  } catch (e) {
+    notification.notifyError(e)
+  }
 }
 
 async function handleOfficialBatchDownload(songs: any) {
-  await discoverStore.batchDownload(songs)
+  try {
+    await discoverStore.batchDownload(songs)
+  } catch (e) {
+    notification.notifyError(e)
+  }
 }
 
 function handleCloseBatchProgress() {
@@ -80,15 +103,6 @@ function handleCloseBatchProgress() {
     items: [],
     active: false,
   }
-}
-
-// ── 通用 ──
-function showToast(msg: string) {
-  const el = document.createElement('div')
-  el.className = 'fixed bottom-20 left-1/2 -translate-x-1/2 z-[9999] px-4 py-2 rounded-lg text-sm shadow-lg bg-surface-elevated border border-line-base text-content-base transition-all duration-300'
-  el.textContent = msg
-  document.body.appendChild(el)
-  setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300) }, 2500)
 }
 
 </script>
@@ -138,8 +152,9 @@ function showToast(msg: string) {
     <!-- ═══ 内容区 ═══ -->
     <main class="flex-1 overflow-hidden flex flex-col">
         <BaseSongTable mode="online"
-          :songs="discoverStore.searchResults as any"
+          :songs="discoverStore.searchResults"
           :start-index="(discoverStore.page - 1) * discoverStore.pageSize + 1"
+          :page-size="discoverStore.pageSize"
           :downloading-ids="discoverStore.downloadingIds"
           :loading="discoverStore.loading"
           :loading-text="stepText"

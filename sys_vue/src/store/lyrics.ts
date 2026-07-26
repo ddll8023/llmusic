@@ -150,9 +150,8 @@ export const useLyricsStore = defineStore("lyrics", {
 				const res = await getSongDownloadBundle(String(Date.now()), songMid)
 				const playerStore = usePlayerStore()
 				if (playerStore.onlineSongMid !== songMid) return
-				const data = res.data as { lyrics?: string }
-				if (data?.lyrics) {
-					this.loadOnlineLyrics(data.lyrics)
+				if (res.data?.lyrics) {
+					this.loadOnlineLyrics(res.data.lyrics)
 				}
 			} catch {
 				// 歌词加载失败不阻塞播放

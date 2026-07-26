@@ -8,7 +8,8 @@ const isMaximized = ref(false);
 let removeListener: (() => void) | null = null;
 
 onMounted(async () => {
-  isMaximized.value = await window.electronAPI.isWindowMaximized();
+  const result = await window.electronAPI.isWindowMaximized();
+  isMaximized.value = !!result.maximized;
   removeListener = window.electronAPI.onWindowMaximizedChange((maximized) => { isMaximized.value = maximized; });
 });
 

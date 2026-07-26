@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import type { Song } from '@/types'
+import { audioEngine, localSongUrl } from '@/core/audio/engine'
 import { useMediaStore } from './media'
 import { useLyricsStore } from './lyrics'
 
@@ -34,8 +35,10 @@ export const usePlayerStore = defineStore('player', {
 		currentSong: null as Song | null,
 		playing: false,
 		currentTime: 0,
+		duration: 0,
 		volume: 0.7,
 		muted: false,
+		playbackError: '' as string,
 		playMode: PlayMode.SEQUENCE as PlayMode,
 		playlist: [] as string[],
 		currentListId: null as string | null,
@@ -50,6 +53,7 @@ export const usePlayerStore = defineStore('player', {
 		onlineSongName: '',
 		onlineSinger: '',
 		onlineSongMid: '',
+		onlineCoverUrl: '',
 		onlinePlayQueue: [] as OnlineSongInfo[],
 		onlinePlayIndex: -1,
 		onlineShuffleQueue: [] as number[],
@@ -58,14 +62,46 @@ export const usePlayerStore = defineStore('player', {
 
 	getters: {
 		hasCurrentSong: (state) => state.currentSong !== null,
-
-		progress: (state): number => {
-			if (!state.currentSong || !state.currentSong.duration) return 0
-			return state.currentTime / state.currentSong.duration
-		},
 	},
 
 	actions: {
+		// ── 引擎接线 ──
+		/** 绑定音频引擎回调并同步音量状态，应用启动时调用一次 */
+		attachEngine() {
+			audioEngine.setCallbacks({
+				onEnded: () => { void this._handlePlaybackEnded() },
+				onTimeUpdate: (time) => this.updateCurrentTime(time),
+				onDurationChange: (duration) => { this.duration = duration },
+				onError: (message) => {
+					this.playbackError = message
+					this.playing = false
+				},
+			})
+			audioEngine.setVolume(this.volume)
+			audioEngine.setMuted(this.muted)
+		},
+
+		/** 恢复会话后按暂停状态装载上次的歌曲与进度 */
+		restorePlayback() {
+			if (this.isOnlineSong || !this.currentSong) return
+			audioEngine.load(localSongUrl(this.currentSong.id), false)
+			this.duration = this.currentSong.duration || 0
+			if (this.currentTime > 0) {
+				audioEngine.seek(this.currentTime)
+			}
+		},
+
+		async _handlePlaybackEnded() {
+			if (this.playMode === PlayMode.REPEAT_ONE) {
+				await this.incrementCurrentSongPlayCount()
+				this.currentTime = 0
+				audioEngine.seek(0)
+				void audioEngine.play()
+				return
+			}
+			this.playNext(true)
+		},
+
 		// ── 队列管理 ──
 		generateShuffleQueue() {
 			if (this.playlist.length === 0) {
@@ -87,7 +123,7 @@ export const usePlayerStore = defineStore('player', {
 			this.playlist.splice(index, 1)
 			if (this.playlist.length === 0) {
 				this.currentSong = null
-				this.playing = false
+				this.setPlaying(false)
 				this.currentIndex = -1
 			} else if (index <= this.currentIndex) {
 				this.currentIndex = Math.max(0, this.currentIndex - 1)
@@ -101,19 +137,22 @@ export const usePlayerStore = defineStore('player', {
 			this.accumulatedPlayTime = 0
 			this.hasBeenCounted = false
 			this.isOnlineSong = false
-			window._onlineCoverUrl = ''
+			this.onlineCoverUrl = ''
+			this.playbackError = ''
 
 			let index = this.playlist.findIndex((id) => id === song.id)
 			if (index === -1) {
 				this.playlist.push(song.id)
 				index = this.playlist.length - 1
-				this.savePlayerState()
 			}
 
 			this.currentSong = song
 			this.playing = true
 			this.currentIndex = index
+			this.duration = song.duration || 0
 			this.savePlayerState()
+
+			audioEngine.load(localSongUrl(song.id), true)
 
 			// 委托歌词 Store 加载歌词
 			const lyricsStore = useLyricsStore()
@@ -143,41 +182,37 @@ export const usePlayerStore = defineStore('player', {
 		},
 
 		togglePlay() {
-			this.playing = !this.playing
+			this.setPlaying(!this.playing)
 		},
 
 		setPlaying(targetState: boolean) {
 			this.playing = targetState
+			if (targetState) {
+				void audioEngine.play()
+			} else {
+				audioEngine.pause()
+			}
 		},
 
 		stop() {
 			this.playing = false
 			this.currentSong = null
 			this.currentTime = 0
+			this.duration = 0
 			this.currentIndex = -1
 			this.playlist = []
 			this.onlinePlayQueue = []
 			this.onlinePlayIndex = -1
 			this.onlineShuffleQueue = []
 			this.onlineShuffleIndex = -1
+			audioEngine.stop()
 		},
 
 		seek(time: number) {
 			const t = Math.max(0, time)
 			this.currentTime = t
 			this._updateLyricsIndex(t)
-
-			if (window.sourceNode && window.audioContext && window.decodedAudioBuffer) {
-				try { window.sourceNode.onended = null; window.sourceNode.stop() } catch { /* ignore */ }
-				window.sourceNode = window.audioContext.createBufferSource()
-				window.sourceNode.buffer = window.decodedAudioBuffer
-				window.sourceNode.connect(window.gainNode)
-				window.sourceNode.onended = window.handleAudioEnded || null
-				window.sourceNode.start(0, Math.min(t, window.decodedAudioBuffer.duration))
-				window.songStartTimeInAc = window.audioContext.currentTime
-				window.songStartOffset = t
-				window.isAudioPlaying = true
-			}
+			audioEngine.seek(t)
 		},
 
 		playNext(auto = false) {
@@ -187,8 +222,8 @@ export const usePlayerStore = defineStore('player', {
 			}
 			if (this.playlist.length === 0) return
 			if (this.playMode === PlayMode.REPEAT_ONE && auto) {
-				this.currentTime = 0
-				this.playing = true
+				this.seek(0)
+				this.setPlaying(true)
 				return
 			}
 
@@ -213,7 +248,7 @@ export const usePlayerStore = defineStore('player', {
 			nextIndex = this.currentIndex + 1
 			if (nextIndex >= this.playlist.length) {
 				if (this.playMode === PlayMode.SEQUENCE && auto) {
-					this.playing = false
+					this.setPlaying(false)
 					return
 				}
 				nextIndex = 0
@@ -230,8 +265,8 @@ export const usePlayerStore = defineStore('player', {
 			if (this.onlinePlayQueue.length === 0) return
 
 			if (this.playMode === PlayMode.REPEAT_ONE && auto) {
-				this.currentTime = 0
-				this.playing = true
+				this.seek(0)
+				this.setPlaying(true)
 				return
 			}
 
@@ -253,7 +288,7 @@ export const usePlayerStore = defineStore('player', {
 				nextIndex = this.onlinePlayIndex + 1
 				if (nextIndex >= length) {
 					if (this.playMode === PlayMode.SEQUENCE && auto) {
-						this.playing = false
+						this.setPlaying(false)
 						return
 					}
 					nextIndex = 0
@@ -283,7 +318,7 @@ export const usePlayerStore = defineStore('player', {
 					nextIndex++
 					if (nextIndex >= length) {
 						if (this.playMode === PlayMode.SEQUENCE && auto) {
-							this.playing = false
+							this.setPlaying(false)
 							return
 						}
 						nextIndex = 0
@@ -291,7 +326,7 @@ export const usePlayerStore = defineStore('player', {
 				}
 			}
 
-			this.playing = false
+			this.setPlaying(false)
 		},
 
 		playPrevious() {
@@ -302,7 +337,7 @@ export const usePlayerStore = defineStore('player', {
 			if (this.playlist.length === 0) return
 
 			if (this.currentTime > 3) {
-				this.currentTime = 0
+				this.seek(0)
 				return
 			}
 
@@ -335,7 +370,7 @@ export const usePlayerStore = defineStore('player', {
 			if (this.onlinePlayQueue.length === 0) return
 
 			if (this.currentTime > 3) {
-				this.currentTime = 0
+				this.seek(0)
 				return
 			}
 
@@ -378,16 +413,18 @@ export const usePlayerStore = defineStore('player', {
 				}
 			}
 
-			this.playing = false
+			this.setPlaying(false)
 		},
 
 		// ── 音量 ──
 		setVolume(volume: number) {
 			this.volume = Math.max(0, Math.min(1, volume))
+			audioEngine.setVolume(this.volume)
 		},
 
 		setMuted(muted: boolean) {
 			this.muted = muted
+			audioEngine.setMuted(muted)
 		},
 
 		// ── 播放模式 ──
@@ -409,21 +446,19 @@ export const usePlayerStore = defineStore('player', {
 			const lines = lyricsStore.displayLines
 			if (!lines.length) return
 			const ms = time * 1000 + lyricsStore.syncOffset
-			let newIndex = -1
-			for (let i = lines.length - 1; i >= 0; i--) {
-				if (lines[i].time <= ms) {
-					newIndex = i
-					break
-				}
+
+			// 游标推进：正常播放时 O(1)，向后 seek 时从头重扫
+			let idx = lyricsStore.currentIndex
+			if (idx >= 0 && (idx >= lines.length || lines[idx].time > ms)) {
+				idx = -1
+			}
+			while (idx + 1 < lines.length && lines[idx + 1].time <= ms) {
+				idx++
 			}
 
-			if (newIndex !== lyricsStore.currentIndex) {
-				lyricsStore.setCurrentIndex(newIndex)
+			if (idx !== lyricsStore.currentIndex) {
+				lyricsStore.setCurrentIndex(idx)
 			}
-		},
-
-		updateSongDuration(_id: string, _duration: number) {
-			// 扩展用：更新单个歌曲的时长
 		},
 
 		// ── 播放计数 ──
@@ -459,6 +494,7 @@ export const usePlayerStore = defineStore('player', {
 			this.hasBeenCounted = false
 			this.isOnlineSong = true
 			this.currentSong = null
+			this.playbackError = ''
 
 			if (options?.queue) {
 				this.onlinePlayQueue = options.queue
@@ -483,12 +519,11 @@ export const usePlayerStore = defineStore('player', {
 			this.onlineSongName = info.songName
 			this.onlineSinger = info.singer
 			this.onlineSongMid = info.songMid || ''
+			this.onlineCoverUrl = info.coverUrl || ''
+			this.currentTime = 0
+			this.duration = 0
 			this.playing = true
-			window._onlineCoverUrl = info.coverUrl || ''
-			window._onlineAudioUrl = info.url || ''
-			if (window._playOnlineUrl && info.url) {
-				window._playOnlineUrl(info.url)
-			}
+			audioEngine.load(info.url, true)
 			const lyricsStore = useLyricsStore()
 			lyricsStore.loadOnlineLyricsByMid(this.onlineSongMid)
 		},
@@ -520,23 +555,7 @@ export const usePlayerStore = defineStore('player', {
 			const lyricsStore = useLyricsStore()
 			const line = lyricsStore.displayLines[index]
 			if (line) {
-				const seekTime = line.time / 1000
-				this.currentTime = seekTime
-				this._updateLyricsIndex(seekTime)
-
-				if (this.isOnlineSong && window._onlineAudio) {
-					window._onlineAudio.currentTime = seekTime
-				} else if (window.sourceNode && window.audioContext && window.decodedAudioBuffer) {
-					try { window.sourceNode.onended = null; window.sourceNode.stop() } catch { /* ignore */ }
-					window.sourceNode = window.audioContext.createBufferSource()
-					window.sourceNode.buffer = window.decodedAudioBuffer
-					window.sourceNode.connect(window.gainNode)
-					window.sourceNode.onended = window.handleAudioEnded || null
-					window.sourceNode.start(0, Math.min(seekTime, window.decodedAudioBuffer.duration))
-					window.songStartTimeInAc = window.audioContext.currentTime
-					window.songStartOffset = seekTime
-					window.isAudioPlaying = true
-				}
+				this.seek(line.time / 1000)
 			}
 		},
 
@@ -553,7 +572,7 @@ export const usePlayerStore = defineStore('player', {
 			const exists = mediaStore.songs.some((s) => s.id === this.currentSong!.id)
 			if (!exists) {
 				this.currentSong = null
-				this.playing = false
+				this.setPlaying(false)
 				this.currentTime = 0
 			}
 		},
@@ -574,14 +593,6 @@ export const usePlayerStore = defineStore('player', {
 					currentIndex: this.currentIndex,
 					shuffleQueue: this.shuffleQueue,
 					shuffleIndex: this.shuffleIndex,
-					isOnlineSong: this.isOnlineSong,
-					onlineSongName: this.onlineSongName,
-					onlineSinger: this.onlineSinger,
-					onlineSongMid: this.onlineSongMid,
-					onlinePlayQueue: this.onlinePlayQueue,
-					onlinePlayIndex: this.onlinePlayIndex,
-					onlineShuffleQueue: this.onlineShuffleQueue,
-					onlineShuffleIndex: this.onlineShuffleIndex,
 				}
 				localStorage.setItem('playerState', JSON.stringify(state))
 			} catch {
@@ -600,6 +611,7 @@ export const usePlayerStore = defineStore('player', {
 						this.onlineSongName = ''
 						this.onlineSinger = ''
 						this.onlineSongMid = ''
+						this.onlineCoverUrl = ''
 						this.onlinePlayQueue = []
 						this.onlinePlayIndex = -1
 						this.onlineShuffleQueue = []

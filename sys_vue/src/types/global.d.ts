@@ -8,31 +8,4 @@ declare module 'pinia' {
 	}
 }
 
-// PlayerBar 等组件在 window 上挂载的音频相关全局变量
-declare global {
-	interface Window {
-		sourceNode?: AudioBufferSourceNode | null
-		audioContext?: AudioContext | null
-		decodedAudioBuffer?: AudioBuffer | null
-		isAudioPlaying?: boolean
-		audioStartTime?: number
-		currentlyPlayingNode?: AudioBufferSourceNode | null
-		audioFileLoadInterval?: ReturnType<typeof setInterval> | null
-		audioDuration?: number
-		seekToTime?: number
-		isSeeking?: boolean
-		gainNode?: GainNode | null
-		songStartTimeInAc?: number
-		songStartOffset?: number
-		isPositionLocked?: boolean
-		positionLockTimeout?: ReturnType<typeof setTimeout> | null
-		isSeekingFromTimer?: boolean
-		_onlineAudio?: HTMLAudioElement | null
-		_onlineCoverUrl?: string
-		_onlineAudioUrl?: string
-		_playOnlineUrl?: (url: string) => void
-		webkitAudioContext?: typeof AudioContext
-	}
-}
-
 export {}

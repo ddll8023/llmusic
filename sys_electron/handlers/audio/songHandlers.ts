@@ -12,6 +12,7 @@ import {
 } from "../data/Database"
 import { isScanRunning } from "../scan/scanHandlers"
 import { coverCache } from "./coverHandlers"
+import { isAudioPath } from "../../utils/sanitizePath"
 import type { IpcHandlerModule } from "../../types"
 import type { Song } from "../../types/song"
 
@@ -44,6 +45,9 @@ function createSongHandlers(): IpcHandlerModule {
 		{
 			channel: CHANNELS.PARSE_SONG_FROM_FILE,
 			handler: async (_event: Electron.IpcMainInvokeEvent, filePath: string) => {
+				if (!isAudioPath(filePath)) {
+					return { success: false, error: "非法路径" }
+				}
 				try {
 					const song = await parseSongFromFile(filePath)
 					return song ? { success: true, song } : { success: false, error: "无法解析文件" }
@@ -173,36 +177,27 @@ function createSongHandlers(): IpcHandlerModule {
 						requestId: searchParams.requestId || Date.now().toString(),
 					})
 
-					const response = await net.fetch("http://127.0.0.1:9752/api/v1/song/searchByKeyword", {
+					const response = await net.fetch("http://127.0.0.1:9752/api/v1/qqmusic/song/search-by-keyword", {
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
 						body,
 					})
 
 					if (!response.ok) {
-						return { code: 500, data: [], message: `后端请求失败: ${response.status}` }
+						return { success: false, error: `后端请求失败: ${response.status}` }
 					}
 
 					const json = await response.json() as { code: number; data?: { result?: unknown[] }; message?: string }
 
 					if (json.code !== 0) {
-						return { code: 500, data: [], message: json.message || "搜索失败" }
+						return { success: false, error: json.message || "搜索失败" }
 					}
 
-					return {
-						code: 200,
-						data: json.data?.result || [],
-						message: "success",
-					}
+					return { success: true, results: json.data?.result || [] }
 				} catch (err) {
 					const error = err as Error
 					console.error("在线搜索失败:", error.message)
-					return {
-						code: 500,
-						data: [],
-						error: error.message,
-						message: "在线搜索服务暂时不可用，请确认后端已启动",
-					}
+					return { success: false, error: "在线搜索服务暂时不可用，请确认后端已启动" }
 				}
 			},
 		},

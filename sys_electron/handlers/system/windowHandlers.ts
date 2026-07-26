@@ -1,9 +1,19 @@
 import { promises as fs } from "fs"
+import path from "path"
 import { dialog, webUtils, shell, clipboard } from "electron"
 import { CHANNELS } from "../../constants/ipcChannels"
 import type { IpcHandlerModule } from "../../types"
 
-function createWindowHandlers(mainWindow: Electron.BrowserWindow): IpcHandlerModule {
+/** 窗口关闭行为的读写访问器（状态由 main.ts 的 appState 持有） */
+export interface CloseBehaviorAccessor {
+	get: () => string
+	set: (behavior: string) => boolean
+}
+
+function createWindowHandlers(
+	mainWindow: Electron.BrowserWindow,
+	closeBehavior: CloseBehaviorAccessor
+): IpcHandlerModule {
 	const handlers = [
 		{
 			channel: CHANNELS.SELECT_DIRECTORY,
@@ -25,78 +35,88 @@ function createWindowHandlers(mainWindow: Electron.BrowserWindow): IpcHandlerMod
 		{
 			channel: CHANNELS.WINDOW_MINIMIZE,
 			handler: () => {
-				if (mainWindow) {
-					mainWindow.minimize()
-					return true
-				}
-				return false
+				if (!mainWindow) return { success: false, error: "窗口不存在" }
+				mainWindow.minimize()
+				return { success: true }
 			},
 		},
 		{
 			channel: CHANNELS.WINDOW_MAXIMIZE,
 			handler: () => {
-				if (mainWindow) {
-					if (!mainWindow.isMaximized()) {
-						mainWindow.maximize()
-						mainWindow.webContents.send(CHANNELS.WINDOW_MAXIMIZED_CHANGE, true)
-					}
-					return true
+				if (!mainWindow) return { success: false, error: "窗口不存在" }
+				if (!mainWindow.isMaximized()) {
+					mainWindow.maximize()
+					mainWindow.webContents.send(CHANNELS.WINDOW_MAXIMIZED_CHANGE, true)
 				}
-				return false
+				return { success: true }
 			},
 		},
 		{
 			channel: CHANNELS.WINDOW_RESTORE,
 			handler: () => {
-				if (mainWindow) {
-					if (mainWindow.isMaximized()) {
-						mainWindow.restore()
-						mainWindow.webContents.send(CHANNELS.WINDOW_MAXIMIZED_CHANGE, false)
-					}
-					return true
+				if (!mainWindow) return { success: false, error: "窗口不存在" }
+				if (mainWindow.isMaximized()) {
+					mainWindow.restore()
+					mainWindow.webContents.send(CHANNELS.WINDOW_MAXIMIZED_CHANGE, false)
 				}
-				return false
+				return { success: true }
 			},
 		},
 		{
 			channel: CHANNELS.WINDOW_CLOSE,
 			handler: () => {
-				if (mainWindow) {
-					mainWindow.close()
-					return true
-				}
-				return false
+				if (!mainWindow) return { success: false, error: "窗口不存在" }
+				mainWindow.close()
+				return { success: true }
 			},
 		},
 		{
 			channel: CHANNELS.WINDOW_SHOW,
 			handler: () => {
-				if (mainWindow) {
-					if (mainWindow.isMinimized()) {
-						mainWindow.restore()
-					}
-					mainWindow.show()
-					mainWindow.focus()
-					return true
+				if (!mainWindow) return { success: false, error: "窗口不存在" }
+				if (mainWindow.isMinimized()) {
+					mainWindow.restore()
 				}
-				return false
+				mainWindow.show()
+				mainWindow.focus()
+				return { success: true }
 			},
 		},
 		{
 			channel: CHANNELS.IS_WINDOW_MAXIMIZED,
 			handler: () => {
-				if (mainWindow) {
-					return mainWindow.isMaximized()
+				if (!mainWindow) return { success: false, error: "窗口不存在" }
+				return { success: true, maximized: mainWindow.isMaximized() }
+			},
+		},
+		{
+			channel: CHANNELS.SET_CLOSE_BEHAVIOR,
+			handler: (_event: Electron.IpcMainInvokeEvent, behavior: string) => {
+				if (!closeBehavior.set(behavior)) {
+					return { success: false, error: `无效的关闭行为: ${behavior}` }
 				}
-				return false
+				return { success: true, behavior }
+			},
+		},
+		{
+			channel: CHANNELS.GET_CLOSE_BEHAVIOR,
+			handler: () => {
+				return { success: true, behavior: closeBehavior.get() }
 			},
 		},
 		{
 			channel: CHANNELS.SHOW_ITEM_IN_FOLDER,
 			handler: async (_event: Electron.IpcMainInvokeEvent, filePath: string) => {
+				// 要求绝对路径且文件存在
+				if (!filePath || typeof filePath !== "string" || !path.isAbsolute(filePath)) {
+					return { success: false, error: "非法路径" }
+				}
 				try {
-					if (!filePath) return { success: false, error: "未提供文件路径" }
 					await fs.access(filePath)
+				} catch {
+					return { success: false, error: "非法路径" }
+				}
+				try {
 					await shell.showItemInFolder(filePath)
 					return { success: true }
 				} catch (err) {

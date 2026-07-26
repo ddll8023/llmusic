@@ -15,7 +15,6 @@ export const CHANNELS = {
 	WINDOW_SHOW: "window-show",
 	IS_WINDOW_MAXIMIZED: "is-window-maximized",
 	WINDOW_MAXIMIZED_CHANGE: "window-maximized-change",
-	NAVIGATE_TO_MAIN: "navigate-to-main",
 
 	// --- 扫描相关 ---
 	SCAN_MUSIC_START: "scan-music-start",
@@ -32,15 +31,6 @@ export const CHANNELS = {
 	CLEAR_ALL_SONGS: "clear-all-songs",
 	INCREMENT_PLAY_COUNT: "increment-play-count",
 	DELETE_SONG: "delete-song",
-
-	// --- 播放控制 ---
-	PLAYER_PLAY: "player-play",
-	PLAYER_STOP: "player-stop",
-	PLAYER_SEEK: "player-seek",
-	PLAYER_GET_STATUS: "player-get-status",
-	PLAYER_AUDIO_DATA: "player-audio-data",
-	PLAYER_ENDED: "player-ended",
-	PLAYER_ERROR: "player-error",
 
 	// --- 文件 & 剪贴板 ---
 	SHOW_ITEM_IN_FOLDER: "show-item-in-folder",
@@ -95,5 +85,8 @@ export const CHANNELS = {
 	// --- 直接从文件获取和更新标签 ---
 	GET_TAGS_FROM_FILE: "get-tags-from-file",
 	UPDATE_TAGS_TO_FILE: "update-tags-to-file",
+
+	// --- 外部文件打开（主进程 → 渲染进程） ---
+	OPEN_AUDIO_FILE: "open-audio-file",
 
 } as const

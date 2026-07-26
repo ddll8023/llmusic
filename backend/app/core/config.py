@@ -3,10 +3,10 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    APP_HOST: str = "127.0.0.1"
-    APP_PORT: int = 9752
-    APP_CORS_ORIGINS: list[str] = ["http://localhost:9753"]
-    APP_LOG_LEVEL: str = "INFO"
+    host: str = "127.0.0.1"
+    port: int = 9752
+    cors_origins: list[str] = ["http://localhost:9753"]
+    log_level: str = "INFO"
 
     model_config = {"env_prefix": "APP_", "env_file": ".env"}
 

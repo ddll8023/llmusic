@@ -1,9 +1,26 @@
-import { parentPort } from "worker_threads"
+import { parentPort, workerData } from "worker_threads"
 import { promises as fs } from "fs"
 import path from "path"
-import { parseFile, type IAudioMetadata } from "music-metadata"
+import { parseFile } from "music-metadata"
 import { v4 as uuidv4 } from "uuid"
 import { SUPPORTED_AUDIO_EXTENSIONS } from "../../constants/formats"
+import { extractLyrics } from "../../utils/lyrics"
+
+/** 增量扫描：库中已有文件映射（filePath → { id, modifiedAt }），全量重扫时为 undefined */
+interface ExistingFileEntry {
+	id: string
+	modifiedAt: number | null
+}
+
+const existingFiles: Record<string, ExistingFileEntry> | undefined = (
+	workerData as { existingFiles?: Record<string, ExistingFileEntry> } | undefined
+)?.existingFiles
+
+/** 扫描失败文件记录 */
+interface FailedFile {
+	path: string
+	reason: string
+}
 
 /**
  * 扫描状态控制
@@ -14,6 +31,8 @@ const scanState = {
 		fileReporting: 100,
 		metadataParsing: 20,
 	},
+	failedFiles: [] as FailedFile[],
+	skippedCount: 0,
 }
 
 /**
@@ -72,6 +91,8 @@ async function scanDirectory(dirPath: string, libraryId: string): Promise<void> 
 	}
 
 	scanState.isCanceled = false
+	scanState.failedFiles = []
+	scanState.skippedCount = 0
 
 	reportProgress("starting", `开始扫描目录: ${dirPath}`)
 
@@ -82,7 +103,7 @@ async function scanDirectory(dirPath: string, libraryId: string): Promise<void> 
 			if (parentPort) {
 				parentPort.postMessage({
 					type: "complete",
-					data: { songs: [] },
+					data: { songs: [], failedFiles: scanState.failedFiles, skippedCount: 0 },
 				})
 			}
 			return
@@ -97,7 +118,11 @@ async function scanDirectory(dirPath: string, libraryId: string): Promise<void> 
 		if (parentPort) {
 			parentPort.postMessage({
 				type: "complete",
-				data: { songs },
+				data: {
+					songs,
+					failedFiles: scanState.failedFiles,
+					skippedCount: scanState.skippedCount,
+				},
 			})
 		}
 	} catch (error) {
@@ -148,8 +173,12 @@ async function findAllAudioFiles(dirPath: string): Promise<string[]> {
 					}
 				}
 			}
-		} catch {
-			// 继续处理其他目录
+		} catch (error) {
+			// 目录读取失败：记录后继续处理其他目录
+			scanState.failedFiles.push({
+				path: currentPath,
+				reason: `目录读取失败: ${(error as Error).message}`,
+			})
 		}
 	}
 
@@ -207,26 +236,31 @@ async function parseAudioFiles(filePaths: string[], libraryId: string): Promise<
 
 		const batch = filePaths.slice(i, i + batchSize)
 
-		try {
-			const batchResults = await Promise.allSettled(
-				batch.map((filePath) => parseAudioFile(filePath, libraryId))
-			)
+		const batchResults = await Promise.allSettled(
+			batch.map((filePath) => parseAudioFile(filePath, libraryId))
+		)
 
-			for (const result of batchResults) {
-				if (result.status === "fulfilled" && result.value) {
+		for (let j = 0; j < batchResults.length; j++) {
+			const result = batchResults[j]
+			if (result.status === "fulfilled") {
+				if (result.value) {
 					songs.push(result.value)
 				}
+			} else {
+				// parseAudioFile 内部已 catch，此分支为极端兜底
+				scanState.failedFiles.push({
+					path: batch[j],
+					reason: String(result.reason),
+				})
 			}
-
-			processed += batch.length
-			const progressPercentage = Math.round((processed / total) * 100)
-			reportProgress("parsing_metadata", `正在解析元数据... ${processed}/${total} (${progressPercentage}%)`, {
-				processed,
-				total,
-			})
-		} catch (error) {
-			console.error("批量处理文件时出错:", error)
 		}
+
+		processed += batch.length
+		const progressPercentage = Math.round((processed / total) * 100)
+		reportProgress("parsing_metadata", `正在解析元数据... ${processed}/${total} (${progressPercentage}%)`, {
+			processed,
+			total,
+		})
 	}
 
 	return songs
@@ -234,21 +268,30 @@ async function parseAudioFiles(filePaths: string[], libraryId: string): Promise<
 
 /**
  * 解析单个音频文件
+ * 增量扫描：mtime 与库中记录一致的文件跳过解析（复用已有记录，不上报）
  */
 async function parseAudioFile(filePath: string, libraryId: string): Promise<ParsedSong | null> {
 	if (!filePath || typeof filePath !== "string") {
-		console.error("无效的文件路径")
 		return null
 	}
 
 	try {
+		const stats = await fs.stat(filePath)
+
+		// 增量跳过：文件未变更则不重新解析
+		if (existingFiles) {
+			const existing = existingFiles[filePath]
+			if (existing && existing.modifiedAt !== null && existing.modifiedAt === stats.mtime.getTime()) {
+				scanState.skippedCount++
+				return null
+			}
+		}
+
 		const metadata = await parseFile(filePath, {
 			skipCovers: false,
 			skipPostHeaders: true,
 			includeChapters: false,
 		})
-
-		const stats = await fs.stat(filePath)
 
 		const hasCover = !!(metadata.common.picture && metadata.common.picture.length > 0)
 
@@ -284,161 +327,9 @@ async function parseAudioFile(filePath: string, libraryId: string): Promise<Pars
 			addedAt: new Date().toISOString(),
 		}
 	} catch (error) {
-		console.error(`解析文件失败: ${filePath}`, (error as Error).message)
+		const reason = (error as Error).message || String(error)
+		console.error(`解析文件失败: ${filePath}`, reason)
+		scanState.failedFiles.push({ path: filePath, reason })
 		return null
 	}
-}
-
-interface LyricsExtractResult {
-	lyrics: string | null
-	hasLyrics: boolean
-}
-
-/**
- * 从元数据中提取歌词
- */
-async function extractLyrics(metadata: IAudioMetadata, filePath: string): Promise<LyricsExtractResult> {
-	let lyrics: string | null = null
-	let hasLyrics = false
-
-	// 1. 尝试提取嵌入式歌词 (ID3v2 USLT标签)
-	if (metadata.native?.ID3v2) {
-		const usltFrames = metadata.native.ID3v2.filter((frame: { id: string }) => frame.id === "USLT")
-		if (usltFrames && usltFrames.length > 0) {
-			lyrics = extractTextFromFrame(usltFrames[0])
-			if (lyrics) {
-				hasLyrics = true
-				return { lyrics, hasLyrics }
-			}
-		}
-	}
-
-	// 1.5 尝试提取 VorbisComment 原生歌词 (FLAC/OGG 等)
-	if (!hasLyrics && metadata.native?.vorbis) {
-		const lyricsFrames = metadata.native.vorbis.filter((frame: { id: string }) => frame.id === "LYRICS")
-		if (lyricsFrames && lyricsFrames.length > 0) {
-			lyrics = String(lyricsFrames[0].value)
-			if (lyrics) {
-				hasLyrics = true
-				return { lyrics, hasLyrics }
-			}
-		}
-	}
-
-	// 2. 检查其他格式的歌词
-	const common = metadata.common
-	if (!hasLyrics && common.lyrics) {
-		lyrics = extractLyricsFromCommon(common.lyrics)
-		if (lyrics) {
-			hasLyrics = true
-			return { lyrics, hasLyrics }
-		}
-	}
-
-	// 3. 尝试在相同目录查找LRC文件
-	if (!hasLyrics) {
-		const lrcPath = filePath.substring(0, filePath.lastIndexOf(".")) + ".lrc"
-		try {
-			const lrcStat = await fs.stat(lrcPath)
-			if (lrcStat.isFile()) {
-				lyrics = await fs.readFile(lrcPath, "utf-8")
-				hasLyrics = !!lyrics
-			}
-		} catch {
-			// LRC文件不存在，忽略
-		}
-	}
-
-	return { lyrics, hasLyrics }
-}
-
-/**
- * 从ID3v2帧中提取文本
- */
-function extractTextFromFrame(frame: any): string | null {
-	if (!frame || !frame.value) return null
-
-	if (typeof frame.value.text === "string") {
-		return frame.value.text
-	} else if (typeof frame.value.text === "object" && frame.value.text !== null) {
-		const textObj = frame.value.text as { text?: string }
-		if (textObj.text) {
-			return textObj.text
-		} else {
-			try {
-				return JSON.stringify(textObj)
-			} catch {
-				return "无法解析的歌词对象"
-			}
-		}
-	}
-	return null
-}
-
-/**
- * 从common.lyrics中提取歌词
- */
-function extractLyricsFromCommon(lyrics: string | unknown[] | Record<string, unknown>): string | null {
-	if (!lyrics) return null
-
-	if (Array.isArray(lyrics)) {
-		const lyricsArray = lyrics
-			.map((item) => {
-				if (typeof item === "string") {
-					return item
-				} else if (typeof item === "object" && item !== null) {
-					const itemObj = item as { text?: string; syncText?: Array<{ timestamp: number; text: string }> }
-					// 如果有 syncText，重建 LRC 格式（保留时间戳）
-					if (itemObj.syncText && Array.isArray(itemObj.syncText) && itemObj.syncText.length > 0) {
-						return itemObj.syncText
-							.map((st) => {
-								const ts = st.timestamp ?? 0
-								const min = Math.floor(ts / 60000)
-								const sec = Math.floor((ts % 60000) / 1000)
-								const ms = Math.floor((ts % 1000) / 10)
-								return `[${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}.${String(ms).padStart(2, "0")}]${st.text}`
-							})
-							.join("\n")
-					}
-					if (itemObj.text) return itemObj.text
-					try {
-						return JSON.stringify(item)
-					} catch {
-						return "无法解析的歌词项"
-					}
-				}
-				return ""
-			})
-			.filter(Boolean)
-
-		return lyricsArray.length > 0 ? lyricsArray.join("\n") : null
-	}
-
-	if (typeof lyrics === "string") {
-		return lyrics.trim() || null
-	}
-
-	if (typeof lyrics === "object" && lyrics !== null) {
-		const lyricsObj = lyrics as { text?: string; syncText?: Array<{ timestamp: number; text: string }> }
-		// 如果有 syncText，重建 LRC 格式
-		if (lyricsObj.syncText && Array.isArray(lyricsObj.syncText) && lyricsObj.syncText.length > 0) {
-			return lyricsObj.syncText
-				.map((st) => {
-					const ts = st.timestamp ?? 0
-					const min = Math.floor(ts / 60000)
-					const sec = Math.floor((ts % 60000) / 1000)
-					const ms = Math.floor((ts % 1000) / 10)
-					return `[${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}.${String(ms).padStart(2, "0")}]${st.text}`
-				})
-				.join("\n")
-		}
-		try {
-			if (lyricsObj.text) return lyricsObj.text
-			return JSON.stringify(lyrics)
-		} catch {
-			return "无法解析的歌词对象"
-		}
-	}
-
-	return null
 }

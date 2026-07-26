@@ -7,6 +7,7 @@
 import { ref, watch, computed } from 'vue';
 import { useQqmusicStore } from '../../store/qqmusic';
 import { usePlayerStore, PlayMode } from '../../store/player';
+import { useNotificationStore } from '../../store/notification';
 import type { OnlineSongInfo } from '../../store/player';
 import ContentHeader from '../common/ContentHeader.vue';
 import BaseSongTable from '../business/BaseSongTable.vue';
@@ -16,6 +17,7 @@ import CustomButton from '../custom/CustomButton.vue';
 
 const qqmusicStore = useQqmusicStore();
 const playerStore = usePlayerStore();
+const notification = useNotificationStore();
 
 const currentPlaylist = computed(() =>
   qqmusicStore.userPlaylists.find((p) => p.id === qqmusicStore.currentPlaylistId)
@@ -90,8 +92,25 @@ function handlePlay(song: any) {
   playSongWithContext(song);
 }
 
+/** 下载 IPC 返回结构（warning：元数据写入失败但已保存纯音频） */
+type DownloadResult = IpcResult<{ filePath?: string; warning?: string }>
+
 async function handleDownload(song: any) {
-  await qqmusicStore.downloadSong(song);
+  try {
+    const result = (await qqmusicStore.downloadSong(song)) as DownloadResult | undefined;
+    if (!result) return;
+    if (result.success) {
+      if (result.warning) {
+        notification.warning(result.warning);
+      } else {
+        notification.success(result.filePath ? `已保存到 ${result.filePath}` : '下载完成');
+      }
+    } else if (!result.canceled) {
+      notification.error(`下载失败: ${result.error || '未知错误'}`);
+    }
+  } catch (e) {
+    notification.notifyError(e);
+  }
 }
 
 function handleSelectionChange(songs: any[]) {
@@ -99,7 +118,11 @@ function handleSelectionChange(songs: any[]) {
 }
 
 async function handleBatchDownload(songs: any[]) {
-  await qqmusicStore.batchDownload(songs)
+  try {
+    await qqmusicStore.batchDownload(songs)
+  } catch (e) {
+    notification.notifyError(e)
+  }
 }
 
 function handleCloseBatchProgress() {
@@ -156,7 +179,7 @@ const headerActions = computed(() => [
     <div v-else class="flex-1 min-h-0 flex flex-col">
       <BaseSongTable
         mode="online"
-        :songs="filteredSongs as any"
+        :songs="filteredSongs"
         :loading="qqmusicStore.currentPlaylistLoading && qqmusicStore.currentPlaylistSongs.length > 0"
         :downloading-ids="qqmusicStore.downloadingIds"
         :show-cover="true"

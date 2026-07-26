@@ -38,9 +38,17 @@ export interface Song {
   libraryId?: string
   playCount?: number
   hasCover?: boolean
+  hasLyrics?: boolean
   fileExists?: boolean
   cover?: string
   modifiedAt?: number
+  year?: number
+  genre?: string
+  trackNumber?: number
+  bitrate?: number
+  sampleRate?: number
+  fileSize?: number
+  format?: string
 }
 
 /** 在线歌曲（QQ 音乐搜索返回） */
@@ -49,29 +57,21 @@ export interface OnlineSong {
   songId?: string
   songName: string
   singer: string
+  duration?: string
   album?: {
+    albumName?: string
     albumMid?: string
     albumCoverUrl?: string
   }
   songUrl?: {
     url: string
     urlType: string
-  }
-  /** 从 onlineSong 转为播放器可用格式 */
-  playOnline?: {
-    songName: string
-    singer: string
-    coverUrl: string
-    url: string
-    urlType: string
-  }
+  } | null
 }
 
 // ========================================
 // 播放器类型
 // ========================================
-
-export type PlayMode = 'sequence' | 'random' | 'repeat_one'
 
 export interface LyricLine {
   time: number
@@ -87,15 +87,6 @@ export interface LyricWord {
   time: number
   duration: number
 }
-
-export interface LyricMetadata {
-  title?: string
-  artist?: string
-  [key: string]: string | undefined
-}
-
-export type LyricsFormat = 'lrc' | 'text' | null
-export type LyricsSource = 'embedded' | 'external_file' | null
 
 // ========================================
 // 歌单 & 音乐库

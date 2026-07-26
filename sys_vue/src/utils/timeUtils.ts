@@ -20,17 +20,5 @@ export const formatTimeFromMs = (ms: number): string => {
 	return `${minutes}:${seconds.toString().padStart(2, '0')}`
 }
 
-/** 格式化时长（秒数）为 mm:ss 格式 */
-export const formatDuration = (seconds: number): string => {
-	if (!seconds || isNaN(seconds)) return '0:00'
-	const minutes = Math.floor(seconds / 60)
-	const remainingSeconds = Math.floor(seconds % 60)
-	return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
-}
-
-/** 格式化当前时间和总时长为 "mm:ss / mm:ss" 格式 */
-export const formatTimeProgress = (currentTime: number, totalTime?: number): string => {
-	const current = formatTime(currentTime)
-	const total = totalTime ? formatTime(totalTime) : '0:00'
-	return `${current} / ${total}`
-}
+/** 格式化时长（秒数）为 mm:ss 格式（与 formatTime 同义，保留语义化别名） */
+export const formatDuration = formatTime

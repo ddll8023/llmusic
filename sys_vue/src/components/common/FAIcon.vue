@@ -5,7 +5,7 @@ const props = withDefaults(
 	defineProps<{
 		name: string
 		size?: 'small' | 'medium' | 'large' | 'xl'
-		color?: 'primary' | 'secondary' | 'accent' | 'danger' | 'disabled'
+		color?: 'primary' | 'secondary' | 'accent' | 'danger' | 'disabled' | 'current'
 		clickable?: boolean
 	}>(),
 	{
@@ -30,6 +30,7 @@ const colorMap: Record<string, string> = {
 	accent: 'text-accent-green',
 	danger: 'text-accent-danger',
 	disabled: 'text-content-disabled',
+	current: 'text-current',
 }
 
 // 计算图标的 Tailwind 类名

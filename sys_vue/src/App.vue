@@ -13,6 +13,7 @@ import GlobalScanProgress from './components/system/GlobalScanProgress.vue';
 import LyricPage from './components/pages/LyricPage.vue';
 import DiscoverMusic from './components/pages/DiscoverMusic.vue';
 import QQMusicPlaylistDetail from './components/pages/QQMusicPlaylistDetail.vue';
+import ToastContainer from './components/custom/ToastContainer.vue';
 import { useUiStore } from './store/ui';
 import { usePlaylistStore } from './store/playlist';
 import { usePlayerStore } from './store/player';
@@ -29,7 +30,6 @@ uiStore.initCloseBehavior();
 
 
 // 存储IPC事件监听器的引用
-let removeNavigateListener: (() => void) | null = null;
 let removeFileOpenListener: (() => void) | null = null;
 
 onMounted(async () => {
@@ -49,16 +49,6 @@ onMounted(async () => {
     } catch (error) {
         console.error('初始化媒体库失败:', error);
     }
-
-    // 监听主进程发送的导航事件
-    removeNavigateListener = window.electronAPI.onNavigateToMain(() => {
-        // 切换到主界面
-        uiStore.setView('main');
-        // 清除当前歌单
-        if (playlistStore) {
-            playlistStore.currentPlaylistId = null;
-        }
-    });
 
     // 监听文件打开事件
     removeFileOpenListener = window.electronAPI.onOpenAudioFile(async (filePath: string) => {
@@ -90,18 +80,6 @@ onMounted(async () => {
     });
 });
 
-
-// 监听删除歌单事件并处理导航
-playlistStore.$subscribe((mutation: any, state) => {
-    // 检测是否歌单被删除
-    if (mutation.type === 'deletePlaylist' &&
-        mutation.events &&
-        mutation.events.payload &&
-        mutation.events.payload.success) {
-        // 导航到主界面
-        uiStore.setView('main');
-    }
-});
 
 // 计算主布局CSS类
 const layoutClasses = computed(() => {
@@ -137,9 +115,6 @@ watch([
 
 // 在组件卸载时清理事件监听器
 onUnmounted(() => {
-    if (removeNavigateListener) {
-        removeNavigateListener();
-    }
     if (removeFileOpenListener) {
         removeFileOpenListener();
     }
@@ -180,6 +155,9 @@ onUnmounted(() => {
 
         <!-- 播放列表管理对话框 -->
         <PlaylistManage />
+
+        <!-- 全局 Toast 反馈 -->
+        <ToastContainer />
 
     </div>
 </template>

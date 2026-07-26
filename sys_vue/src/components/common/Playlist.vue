@@ -59,12 +59,10 @@ async function fetchSongsDetails(ids: string[]) {
 	}
 	isLoading.value = true
 	try {
-		const songDetails: Song[] = []
-		for (const id of ids) {
-			const result = await window.electronAPI.getSongById(id)
-			if (result.success && result.song) songDetails.push(result.song)
-		}
-		songs.value = songDetails
+		const results = await Promise.all(ids.map((id) => window.electronAPI.getSongById(id)))
+		songs.value = results
+			.filter((r) => r.success && r.song)
+			.map((r) => r.song as Song)
 	} catch (error) {
 		console.error('Error fetching playlist songs:', error)
 		songs.value = []

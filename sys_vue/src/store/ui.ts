@@ -13,6 +13,7 @@ interface UiState {
 	closeBehavior: string
 	playerBarCollapsed: boolean
 	playerBarAutoHide: boolean
+	performanceMode: boolean
 }
 
 type CloseBehavior = 'exit' | 'minimize'
@@ -22,39 +23,43 @@ const loadState = () => {
 		const savedLyricsAnimation = localStorage.getItem('lyricsAnimationStyle')
 		const savedCloseBehavior = localStorage.getItem('closeBehavior')
 		const savedSidebarVisible = localStorage.getItem('sidebarVisible')
-
-		if (savedSidebarVisible === 'false') {
-			localStorage.setItem('sidebarVisible', 'true')
-		}
+		const savedPerformanceMode = localStorage.getItem('performanceMode')
 
 		return {
 			lyricsAnimationStyle: savedLyricsAnimation || 'fade',
 			closeBehavior: savedCloseBehavior || 'exit',
-			isSidebarVisible: true,
+			// 尊重用户设置：显式存为 'false' 时保持隐藏
+			isSidebarVisible: savedSidebarVisible !== 'false',
+			performanceMode: savedPerformanceMode === 'true',
 		}
 	} catch {
 		return {
 			lyricsAnimationStyle: 'fade' as const,
 			closeBehavior: 'exit' as const,
 			isSidebarVisible: true,
+			performanceMode: false,
 		}
 	}
 }
 
 export const useUiStore = defineStore('ui', {
-	state: (): UiState => ({
-		isSidebarVisible: loadState().isSidebarVisible,
-		sidebarWidth: 250,
-		tempSidebarWidth: 250,
-		previousExpandedWidth: 250,
-		isDraggingSidebar: false,
-		isPlaylistVisible: false,
-		currentView: 'main',
-		lyricsAnimationStyle: loadState().lyricsAnimationStyle,
-		closeBehavior: loadState().closeBehavior,
-		playerBarCollapsed: false,
-		playerBarAutoHide: false,
-	}),
+	state: (): UiState => {
+		const saved = loadState()
+		return {
+			isSidebarVisible: saved.isSidebarVisible,
+			sidebarWidth: 250,
+			tempSidebarWidth: 250,
+			previousExpandedWidth: 250,
+			isDraggingSidebar: false,
+			isPlaylistVisible: false,
+			currentView: 'main',
+			lyricsAnimationStyle: saved.lyricsAnimationStyle,
+			closeBehavior: saved.closeBehavior,
+			playerBarCollapsed: false,
+			playerBarAutoHide: false,
+			performanceMode: saved.performanceMode,
+		}
+	},
 
 	getters: {
 		isSidebarCollapsed: (state): boolean => {
@@ -178,6 +183,15 @@ export const useUiStore = defineStore('ui', {
 			}
 		},
 
+		setPerformanceMode(enabled: boolean) {
+			this.performanceMode = enabled
+			try {
+				localStorage.setItem('performanceMode', String(enabled))
+			} catch (e) {
+				console.error('保存设置失败:', e)
+			}
+		},
+
 		async setCloseBehavior(behavior: CloseBehavior) {
 			if (behavior !== 'exit' && behavior !== 'minimize') {
 				console.error('无效的窗口关闭行为:', behavior)
@@ -185,7 +199,7 @@ export const useUiStore = defineStore('ui', {
 			}
 
 			const result = await window.electronAPI.setCloseBehavior(behavior)
-			if (result) {
+			if (result.success) {
 				this.closeBehavior = behavior
 				try {
 					localStorage.setItem('closeBehavior', behavior)
@@ -215,10 +229,10 @@ export const useUiStore = defineStore('ui', {
 
 		async initCloseBehavior() {
 			try {
-				const currentBehavior = await window.electronAPI.getCloseBehavior()
-				if (currentBehavior !== this.closeBehavior) {
-					this.closeBehavior = currentBehavior
-					localStorage.setItem('closeBehavior', currentBehavior)
+				const result = await window.electronAPI.getCloseBehavior()
+				if (result.success && result.behavior && result.behavior !== this.closeBehavior) {
+					this.closeBehavior = result.behavior
+					localStorage.setItem('closeBehavior', result.behavior)
 				}
 			} catch (e) {
 				console.error('初始化窗口关闭行为失败:', e)

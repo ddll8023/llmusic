@@ -1,14 +1,38 @@
 import { promises as fs } from "fs"
+import { parseFile } from "music-metadata"
+import LRUCache from "../../utils/cache/LRUCache"
+import { extractLyrics } from "../../utils/lyrics"
 import { CHANNELS } from "../../constants/ipcChannels"
 import { getSongById } from "../data/Database"
 import type { IpcHandlerModule } from "../../types"
 import type { LyricLine, LyricWord, Song } from "../../types/song"
 
-const TIMESTAMP_REGEX = /\[(\d{2}):(\d{2})[.:]([\d]{2,3})\]/g
+// 正则统一在函数内局部创建，避免模块级共享 g 正则的 lastIndex 隐患
 const METADATA_REGEX = /\[([a-zA-Z]+):(.*?)\]/
 const KNOWN_METADATA_TAGS = new Set(["ar", "ti", "al", "by", "offset"])
-/** 逐字歌词格式：<mm:ss.xx>字 */
-const WORD_LEVEL_REGEX = /<(\d{2}):(\d{2})[.:](\d{2,3})>([^<]+)/g
+/** LRC 时间戳检测（无 g 标志，仅 test 用） */
+const LRC_DETECT_REGEX = /\[\d{2}:\d{2}[.:]\d{2,3}\]/
+
+/** 创建行时间戳匹配正则：[mm:ss.xx] */
+function createTimestampRegex(): RegExp {
+	return /\[(\d{2}):(\d{2})[.:]([\d]{2,3})\]/g
+}
+
+/** 创建逐字歌词匹配正则：<mm:ss.xx>字 */
+function createWordLevelRegex(): RegExp {
+	return /<(\d{2}):(\d{2})[.:](\d{2,3})>([^<]+)/g
+}
+
+// ---- 歌词解析结果缓存（按 songId，上限 200 条） ----
+const LYRICS_CACHE_CAPACITY = 200
+const lyricsCache = new LRUCache<string, LyricResult>(LYRICS_CACHE_CAPACITY)
+
+/**
+ * 失效指定歌曲的歌词缓存（标签写回可能改写歌词后调用）
+ */
+function invalidateLyricsCache(songId: string): void {
+	lyricsCache.delete(songId)
+}
 
 interface ParsedLrc {
 	metadata: Record<string, string>
@@ -72,10 +96,10 @@ function formatTime(ms: number): string {
  */
 function parseWordLevel(lineText: string, lineStartTime: number): { words: LyricWord[]; cleanText: string } | null {
 	const words: LyricWord[] = []
+	const wordLevelRegex = createWordLevelRegex()
 	let match: RegExpExecArray | null
 
-	WORD_LEVEL_REGEX.lastIndex = 0
-	while ((match = WORD_LEVEL_REGEX.exec(lineText)) !== null) {
+	while ((match = wordLevelRegex.exec(lineText)) !== null) {
 		const wordOffset = _parseTimestamp(match)
 		if (wordOffset === null) continue
 		words.push({
@@ -131,10 +155,10 @@ function parseLrc(lrcText: string): ParsedLrc {
 		}
 
 		const timestamps: number[] = []
+		const timestampRegex = createTimestampRegex()
 		let match: RegExpExecArray | null
 
-		TIMESTAMP_REGEX.lastIndex = 0
-		while ((match = TIMESTAMP_REGEX.exec(trimmedLine)) !== null) {
+		while ((match = timestampRegex.exec(trimmedLine)) !== null) {
 			const time = _parseTimestamp(match)
 			if (time !== null) {
 				timestamps.push(time)
@@ -142,7 +166,7 @@ function parseLrc(lrcText: string): ParsedLrc {
 		}
 
 		if (timestamps.length > 0) {
-			const lyricText = trimmedLine.replace(TIMESTAMP_REGEX, "").trim()
+			const lyricText = trimmedLine.replace(createTimestampRegex(), "").trim()
 			for (const time of timestamps) {
 				if (!timeMap.has(time)) {
 					timeMap.set(time, [])
@@ -181,30 +205,24 @@ function parseLrc(lrcText: string): ParsedLrc {
 }
 
 /**
- * 尝试从文件直接读取原生歌词元数据（VorbisComment LYRICS 标签）
+ * 尝试从文件直接重新提取歌词（共享 utils/lyrics 实现）
  * 用于兜底修复入库时丢失时间戳的存量数据
  */
 async function tryReadFileLyrics(filePath: string | undefined): Promise<LyricResult | null> {
 	if (!filePath) return null
 	try {
-		const { parseFile } = await import("music-metadata" /* webpackIgnore: true */)
 		const meta = await parseFile(filePath, { skipCovers: true, skipPostHeaders: true })
-		if (meta.native?.vorbis) {
-			const lyricsFrame = meta.native.vorbis.find((f: { id: string }) => f.id === "LYRICS")
-			if (lyricsFrame) {
-				const raw = String(lyricsFrame.value)
-				if (/\[\d{2}:\d{2}[\.:]\d{2,3}\]/.test(raw)) {
-					const parsed = parseLrc(raw)
-					if (parsed.lyrics.length > 0) {
-						console.log(`[lyricsHandler] 从文件 ${filePath} 成功提取 LRC 歌词（${parsed.lyrics.length} 行）`)
-						return {
-							success: true,
-							lyrics: parsed.lyrics,
-							metadata: parsed.metadata,
-							format: "lrc",
-							source: "file-reextract",
-						}
-					}
+		const extracted = await extractLyrics(meta, filePath)
+		if (extracted.hasLyrics && extracted.lyrics && LRC_DETECT_REGEX.test(extracted.lyrics)) {
+			const parsed = parseLrc(extracted.lyrics)
+			if (parsed.lyrics.length > 0) {
+				console.log(`[lyricsHandler] 从文件 ${filePath} 成功提取 LRC 歌词（${parsed.lyrics.length} 行）`)
+				return {
+					success: true,
+					lyrics: parsed.lyrics,
+					metadata: parsed.metadata,
+					format: "lrc",
+					source: "file-reextract",
 				}
 			}
 		}
@@ -216,9 +234,9 @@ async function tryReadFileLyrics(filePath: string | undefined): Promise<LyricRes
 }
 
 /**
- * 获取歌曲歌词
+ * 获取歌曲歌词（不含缓存逻辑）
  */
-async function getLyrics(songId: string): Promise<LyricResult> {
+async function resolveLyrics(songId: string): Promise<LyricResult> {
 	const song: Song | undefined = await getSongById(songId)
 	if (!song) return { success: false, error: "歌曲不存在" }
 
@@ -227,7 +245,7 @@ async function getLyrics(songId: string): Promise<LyricResult> {
 		const text = song.lyrics
 
 		// 1. 检查 LRC 格式
-		if (/\[\d{2}:\d{2}[\.:]\d{2,3}\]/.test(text)) {
+		if (LRC_DETECT_REGEX.test(text)) {
 			const parsed = parseLrc(text)
 			return {
 				success: true,
@@ -300,6 +318,20 @@ async function getLyrics(songId: string): Promise<LyricResult> {
 	}
 }
 
+/**
+ * 获取歌曲歌词（带 LRU 缓存，仅缓存成功结果）
+ */
+async function getLyrics(songId: string): Promise<LyricResult> {
+	const cached = lyricsCache.get(songId)
+	if (cached) return cached
+
+	const result = await resolveLyrics(songId)
+	if (result.success) {
+		lyricsCache.set(songId, result)
+	}
+	return result
+}
+
 function createLyricsHandlers(): IpcHandlerModule {
 	const handlers = [
 		{
@@ -310,8 +342,10 @@ function createLyricsHandlers(): IpcHandlerModule {
 
 	return {
 		handlers,
-		cleanup: () => {},
+		cleanup: () => {
+			lyricsCache.clear()
+		},
 	}
 }
 
-export { createLyricsHandlers }
+export { createLyricsHandlers, invalidateLyricsCache }

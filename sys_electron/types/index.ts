@@ -1,6 +1,4 @@
-import type { ChildProcess } from "child_process"
 import type { BrowserWindow } from "electron"
-import type { Low } from "lowdb"
 import type { Song } from "../types/song"
 
 // ---- IPC 通用返回格式 ----
@@ -17,8 +15,7 @@ export type IpcResult<T = Record<string, never>> = IpcResultSuccess<T> | IpcResu
 // ---- IPC 处理器注册格式 ----
 export interface IpcHandlerDef {
 	channel: string
-	handler: Function
-	options?: { throttleMs?: number }
+	handler: (event: Electron.IpcMainInvokeEvent, ...args: any[]) => unknown
 }
 
 export interface IpcHandlerModule {
@@ -81,25 +78,6 @@ export interface ScanProgress {
 }
 
 export type ProgressCallback = (progress: ScanProgress) => void
-
-// ---- 音频处理 ----
-export interface AudioProcessingOptions {
-	filePath?: string
-	position?: number
-	audioCodec?: string
-	audioChannels?: number
-	audioFrequency?: number
-	format?: string
-	timeout?: number
-	logLevel?: string
-	[key: string]: unknown
-}
-
-export interface ProcessingStatus {
-	state: string
-	filePath: string | null
-	duration: number
-}
 
 // ---- 音乐库管理 ----
 export interface LibraryData {
