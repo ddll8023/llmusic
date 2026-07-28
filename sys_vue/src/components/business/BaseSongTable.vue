@@ -15,7 +15,7 @@ import { ref, computed, reactive, watch, nextTick, onUnmounted } from 'vue'
 import { usePlayerStore } from '../../store/player'
 
 // 3. 类型导入
-import type { Song, OnlineSong } from '../../types/api'
+import type { Song, OnlineSong, SongItem } from '../../types/api'
 
 // 4. 工具函数
 import { formatDuration } from '../../utils/timeUtils'
@@ -33,13 +33,6 @@ import LoadingSpinner from '../custom/LoadingSpinner.vue'
 
 type TableMode = 'local' | 'online'
 type ActionColumnType = 'none' | 'metadata' | 'remove'
-
-/** 本地歌曲与在线歌曲的联合展示类型（字段全部可选，兼容两种来源） */
-type SongItem = Omit<Partial<Song>, 'album' | 'duration'> &
-  Omit<Partial<OnlineSong>, 'album' | 'duration'> & {
-    album?: string | OnlineSong['album']
-    duration?: number | string
-  }
 
 /** 虚拟滚动行数据：rid 为预计算的行唯一 ID，避免每行重复调用 getSongId */
 interface TableRow {

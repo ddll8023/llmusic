@@ -14,3 +14,6 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }
+
+// vite.config define 注入的编译期常量
+declare const __BACKEND_BASE_URL__: string

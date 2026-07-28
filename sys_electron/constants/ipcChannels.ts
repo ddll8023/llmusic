@@ -73,7 +73,6 @@ export const CHANNELS = {
 	DOWNLOAD_SONG_TO_DIR: "download-song-to-dir",
 
 	// --- 文件路径获取 ---
-	GET_PATH_FOR_FILE: "get-path-for-file",
 
 	// --- 窗口行为设置 ---
 	SET_CLOSE_BEHAVIOR: "set-close-behavior",

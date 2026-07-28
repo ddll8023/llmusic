@@ -4,8 +4,10 @@ declare module "fluent-ffmpeg" {
 
 	export interface FfmpegCommand extends EventEmitter {
 		seekInput(time: number | string): this
+		input(source: string): this
 		noVideo(): this
 		audioCodec(codec: string): this
+		audioBitrate(bitrate: number | string): this
 		audioChannels(channels: number): this
 		audioFrequency(freq: number): this
 		format(format: string): this

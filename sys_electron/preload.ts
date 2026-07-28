@@ -1,5 +1,69 @@
-import { contextBridge, ipcRenderer } from "electron"
-import { CHANNELS } from "./constants/ipcChannels"
+import { contextBridge, ipcRenderer, webUtils } from "electron"
+
+/**
+ * IPC 通道常量（preload 内联版本 — Electron sandbox 不支持 require 本地模块）
+ */
+const CHANNELS = {
+	// --- 窗口 & UI ---
+	WINDOW_MINIMIZE: "window-minimize",
+	WINDOW_MAXIMIZE: "window-maximize",
+	WINDOW_RESTORE: "window-restore",
+	WINDOW_CLOSE: "window-close",
+	WINDOW_SHOW: "window-show",
+	IS_WINDOW_MAXIMIZED: "is-window-maximized",
+	WINDOW_MAXIMIZED_CHANGE: "window-maximized-change",
+	// --- 扫描 ---
+	SCAN_MUSIC_START: "scan-music-start",
+	SCAN_MUSIC_CANCEL: "scan-music-cancel",
+	SCAN_PROGRESS: "scan-progress",
+	// --- 歌曲 ---
+	GET_SONGS: "get-songs",
+	GET_SONG_BY_ID: "get-song-by-id",
+	PARSE_SONG_FROM_FILE: "parse-song-from-file",
+	INCREMENT_PLAY_COUNT: "increment-play-count",
+	DELETE_SONG: "delete-song",
+	CLEAR_ALL_SONGS: "clear-all-songs",
+	DOWNLOAD_SONG_WITH_METADATA: "download-song-with-metadata",
+	DOWNLOAD_SONG_TO_DIR: "download-song-to-dir",
+	// --- 封面 & 歌词 ---
+	GET_SONG_COVER: "get-song-cover",
+	FORCE_EXTRACT_COVER: "force-extract-cover",
+	GET_COVER_FROM_FILE: "get-cover-from-file",
+	GET_LYRICS: "get-lyrics",
+	// --- 标签 ---
+	GET_SONG_TAGS: "get-song-tags",
+	UPDATE_SONG_TAGS: "update-song-tags",
+	VALIDATE_TAG_CHANGES: "validate-tag-changes",
+	GET_TAGS_FROM_FILE: "get-tags-from-file",
+	UPDATE_TAGS_TO_FILE: "update-tags-to-file",
+	// --- 文件 & 剪贴板 ---
+	SHOW_ITEM_IN_FOLDER: "show-item-in-folder",
+	COPY_TO_CLIPBOARD: "copy-to-clipboard",
+	SHOW_OPEN_DIALOG: "show-open-dialog",
+	SELECT_DIRECTORY: "select-directory",
+	// --- 音乐库 ---
+	GET_LIBRARIES: "get-libraries",
+	ADD_LIBRARY: "add-library",
+	REMOVE_LIBRARY: "remove-library",
+	UPDATE_LIBRARY: "update-library",
+	// --- 播放列表 ---
+	GET_PLAYLISTS: "get-playlists",
+	GET_PLAYLIST_BY_ID: "get-playlist-by-id",
+	CREATE_PLAYLIST: "create-playlist",
+	UPDATE_PLAYLIST: "update-playlist",
+	DELETE_PLAYLIST: "delete-playlist",
+	ADD_SONGS_TO_PLAYLIST: "add-songs-to-playlist",
+	REMOVE_SONGS_FROM_PLAYLIST: "remove-songs-from-playlist",
+	// --- 音乐导入 ---
+	IMPORT_MUSIC_FILES: "import-music-files",
+	// --- 在线搜索 ---
+	SEARCH_ONLINE_METADATA: "search-online-metadata",
+	// --- 窗口行为 ---
+	SET_CLOSE_BEHAVIOR: "set-close-behavior",
+	GET_CLOSE_BEHAVIOR: "get-close-behavior",
+	// --- 外部文件打开 ---
+	OPEN_AUDIO_FILE: "open-audio-file",
+} as const
 
 /**
  * 创建事件监听器并返回清理函数
@@ -53,7 +117,14 @@ const compatAPI: Record<string, unknown> = {
 	showItemInFolder: (filePath: string) => ipcRenderer.invoke(CHANNELS.SHOW_ITEM_IN_FOLDER, filePath),
 	copyToClipboard: (text: string) => ipcRenderer.invoke(CHANNELS.COPY_TO_CLIPBOARD, text),
 	showOpenDialog: (options?: Record<string, unknown>) => ipcRenderer.invoke(CHANNELS.SHOW_OPEN_DIALOG, options),
-	getPathForFile: (file: File) => ipcRenderer.invoke(CHANNELS.GET_PATH_FOR_FILE, file),
+	// webUtils.getPathForFile 必须在 preload（渲染上下文）调用，File 对象无法经 IPC 传递
+	getPathForFile: (file: File) => {
+		try {
+			return Promise.resolve({ success: true, filePath: webUtils.getPathForFile(file) })
+		} catch (err) {
+			return Promise.resolve({ success: false, error: (err as Error).message })
+		}
+	},
 
 	// 播放列表
 	getPlaylists: () => ipcRenderer.invoke(CHANNELS.GET_PLAYLISTS),

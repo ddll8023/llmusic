@@ -197,18 +197,29 @@ const saveTags = async () => {
   loading.value = true;
   try {
     const plainTags = convertReactiveToPlain(editingTags);
-    let result: { success: boolean; error?: string };
     if (currentSong.value.filePath && !currentSong.value.id) {
-      result = await window.electronAPI.updateTagsToFile(currentSong.value.filePath, plainTags);
+      // 工作区文件：直接写文件，不涉及数据库
+      const result = await window.electronAPI.updateTagsToFile(currentSong.value.filePath, plainTags);
+      if (result.success) {
+        notification.success('标签保存成功');
+        closeEditor();
+      } else {
+        notification.error(`保存失败: ${result.error}`);
+      }
     } else {
-      result = await window.electronAPI.updateSongTags(currentSong.value.id, plainTags);
-    }
-    if (result.success) {
-      if (!(currentSong.value.filePath && !currentSong.value.id)) await mediaStore.loadSongs();
-      notification.success('标签保存成功');
-      closeEditor();
-    } else {
-      notification.error(`保存失败: ${result.error}`);
+      const result = await window.electronAPI.updateSongTags(currentSong.value.id, plainTags);
+      if (result.success) {
+        // 主进程返回重新解析后的歌曲时定点更新，避免全量重载
+        if (result.updatedSong) {
+          mediaStore.replaceSong(result.updatedSong);
+        } else {
+          await mediaStore.loadSongs();
+        }
+        notification.success('标签保存成功');
+        closeEditor();
+      } else {
+        notification.error(`保存失败: ${result.error}`);
+      }
     }
   } catch (error) { handleTagOperationError(error, '保存标签'); }
   finally { loading.value = false; }

@@ -13,6 +13,7 @@ import {
 import { isScanRunning } from "../scan/scanHandlers"
 import { coverCache } from "./coverHandlers"
 import { isAudioPath } from "../../utils/sanitizePath"
+import { BACKEND_BASE_URL } from "../../constants/backend"
 import type { IpcHandlerModule } from "../../types"
 import type { Song } from "../../types/song"
 
@@ -177,7 +178,7 @@ function createSongHandlers(): IpcHandlerModule {
 						requestId: searchParams.requestId || Date.now().toString(),
 					})
 
-					const response = await net.fetch("http://127.0.0.1:9752/api/v1/qqmusic/song/search-by-keyword", {
+					const response = await net.fetch(`${BACKEND_BASE_URL}/api/v1/qqmusic/song/search-by-keyword`, {
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
 						body,

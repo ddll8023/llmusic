@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import type { SongItem } from '@/types';
 import { usePlaylistStore } from '../../store/playlist';
 import { usePlayerStore } from '../../store/player';
 import { useNotificationStore } from '../../store/notification';
@@ -20,9 +21,6 @@ const playlistStore = usePlaylistStore();
 const playerStore = usePlayerStore();
 const notification = useNotificationStore();
 
-// 加载状态
-const isLoading = ref(false);
-
 // 显示删除确认对话框
 const showDeleteConfirm = ref(false);
 
@@ -36,25 +34,26 @@ const currentPlaylist = computed(() => playlistStore.currentPlaylist);
 const currentListId = computed(() => playlistStore.currentPlaylistId || 'playlist');
 
 // 处理BaseSongTable的播放事件
-const handlePlaySong = ({ song }: { song: any }) => {
+const handlePlaySong = ({ song }: { song: SongItem }) => {
+    if (!song.id) return;
     // 创建一个播放列表，包含所有歌单中的歌曲
     playerStore.playSongFromList({
         listId: playlistStore.currentPlaylistId || '',
-        songIds: (playlistStore.currentPlaylistSongs || []).map((s: any) => s.id),
+        songIds: (playlistStore.currentPlaylistSongs || []).map((s) => s.id),
         songToPlayId: song.id
     });
 };
 
 // 处理表格操作列按钮点击
-const handleActionClick = ({ action, song }: { action: any; song: any }) => {
-    if (action === 'remove') {
+const handleActionClick = ({ action, song }: { action: string; song: SongItem }) => {
+    if (action === 'remove' && song.id) {
         removeSongFromPlaylist(song.id);
     }
 };
 
 // 处理右键菜单操作
-const handleContextMenuAction = async ({ action, song }: { action: any; song: any }) => {
-    if (!song) return;
+const handleContextMenuAction = async ({ action, song }: { action: string; song: SongItem | null }) => {
+    if (!song || !song.id) return;
 
     switch (action) {
         case 'play-toggle':
@@ -87,8 +86,8 @@ const handleContextMenuAction = async ({ action, song }: { action: any; song: an
                 } else {
                     notification.warning('该歌曲无有效的文件路径信息');
                 }
-            } catch (error: any) {
-                notification.error(`操作失败: ${error.message || '未知错误'}`);
+            } catch (error) {
+                notification.error(`操作失败: ${(error as Error).message || '未知错误'}`);
             }
             break;
 
@@ -198,20 +197,14 @@ const handleHeaderAction = (actionKey: any) => {
 // 监听当前歌单ID变化
 watch(() => playlistStore.currentPlaylistId, (newId) => {
     if (newId) {
-        isLoading.value = true;
-        playlistStore.loadPlaylistById(newId).finally(() => {
-            isLoading.value = false;
-        });
+        playlistStore.loadPlaylistById(newId);
     }
 });
 
 // 组件挂载时加载歌单
 onMounted(() => {
     if (playlistStore.currentPlaylistId) {
-        isLoading.value = true;
-        playlistStore.loadPlaylistById(playlistStore.currentPlaylistId).finally(() => {
-            isLoading.value = false;
-        });
+        playlistStore.loadPlaylistById(playlistStore.currentPlaylistId);
     }
 });
 </script>
@@ -224,7 +217,7 @@ onMounted(() => {
             @action-click="handleHeaderAction" />
 
         <!-- 歌曲表格 -->
-        <BaseSongTable ref="songTableRef" mode="local" :songs="playlistStore.currentPlaylistSongs" :loading="isLoading"
+        <BaseSongTable ref="songTableRef" mode="local" :songs="playlistStore.currentPlaylistSongs" :loading="playlistStore.loading"
             :action-column-type="'remove'" :show-scroll-buttons="true"
             :context-menu-type="'playlist'" :current-list-id="currentListId" :empty-text="'歌单为空'" :empty-icon="'list'"
             @play-song="handlePlaySong" @action-click="handleActionClick"

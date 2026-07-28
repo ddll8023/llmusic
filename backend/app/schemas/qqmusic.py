@@ -80,6 +80,10 @@ class GetPlaylistSongsRequest(BaseModel):
     pageSize: int = Field(default=20, ge=1, le=100, description="每页数量")
 
 
+class PlaylistAllSongsRequest(BaseModel):
+    requestId: str = Field(default="0", description="请求 ID 用于跟踪")
+
+
 class CheckQRCodeRequest(BaseModel):
     session_id: str = Field(..., description="登录会话 ID")
 

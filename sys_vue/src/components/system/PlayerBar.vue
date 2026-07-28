@@ -43,7 +43,7 @@ const coverImage = ref<string | null>(null);
 const isLoadingCover = ref(false);
 const coverLoadError = ref(false);
 const isDraggingVolume = ref(false);
-const { extractFromImage, defaultGlow } = useAlbumColors();
+const { colors, extractFromImage, defaultGlow } = useAlbumColors();
 
 const isCollapsed = computed(() => uiStore.playerBarCollapsed)
 const progressPct = computed(() =>

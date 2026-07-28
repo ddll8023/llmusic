@@ -1,6 +1,6 @@
 import { promises as fs } from "fs"
 import path from "path"
-import { dialog, webUtils, shell, clipboard } from "electron"
+import { dialog, shell, clipboard } from "electron"
 import { CHANNELS } from "../../constants/ipcChannels"
 import type { IpcHandlerModule } from "../../types"
 
@@ -143,18 +143,6 @@ function createWindowHandlers(
 						canceled: result.canceled,
 						filePaths: result.filePaths,
 					}
-				} catch (err) {
-					const error = err as Error
-					return { success: false, error: error.message }
-				}
-			},
-		},
-		{
-			channel: CHANNELS.GET_PATH_FOR_FILE,
-			handler: async (_event: Electron.IpcMainInvokeEvent, file: File) => {
-				try {
-					const filePath = webUtils.getPathForFile(file)
-					return { success: true, filePath }
 				} catch (err) {
 					const error = err as Error
 					return { success: false, error: error.message }

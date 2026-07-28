@@ -7,7 +7,7 @@ import type { AxiosInstance } from 'axios'
 import type { ApiResponse, OnlineSong, QMPlaylistItem, SongDownloadBundle } from '@/types'
 
 const qqmusicClient: AxiosInstance = axios.create({
-  baseURL: 'http://localhost:9752/api/v1/qqmusic',
+  baseURL: `${__BACKEND_BASE_URL__}/api/v1/qqmusic`,
   timeout: 300000,
   headers: { 'Content-Type': 'application/json' },
 })

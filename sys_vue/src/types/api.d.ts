@@ -51,6 +51,16 @@ export interface Song {
   format?: string
 }
 
+/**
+ * 歌曲表格的联合展示类型：兼容本地歌曲与在线歌曲两种来源（字段全部可选）。
+ * BaseSongTable 的行数据与事件负载均使用此类型。
+ */
+export type SongItem = Omit<Partial<Song>, 'album' | 'duration'> &
+  Omit<Partial<OnlineSong>, 'album' | 'duration'> & {
+    album?: string | OnlineSong['album']
+    duration?: number | string
+  }
+
 /** 在线歌曲（QQ 音乐搜索返回） */
 export interface OnlineSong {
   songMid: string
@@ -112,13 +122,32 @@ export interface Library {
 // 扫描
 // ========================================
 
-export type ScanPhase = 'idle' | 'scanning' | 'parsing' | 'done' | 'error'
+export type ScanPhase =
+  | 'idle'
+  | 'starting'
+  | 'prepare'
+  | 'start'
+  | 'scanning'
+  | 'parsing'
+  | 'saving_to_db'
+  | 'complete'
+  | 'done'
+  | 'error'
+
+/** 扫描失败的文件（路径 + 失败原因） */
+export interface ScanFailedFile {
+  path: string
+  reason: string
+}
 
 export interface ScanProgress {
   phase: ScanPhase
   processed: number
   total: number
   message: string
+  failedCount?: number
+  skippedCount?: number
+  failedFiles?: ScanFailedFile[]
 }
 
 /** QQ 音乐用户歌单项 */

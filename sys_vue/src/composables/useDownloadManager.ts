@@ -4,7 +4,7 @@
  */
 import { ref } from 'vue'
 import { getSongDownloadBundle } from '@/api/qqmusic'
-import type { OnlineSong, SongDownloadBundle } from '@/types'
+import type { SongDownloadBundle, SongItem } from '@/types'
 
 /** 批量下载进度项 */
 export interface BatchDownloadItem {
@@ -55,11 +55,12 @@ export function useDownloadManager() {
 		}
 	}
 
-	function buildFilename(song: OnlineSong, ext: string): string {
+	function buildFilename(song: SongItem, ext: string): string {
 		return `${sanitizeFilename(song.songName || '未知')} - ${sanitizeFilename(song.singer || '未知')}.${ext}`
 	}
 
-	function buildMetadata(song: OnlineSong, bundle: SongDownloadBundle | undefined, ext: string) {
+	function buildMetadata(song: SongItem, bundle: SongDownloadBundle | undefined, ext: string) {
+		const albumObj = typeof song.album === 'object' && song.album ? song.album : null
 		return {
 			title: bundle?.songName || song.songName || '',
 			artist: bundle?.singer || song.singer || '',
@@ -68,20 +69,20 @@ export function useDownloadManager() {
 			genre: bundle?.genre || '',
 			year: bundle?.year || '',
 			lyrics: bundle?.lyrics || '',
-			coverUrl: bundle?.album?.albumCoverUrl || song.album?.albumCoverUrl || '',
+			coverUrl: bundle?.album?.albumCoverUrl || albumObj?.albumCoverUrl || '',
 			format: ext,
 		}
 	}
 
 	/** 单曲下载（弹保存对话框），返回主进程下载结果 */
-	async function downloadSong(song: OnlineSong) {
+	async function downloadSong(song: SongItem) {
 		if (!song.songUrl?.url) return
 		const id = String(song.songMid || song.songId || '')
 		if (id) downloadingIds.value.add(id)
 
 		try {
 			const ext = song.songUrl.urlType || 'mp3'
-			const bundle = await fetchBundle(song.songMid)
+			const bundle = song.songMid ? await fetchBundle(song.songMid) : undefined
 			return await window.electronAPI.downloadSongWithMetadata({
 				url: bundle?.songUrl?.url || song.songUrl.url,
 				filename: buildFilename(song, ext),
@@ -92,14 +93,64 @@ export function useDownloadManager() {
 		}
 	}
 
+	// 最近一批下载的歌曲与目标目录（供失败重试复用）
+	let lastBatchSongs: SongItem[] = []
+	let lastTargetDir = ''
+
+	/** 批量下载中的单曲执行体（idx 为进度项索引） */
+	async function downloadOne(song: SongItem, idx: number, targetDir: string) {
+		const id = String(song.songMid || song.songId || '')
+		if (id) downloadingIds.value.add(id)
+
+		batchProgress.value.items[idx].status = 'downloading'
+
+		try {
+			const ext = song.songUrl?.urlType || 'mp3'
+			const bundle = song.songMid ? await fetchBundle(song.songMid) : undefined
+
+			const result = await window.electronAPI.downloadSongToDir({
+				url: bundle?.songUrl?.url || song.songUrl!.url,
+				filename: buildFilename(song, ext),
+				targetDir,
+				metadata: buildMetadata(song, bundle, ext),
+			})
+
+			if (result.success) {
+				batchProgress.value.items[idx].status = 'success'
+				batchProgress.value.succeeded++
+			} else {
+				batchProgress.value.items[idx].status = 'failed'
+				batchProgress.value.items[idx].error = result.error || '下载失败'
+				batchProgress.value.failed++
+			}
+		} catch (e) {
+			batchProgress.value.items[idx].status = 'failed'
+			batchProgress.value.items[idx].error = e instanceof Error ? e.message : '未知错误'
+			batchProgress.value.failed++
+		} finally {
+			batchProgress.value.completed++
+			if (id) downloadingIds.value.delete(id)
+		}
+	}
+
+	/** 按并发上限分块执行指定索引的下载 */
+	async function runBatch(indices: number[], targetDir: string) {
+		for (let i = 0; i < indices.length; i += BATCH_CONCURRENCY) {
+			const chunk = indices.slice(i, i + BATCH_CONCURRENCY)
+			await Promise.allSettled(chunk.map((idx) => downloadOne(lastBatchSongs[idx], idx, targetDir)))
+		}
+	}
+
 	/** 批量下载 — 选目录 + 分块并发 */
-	async function batchDownload(songs: OnlineSong[]) {
+	async function batchDownload(songs: SongItem[]) {
 		const validSongs = songs.filter((s) => s.songUrl?.url)
 		if (validSongs.length === 0) return
 
 		const dirResult = await window.electronAPI.selectDirectory()
 		if (!dirResult || !dirResult.path || dirResult.canceled) return
-		const targetDir = dirResult.path
+
+		lastBatchSongs = validSongs
+		lastTargetDir = dirResult.path
 
 		batchProgress.value = {
 			total: validSongs.length,
@@ -114,48 +165,30 @@ export function useDownloadManager() {
 			active: true,
 		}
 
-		for (let i = 0; i < validSongs.length; i += BATCH_CONCURRENCY) {
-			const chunk = validSongs.slice(i, i + BATCH_CONCURRENCY)
-			const tasks = chunk.map(async (song, offset) => {
-				const idx = i + offset
-				const id = String(song.songMid || song.songId || '')
-				if (id) downloadingIds.value.add(id)
-
-				batchProgress.value.items[idx].status = 'downloading'
-
-				try {
-					const ext = song.songUrl?.urlType || 'mp3'
-					const bundle = await fetchBundle(song.songMid)
-
-					const result = await window.electronAPI.downloadSongToDir({
-						url: bundle?.songUrl?.url || song.songUrl!.url,
-						filename: buildFilename(song, ext),
-						targetDir,
-						metadata: buildMetadata(song, bundle, ext),
-					})
-
-					if (result.success) {
-						batchProgress.value.items[idx].status = 'success'
-						batchProgress.value.succeeded++
-					} else {
-						batchProgress.value.items[idx].status = 'failed'
-						batchProgress.value.items[idx].error = result.error || '下载失败'
-						batchProgress.value.failed++
-					}
-				} catch (e) {
-					batchProgress.value.items[idx].status = 'failed'
-					batchProgress.value.items[idx].error = e instanceof Error ? e.message : '未知错误'
-					batchProgress.value.failed++
-				} finally {
-					batchProgress.value.completed++
-					if (id) downloadingIds.value.delete(id)
-				}
-			})
-			await Promise.allSettled(tasks)
-		}
+		await runBatch(validSongs.map((_, i) => i), lastTargetDir)
 
 		batchProgress.value.active = false
 	}
 
-	return { downloadingIds, batchProgress, downloadSong, batchDownload }
+	/** 重试上一批中失败的歌曲（复用已选目录） */
+	async function retryFailed() {
+		const indices = batchProgress.value.items
+			.map((item, idx) => (item.status === 'failed' ? idx : -1))
+			.filter((idx) => idx >= 0)
+		if (indices.length === 0 || !lastTargetDir) return
+
+		for (const idx of indices) {
+			batchProgress.value.items[idx].status = 'pending'
+			batchProgress.value.items[idx].error = undefined
+		}
+		batchProgress.value.failed -= indices.length
+		batchProgress.value.completed -= indices.length
+		batchProgress.value.active = true
+
+		await runBatch(indices, lastTargetDir)
+
+		batchProgress.value.active = false
+	}
+
+	return { downloadingIds, batchProgress, downloadSong, batchDownload, retryFailed }
 }

@@ -99,9 +99,9 @@ async def get_playlist_songs(playlist_id: int, req: schemas_qqmusic.GetPlaylistS
 
 
 @router.post("/playlist/{playlist_id}/songs/all", response_model=ApiResponse[schemas_qqmusic.PlaylistSongsResponse])
-async def get_playlist_songs_all(playlist_id: int):
+async def get_playlist_songs_all(playlist_id: int, req: schemas_qqmusic.PlaylistAllSongsRequest):
     """获取 QQ 音乐歌单内的全部歌曲（自动迭代所有页码，一次性返回）"""
-    result = await services_qqmusic.get_songlist_detail_all(playlist_id, request_id="")
+    result = await services_qqmusic.get_songlist_detail_all(playlist_id, request_id=req.requestId)
     return success(data=result)
 
 

@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, nextTick } from 'vue'
 import { searchSongs, searchByKeyword, getAlbumImages, getSongUrls } from '@/api/qqmusic'
 import { useDownloadManager } from '@/composables/useDownloadManager'
-import type { OnlineSong } from '@/types'
+import type { OnlineSong, SongItem } from '@/types'
 
 type SearchMode = 'link' | 'keyword'
 type SearchStep = '' | 'searching' | 'covers' | 'urls' | 'done'
@@ -29,7 +29,7 @@ export const useDiscoverStore = defineStore('discover', () => {
 	const errorMsg = ref('')
 
 	// 下载逻辑复用共享 composable
-	const { downloadingIds, batchProgress, downloadSong, batchDownload } = useDownloadManager()
+	const { downloadingIds, batchProgress, downloadSong, batchDownload, retryFailed } = useDownloadManager()
 
 	const searchStep = ref<SearchStep>('')
 
@@ -190,12 +190,13 @@ export const useDiscoverStore = defineStore('discover', () => {
 		handleSearch()
 	}
 
-	function playOnline(song: OnlineSong) {
+	function playOnline(song: SongItem) {
+		const album = typeof song.album === 'object' && song.album ? song.album : null
 		return {
 			songMid: song.songMid || '',
-			songName: song.songName,
-			singer: song.singer,
-			coverUrl: song.album?.albumCoverUrl || '',
+			songName: song.songName || '',
+			singer: song.singer || '',
+			coverUrl: album?.albumCoverUrl || '',
 			url: song.songUrl?.url || '',
 			urlType: song.songUrl?.urlType || 'mp3',
 		}
@@ -220,6 +221,7 @@ export const useDiscoverStore = defineStore('discover', () => {
 		handleSearch,
 		downloadSong,
 		batchDownload,
+		retryFailed,
 		setPage,
 		setPageSize,
 		playOnline,

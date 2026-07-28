@@ -50,7 +50,7 @@ export const useQqmusicStore = defineStore('qqmusic', () => {
   const isRefreshing = ref(false)
   const loadingError = ref('')
   // 下载逻辑复用共享 composable
-  const { downloadingIds, batchProgress, downloadSong, batchDownload } = useDownloadManager()
+  const { downloadingIds, batchProgress, downloadSong, batchDownload, retryFailed } = useDownloadManager()
 
   function setCurrentPlaylistId(id: number | null) {
     currentPlaylistId.value = id
@@ -160,6 +160,7 @@ export const useQqmusicStore = defineStore('qqmusic', () => {
     clearAllCache,
     downloadSong,
     batchDownload,
+    retryFailed,
     clearCurrentPlaylist,
   }
 })

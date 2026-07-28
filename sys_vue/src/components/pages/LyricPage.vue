@@ -283,8 +283,8 @@ watch(currentSong, async (newSong) => {
 			return
 		}
 		try {
-			const coverData: any = await window.electronAPI.getSongCover(newSong.id)
-			if (coverData && coverData.success && coverData.cover) {
+			const coverData = await window.electronAPI.getSongCover(newSong.id)
+			if (coverData.success && coverData.cover) {
 				const format = coverData.format || 'image/jpeg'
 				albumCoverUrl.value = `data:${format};base64,${coverData.cover}`
 			} else {
@@ -317,7 +317,7 @@ const resetFontSize = () => {
 }
 
 // 在每次渲染时重置 refs 数组
-const setLyricLineRef = (el: any, index: number) => {
+const setLyricLineRef = (el: Element | { $el?: Element } | null, index: number) => {
 	if (el) {
 		lyricLineRefs.value[index] = el
 	}
@@ -410,8 +410,9 @@ const closeLyrics = () => {
 }
 
 // 点击背景关闭
-const handleBackgroundClick = (e: any) => {
-	if (e.target.classList.contains('lyric-page')) {
+const handleBackgroundClick = (e: MouseEvent) => {
+	const target = e.target as HTMLElement | null
+	if (target?.classList.contains('lyric-page')) {
 		closeLyrics()
 	}
 }

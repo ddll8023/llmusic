@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { usePlayerStore } from './player'
-import type { Song, Library, ScanProgress, ScanPhase } from '@/types'
+import type { Song, Library, ScanProgress, ScanPhase, ScanFailedFile } from '@/types'
 
 /**
  * 规范化 libraryId：null / undefined / 空值 统一转为 'all'
@@ -27,6 +27,10 @@ interface MediaState {
 	activeLibraryId: string
 	scanning: boolean
 	scanProgress: ScanProgress
+	/** 最近一次扫描的失败文件清单 */
+	lastScanFailedFiles: ScanFailedFile[]
+	/** 最近一次扫描跳过的未变更文件数（增量扫描） */
+	lastScanSkippedCount: number
 	lastScanPath: string
 	clearingSongs: boolean
 	searchTerm: string
@@ -48,6 +52,8 @@ export const useMediaStore = defineStore('media', {
 		activeLibraryId: 'all',
 		scanning: false,
 		scanProgress: { phase: 'idle' as ScanPhase, processed: 0, total: 0, message: '' },
+		lastScanFailedFiles: [],
+		lastScanSkippedCount: 0,
 		lastScanPath: '',
 		clearingSongs: false,
 		searchTerm: '',
@@ -80,6 +86,14 @@ export const useMediaStore = defineStore('media', {
 	},
 
 	actions: {
+		/** 定点替换单条歌曲记录（标签编辑后同步，避免全量重载） */
+		replaceSong(song: Song) {
+			const index = this.songs.findIndex((s) => s.id === song.id)
+			if (index !== -1) {
+				this.songs.splice(index, 1, song)
+			}
+		},
+
 		setSearchTerm(term: string) {
 			this.searchTerm = term
 		},
@@ -278,12 +292,19 @@ export const useMediaStore = defineStore('media', {
 			if (!libraryId) return
 			this.scanning = true
 			this.scanProgress = { phase: 'starting' as ScanPhase, processed: 0, total: 0, message: '正在准备开始扫描...' }
+			this.lastScanFailedFiles = []
+			this.lastScanSkippedCount = 0
 
 			// 模块级标记保证进度监听只注册一次，避免多次扫描时重复回调
 			if (!_scanProgressListenerRegistered) {
 				_scanProgressListenerRegistered = true
 				window.electronAPI.onScanProgress((progress: ScanProgress) => {
 					this.scanProgress = { ...this.scanProgress, ...progress }
+					// 扫描完成事件携带失败清单与跳过统计
+					if (progress.phase === 'complete') {
+						this.lastScanFailedFiles = progress.failedFiles || []
+						this.lastScanSkippedCount = progress.skippedCount || 0
+					}
 				})
 			}
 

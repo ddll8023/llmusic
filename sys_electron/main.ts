@@ -24,6 +24,7 @@ import { terminateScan } from "./handlers/scan/MusicScanner"
 import { registerAudioProtocol } from "./handlers/system/audioProtocol"
 import { CHANNELS } from "./constants/ipcChannels"
 import { SUPPORTED_AUDIO_EXTENSIONS } from "./constants/formats"
+import { BACKEND_HOST, BACKEND_PORT } from "./constants/backend"
 import type { BackendState, AppState } from "./types"
 
 // 全局异常兜底：仅记录日志，不主动退出
@@ -42,13 +43,15 @@ protocol.registerSchemesAsPrivileged([
 	},
 ])
 
-// ===== 后端服务配置 =====
-const BACKEND_HOST = "127.0.0.1"
-const BACKEND_PORT = 9752
+// 仓库根目录：编译产物位于 sys_electron/dist-ts/ 下，需上溯两级才是仓库根
+const REPO_ROOT = path.resolve(__dirname, "..", "..")
+
 
 // 后端进程状态
 let backendProcess: ChildProcess | null = null
 let isWaitingBackendStop = false
+// 是否正在退出应用（darwin 上用于区分"关窗口隐藏"与"真正退出"）
+let isQuitting = false
 
 // 后端状态对象，供 IPC 查询
 const backendState: BackendState = {
@@ -65,7 +68,6 @@ const backendState: BackendState = {
  * 获取后端可执行文件路径（win32 / darwin / linux）
  */
 function getBackendExecutable(): string {
-	const projectRoot = path.resolve(__dirname, "..")
 	if (app.isPackaged) {
 		const executableName = process.platform === "win32" ? "backend.exe" : "backend"
 		return path.join(process.resourcesPath, "backend", executableName)
@@ -74,15 +76,14 @@ function getBackendExecutable(): string {
 		process.platform === "win32"
 			? path.join("Scripts", "python.exe")
 			: path.join("bin", "python")
-	return path.join(projectRoot, "backend", ".venv", venvPython)
+	return path.join(REPO_ROOT, "backend", ".venv", venvPython)
 }
 
 /**
  * 启动后端子进程
  */
 function spawnBackend(): void {
-	const projectRoot = path.resolve(__dirname, "..")
-	const backendRoot = path.join(projectRoot, "backend")
+	const backendRoot = path.join(REPO_ROOT, "backend")
 	const executablePath = getBackendExecutable()
 	const appDataDir = app.getPath("appData")
 
@@ -246,6 +247,12 @@ function createWindow(): BrowserWindow {
 	})
 
 	mainWindow.on("close", (event) => {
+		// macOS 惯例：关闭窗口仅隐藏，进程与播放/扫描状态保持存活（Cmd+Q 才真正退出）
+		if (process.platform === "darwin" && !isQuitting) {
+			event.preventDefault()
+			mainWindow.hide()
+			return
+		}
 		if (appState.closeWindowBehavior === "minimize" && mainWindow) {
 			event.preventDefault()
 			mainWindow.hide()
@@ -257,7 +264,6 @@ function createWindow(): BrowserWindow {
 					iconType: "info",
 				})
 			}
-			return false
 		}
 	})
 
@@ -283,7 +289,7 @@ function createTray(): Tray {
 	// 打包后托盘图标由 extraResources 复制到 resources/assets 下
 	const iconPath = app.isPackaged
 		? path.join(process.resourcesPath, "assets", "tray-icon.png")
-		: path.join(__dirname, "..", "sys_vue", "src", "assets", "tray-icon.png")
+		: path.join(REPO_ROOT, "sys_vue", "src", "assets", "tray-icon.png")
 	const icon = nativeImage
 		.createFromPath(iconPath)
 		.resize({ width: 16, height: 16 })
@@ -524,11 +530,13 @@ function recreateWindow(): void {
 	})
 }
 
-// 应用激活事件（macOS）
+// 应用激活事件（macOS）：窗口存活（含隐藏态）直接显示，销毁时才重建
 app.on("activate", () => {
-	if (BrowserWindow.getAllWindows().length === 0) {
-		recreateWindow()
+	if (appState.mainWindow && !appState.mainWindow.isDestroyed()) {
+		appState.mainWindow.show()
+		return
 	}
+	recreateWindow()
 })
 
 // 所有窗口关闭事件
@@ -542,6 +550,7 @@ app.on("window-all-closed", () => {
 // cleanup 型工作（IPC 卸载、扫描 Worker 终止、托盘销毁、数据库关闭）在任何退出路径都执行一次；
 // 仅"等待后端子进程退出"保留 preventDefault + 异步 quit 的模式
 app.on("before-quit", (event: Electron.Event) => {
+	isQuitting = true
 	cleanup()
 
 	const backendManaged = !!process.env.LLMUSIC_BACKEND_MANAGED

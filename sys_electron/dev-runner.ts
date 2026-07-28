@@ -11,7 +11,7 @@ import electron from "electron"
 const ROOT_DIR = path.resolve(__dirname, "..", "..")
 const BACKEND_DIR = path.join(ROOT_DIR, "backend")
 const FRONTEND_DIR = path.join(ROOT_DIR, "sys_vue")
-const BACKEND_PORT = 9752
+import { BACKEND_PORT } from "./constants/backend"
 const FRONTEND_PORT = 9753
 
 /**
