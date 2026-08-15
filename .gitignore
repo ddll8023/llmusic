@@ -4,6 +4,8 @@ __pycache__/
 
 node_modules
 build
+!sys_electron/build/
+!sys_electron/build/**
 release
 
 dist

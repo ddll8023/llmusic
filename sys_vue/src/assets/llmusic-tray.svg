@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+  <defs>
+    <linearGradient id="tray-surface" x1="144" y1="104" x2="878" y2="920" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1B3028"/>
+      <stop offset="1" stop-color="#11161E"/>
+    </linearGradient>
+    <linearGradient id="tray-signal" x1="256" y1="224" x2="760" y2="792" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#DFFF9B"/>
+      <stop offset="0.52" stop-color="#69E1B4"/>
+      <stop offset="1" stop-color="#9B91FF"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="44" y="44" width="936" height="936" rx="276" fill="url(#tray-surface)"/>
+  <path d="M278 248V665C278 728 324 776 390 776H742" stroke="url(#tray-signal)" stroke-width="96" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M464 208V513C464 572 504 612 563 612H742" stroke="#EFFFF0" stroke-width="66" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M608 334V450L706 392L608 334Z" fill="#69E1B4"/>
+</svg>

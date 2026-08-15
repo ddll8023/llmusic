@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import FAIcon from '../common/FAIcon.vue';
 import CustomButton from '../custom/CustomButton.vue';
 import { useUiStore } from '../../store/ui';
+import brandMarkUrl from '../../assets/llmusic-mark.svg';
 
 const isMaximized = ref(false);
 let removeListener: (() => void) | null = null;
@@ -26,8 +26,14 @@ const uiStore = useUiStore();
   <div class="w-full h-[32px] bg-surface-base text-content-base flex flex-row items-center relative z-[200] border-b border-line-base select-none">
     <div class="w-full h-full flex justify-between items-center" style="-webkit-app-region: drag">
       <div class="flex items-center pl-3 gap-2 flex-1 min-w-0 max-md:pl-2 max-md:gap-1.5">
-        <div class="flex items-center justify-center text-accent-green shrink-0 transition-colors duration-200 hover:text-accent-green-hover">
-          <FAIcon name="music" size="medium" color="accent" />
+        <div class="flex items-center justify-center shrink-0">
+          <img
+            :src="brandMarkUrl"
+            alt=""
+            aria-hidden="true"
+            draggable="false"
+            class="pointer-events-none h-5 w-5 rounded-[5px] shadow-[0_0_12px_rgba(167,242,110,0.2)]"
+          />
         </div>
         <span class="text-xs font-medium leading-normal text-content-base truncate transition-colors duration-200 max-md:text-2xs">LLMusic</span>
         <div style="-webkit-app-region: no-drag">

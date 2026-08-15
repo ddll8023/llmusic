@@ -61,6 +61,10 @@
 				"to": "assets/tray-icon.png"
 			},
 			{
+				"from": "../sys_vue/src/assets/llmusic-mark.png",
+				"to": "assets/app-icon.png"
+			},
+			{
 				"from": "../sys_vue/dist",
 				"to": "sys_vue/dist",
 				"filter": [
@@ -116,6 +120,9 @@
 				"nsis"
 			],
 			"icon": "build/icon.ico"
+		},
+		"mac": {
+			"icon": "build/icon.icns"
 		},
 		"nsis": {
 			"oneClick": false,

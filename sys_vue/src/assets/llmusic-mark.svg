@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+  <defs>
+    <linearGradient id="surface" x1="136" y1="104" x2="892" y2="924" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1B3028"/>
+      <stop offset="0.52" stop-color="#132321"/>
+      <stop offset="1" stop-color="#11161E"/>
+    </linearGradient>
+    <linearGradient id="signal" x1="250" y1="228" x2="776" y2="790" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B7F36F"/>
+      <stop offset="0.48" stop-color="#62DDB7"/>
+      <stop offset="1" stop-color="#8E84FF"/>
+    </linearGradient>
+    <linearGradient id="signal-secondary" x1="434" y1="192" x2="742" y2="636" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E1FF9A"/>
+      <stop offset="0.58" stop-color="#5BD9C8"/>
+      <stop offset="1" stop-color="#A99BFF"/>
+    </linearGradient>
+    <filter id="signal-glow" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="24" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0  0 1 0 0 0.12  0 0 1 0 0.08  0 0 0 0.72 0"/>
+    </filter>
+  </defs>
+
+  <rect x="32" y="32" width="960" height="960" rx="264" fill="#0B1113"/>
+  <rect x="64" y="64" width="896" height="896" rx="232" fill="url(#surface)"/>
+  <path d="M168 190H856" stroke="#F5FFF0" stroke-opacity="0.055" stroke-width="2"/>
+  <path d="M168 834H856" stroke="#F5FFF0" stroke-opacity="0.035" stroke-width="2"/>
+
+  <g opacity="0.42" filter="url(#signal-glow)">
+    <path d="M278 248V665C278 728 324 776 390 776H742" stroke="url(#signal)" stroke-width="104" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M464 208V513C464 572 504 612 563 612H742" stroke="url(#signal-secondary)" stroke-width="78" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <path d="M278 248V665C278 728 324 776 390 776H742" stroke="url(#signal)" stroke-width="88" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M464 208V513C464 572 504 612 563 612H742" stroke="url(#signal-secondary)" stroke-width="62" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <path d="M608 334V450L706 392L608 334Z" fill="#F4FFE9"/>
+  <path d="M756 522H802" stroke="#B7F36F" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="824" cy="522" r="9" fill="#8E84FF"/>
+</svg>

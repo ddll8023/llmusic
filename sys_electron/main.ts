@@ -284,6 +284,28 @@ function createWindow(): BrowserWindow {
 }
 
 /**
+ * 设置 macOS Dock 图标。
+ * 开发模式读取源码资源，打包后读取 extraResources 中的 PNG。
+ */
+function setMacDockIcon(): void {
+	if (process.platform !== "darwin" || !app.dock) {
+		return
+	}
+
+	const iconPath = app.isPackaged
+		? path.join(process.resourcesPath, "assets", "app-icon.png")
+		: path.join(REPO_ROOT, "sys_vue", "src", "assets", "llmusic-mark.png")
+	const icon = nativeImage.createFromPath(iconPath)
+
+	if (icon.isEmpty()) {
+		console.warn(`[Main] 无法加载 Dock 图标: ${iconPath}`)
+		return
+	}
+
+	app.dock.setIcon(icon)
+}
+
+/**
  * 创建系统托盘图标及菜单
  */
 function createTray(): Tray {
@@ -501,6 +523,8 @@ if (!gotTheLock) {
 	})
 
 	app.whenReady().then(() => {
+		setMacDockIcon()
+
 		const filePath = extractAudioFilePath(process.argv)
 
 		if (filePath) {
