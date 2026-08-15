@@ -22,6 +22,7 @@ QQ 音乐歌单模块把用户 QQ 音乐账号下的歌单资源带入桌面端�
 
 - 歌单歌曲元数据持久化于主进程 SQLite（按用户 + 歌单 ID 键控），渲染层保留进程内 Map 热缓存；重复进入或应用重启后不重复拉取
 - 播放 URL 有时效性，不落盘、不跨会话恢复；缓存命中后异步批量获取播放 URL
+- 播放 URL 接口单次最多接收 200 个歌曲 MID；大歌单按 200 个一批请求，并按原歌单顺序合并结果，避免缓存恢复时因参数超限导致播放地址全部获取失败
 - 切换歌单时清理筛选词与选中集，防止旧歌单数据串场
 - 全量加载歌单必须保证分页迭代完整，不丢曲
 - 未登录状态清空全部在线歌单缓存
@@ -113,6 +114,14 @@ QQ 音乐登录 ──登录态/凭证──> QQ 音乐歌单 ──播放──
 | /user/liked | POST | page、pageSize | 喜欢歌曲列表 + total | 需登录，按 encrypt_uin 查询 |
 | /playlist/{playlist_id}/songs | POST | page、pageSize、requestId | 歌单单页歌曲 + total | 单页获取 |
 | /playlist/{playlist_id}/songs/all | POST | requestId | 歌单全部歌曲（自动迭代）+ total | 附带批量播放 URL 回填 |
+
+### 播放 URL 依赖接口
+
+歌单缓存只保存歌曲元数据，播放地址由渲染层通过统一 API 入口重新获取：
+
+| 路径 | 方法 | 请求体 | 响应 data 要点 | 调用约束 |
+|---|---|---|---|---|
+| /song/song-url | POST | requestId、songIdList | 按输入顺序返回 URL 与 urlType | 后端单次最多 200 个 MID；前端 `getSongUrls` 超过限制时分批请求并合并结果 |
 
 ### 鉴权与错误边界
 

@@ -106,8 +106,27 @@ export function getAlbumImages(requestId: string, albumIdList: string[]) {
   return post<{ requestId: string; result: string[] }>('/song/album-img', { requestId, albumIdList })
 }
 
-export function getSongUrls(requestId: string, songIdList: string[]) {
-  return post<{ requestId: string; result: { url: string; urlType: string }[] }>('/song/song-url', { requestId, songIdList })
+// 后端单次最多接受 200 个歌曲 MID；歌单缓存/全量歌单可能超过该限制，需分批请求并保持顺序合并
+const SONG_URL_BATCH_SIZE = 200
+
+export async function getSongUrls(requestId: string, songIdList: string[]) {
+  const result: { url: string; urlType: string }[] = []
+
+  for (let i = 0; i < songIdList.length; i += SONG_URL_BATCH_SIZE) {
+    const chunk = songIdList.slice(i, i + SONG_URL_BATCH_SIZE)
+    const chunkRequestId = chunk.length === songIdList.length ? requestId : `${requestId}_${i / SONG_URL_BATCH_SIZE}`
+    const res = await post<{ requestId: string; result: { url: string; urlType: string }[] }>('/song/song-url', {
+      requestId: chunkRequestId,
+      songIdList: chunk,
+    })
+    result.push(...(res.data.result || []))
+  }
+
+  return {
+    code: 0,
+    message: 'success',
+    data: { requestId, result },
+  } as ApiResponse<{ requestId: string; result: { url: string; urlType: string }[] }>
 }
 
 export function searchByKeyword(keyword: string, page: number, pageSize: number) {
