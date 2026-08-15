@@ -70,7 +70,8 @@ jobs:
       - name: Verify native backend
         env:
           BACKEND_NAME: ${{ matrix.platform == 'win' && 'backend.exe' || 'backend' }}
-        run: node -e "const fs = require('fs'); const p = 'backend/dist/' + process.env.BACKEND_NAME; if (!fs.existsSync(p) || fs.statSync(p).size === 0) throw new Error('Missing backend artifact: ' + p); console.log(p);"
+        run: |
+          node -e "const fs = require('fs'); const p = 'backend/dist/' + process.env.BACKEND_NAME; if (!fs.existsSync(p) || fs.statSync(p).size === 0) throw new Error('Missing backend artifact: ' + p); console.log(p);"
 
       - name: Compile Electron
         run: npm --prefix sys_electron run tsc
