@@ -24,3 +24,11 @@ export {
 	removeSongsFromPlaylist,
 } from "./playlistRepo"
 export { getSetting, setSetting, getAllSettings } from "./settingsRepo"
+export {
+	getPlaylistCache,
+	savePlaylistCache,
+	deletePlaylistCache,
+	getUserPlaylistsCache,
+	saveUserPlaylistsCache,
+	clearUserOnlineCache,
+} from "./onlinePlaylistCacheRepo"

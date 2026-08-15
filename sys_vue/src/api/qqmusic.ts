@@ -154,6 +154,15 @@ export function getPlaylistSongsAll(playlistId: number) {
   return post<SearchResultData>(`/playlist/${playlistId}/songs/all`, { requestId: String(Date.now()) })
 }
 
+/** 获取 QQ 音乐歌单内的歌曲（单页，用于轻量一致性检查） */
+export function getPlaylistSongs(playlistId: number, page: number, pageSize: number) {
+  return post<SearchResultData>(`/playlist/${playlistId}/songs`, {
+    page,
+    pageSize,
+    requestId: String(Date.now()),
+  })
+}
+
 // ========== 下载元数据 ==========
 
 /** 获取歌曲下载元数据包（详情+封面+歌词+下载链接） */

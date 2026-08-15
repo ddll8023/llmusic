@@ -154,7 +154,22 @@ const headerActions = computed(() => [
     type: 'primary' as const,
     disabled: filteredSongs.value.length === 0,
   },
+  {
+    key: 'refresh',
+    label: qqmusicStore.isRefreshing ? '刷新中...' : '刷新',
+    icon: 'refresh',
+    type: 'secondary' as const,
+    disabled: qqmusicStore.isRefreshing,
+  },
 ])
+
+function handleActionClick(key: string) {
+  if (key === 'refresh') {
+    handleRefresh()
+  } else if (key === 'play-all') {
+    handlePlayAll()
+  }
+}
 </script>
 
 <template>
@@ -168,7 +183,7 @@ const headerActions = computed(() => [
       search-placeholder="筛选歌曲或歌手"
       :actions="headerActions"
       @search="searchTerm = $event"
-      @action-click="handlePlayAll"
+      @action-click="handleActionClick"
     />
 
     <!-- 首次加载 -->

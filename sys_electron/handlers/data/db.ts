@@ -69,6 +69,21 @@ CREATE TABLE IF NOT EXISTS settings (
 	key TEXT PRIMARY KEY,
 	value TEXT
 );
+
+CREATE TABLE IF NOT EXISTS qq_playlist_cache (
+	user_key TEXT NOT NULL,
+	playlist_id INTEGER NOT NULL,
+	total INTEGER NOT NULL DEFAULT 0,
+	data TEXT NOT NULL,
+	cached_at INTEGER NOT NULL,
+	PRIMARY KEY (user_key, playlist_id)
+);
+
+CREATE TABLE IF NOT EXISTS qq_user_playlists_cache (
+	user_key TEXT PRIMARY KEY,
+	data TEXT NOT NULL,
+	cached_at INTEGER NOT NULL
+);
 `
 
 let db: SqliteDatabase | null = null

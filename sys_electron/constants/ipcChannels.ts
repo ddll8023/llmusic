@@ -68,6 +68,14 @@ export const CHANNELS = {
 	// --- 在线搜索 ---
 	SEARCH_ONLINE_METADATA: "search-online-metadata",
 
+	// --- 在线歌单缓存 ---
+	GET_QQ_PLAYLIST_CACHE: "get-qq-playlist-cache",
+	SAVE_QQ_PLAYLIST_CACHE: "save-qq-playlist-cache",
+	DELETE_QQ_PLAYLIST_CACHE: "delete-qq-playlist-cache",
+	GET_QQ_USER_PLAYLISTS_CACHE: "get-qq-user-playlists-cache",
+	SAVE_QQ_USER_PLAYLISTS_CACHE: "save-qq-user-playlists-cache",
+	CLEAR_QQ_ONLINE_CACHE: "clear-qq-online-cache",
+
 	// --- 下载（带元数据嵌入） ---
 	DOWNLOAD_SONG_WITH_METADATA: "download-song-with-metadata",
 	DOWNLOAD_SONG_TO_DIR: "download-song-to-dir",

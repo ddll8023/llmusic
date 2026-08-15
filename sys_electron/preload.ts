@@ -58,6 +58,13 @@ const CHANNELS = {
 	IMPORT_MUSIC_FILES: "import-music-files",
 	// --- 在线搜索 ---
 	SEARCH_ONLINE_METADATA: "search-online-metadata",
+	// --- 在线歌单缓存 ---
+	GET_QQ_PLAYLIST_CACHE: "get-qq-playlist-cache",
+	SAVE_QQ_PLAYLIST_CACHE: "save-qq-playlist-cache",
+	DELETE_QQ_PLAYLIST_CACHE: "delete-qq-playlist-cache",
+	GET_QQ_USER_PLAYLISTS_CACHE: "get-qq-user-playlists-cache",
+	SAVE_QQ_USER_PLAYLISTS_CACHE: "save-qq-user-playlists-cache",
+	CLEAR_QQ_ONLINE_CACHE: "clear-qq-online-cache",
 	// --- 窗口行为 ---
 	SET_CLOSE_BEHAVIOR: "set-close-behavior",
 	GET_CLOSE_BEHAVIOR: "get-close-behavior",
@@ -189,6 +196,20 @@ const compatAPI: Record<string, unknown> = {
 	// 在线搜索
 	searchOnlineMetadata: (searchParams: Record<string, unknown>) =>
 		ipcRenderer.invoke(CHANNELS.SEARCH_ONLINE_METADATA, searchParams),
+
+	// 在线歌单缓存
+	getQQPlaylistCache: (params: { userKey: string; playlistId: number }) =>
+		ipcRenderer.invoke(CHANNELS.GET_QQ_PLAYLIST_CACHE, params),
+	saveQQPlaylistCache: (params: { userKey: string; playlistId: number; total: number; songs: unknown[] }) =>
+		ipcRenderer.invoke(CHANNELS.SAVE_QQ_PLAYLIST_CACHE, params),
+	deleteQQPlaylistCache: (params: { userKey: string; playlistId?: number }) =>
+		ipcRenderer.invoke(CHANNELS.DELETE_QQ_PLAYLIST_CACHE, params),
+	getQQUserPlaylistsCache: (params: { userKey: string }) =>
+		ipcRenderer.invoke(CHANNELS.GET_QQ_USER_PLAYLISTS_CACHE, params),
+	saveQQUserPlaylistsCache: (params: { userKey: string; playlists: unknown[]; total?: number }) =>
+		ipcRenderer.invoke(CHANNELS.SAVE_QQ_USER_PLAYLISTS_CACHE, params),
+	clearQQOnlineCache: (params: { userKey: string }) =>
+		ipcRenderer.invoke(CHANNELS.CLEAR_QQ_ONLINE_CACHE, params),
 
 	// 文件下载（带元数据嵌入）
 	downloadSongWithMetadata: (options: Record<string, unknown>) =>

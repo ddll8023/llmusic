@@ -104,6 +104,8 @@ export const useAuthStore = defineStore('auth', () => {
 
 	async function logout() {
 		stopPolling()
+		// 先记录当前账号，供清空在线歌单缓存使用（后面会重置 userInfo）
+		const userKey = String(userInfo.value.music_id || userInfo.value.encrypt_uin || 'anonymous')
 		try {
 			await logoutApi()
 		} catch (e) {
@@ -119,7 +121,7 @@ export const useAuthStore = defineStore('auth', () => {
 
 		const { useQqmusicStore } = await import('./qqmusic')
 		const qqmusicStore = useQqmusicStore()
-		qqmusicStore.clearAllCache()
+		qqmusicStore.clearAllCache(userKey)
 
 		const { usePlayerStore } = await import('./player')
 		const playerStore = usePlayerStore()

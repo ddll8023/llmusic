@@ -54,6 +54,21 @@ declare global {
 		height: number
 	}
 
+	// ---- QQ 在线歌单缓存 ----
+	interface QQPlaylistCachePayload {
+		version: number
+		cachedAt: number
+		total: number
+		songs: import('./api').OnlineSong[]
+	}
+
+	interface QQUserPlaylistsCachePayload {
+		version: number
+		cachedAt: number
+		total: number
+		playlists: import('./api').QMPlaylistItem[]
+	}
+
 	interface ElectronAPI {
 		// ── 窗口控制 ──
 		windowMinimize: () => Promise<IpcResult>
@@ -145,6 +160,14 @@ declare global {
 		updateTagsToFile: (filePath: string, tags: Record<string, unknown>) => Promise<IpcResult<{ updatedTags?: Record<string, unknown> | null }>>
 		validateTagChanges: (tags: Record<string, unknown>) => Promise<IpcResult<{ validation: { valid: boolean; errors: string[]; warnings: string[] } }>>
 		searchOnlineMetadata: (searchParams: Record<string, unknown>) => Promise<IpcResult<{ results?: unknown[] }>>
+
+		// ── QQ 在线歌单缓存 ──
+		getQQPlaylistCache: (params: { userKey: string; playlistId: number }) => Promise<IpcResult<{ payload?: QQPlaylistCachePayload | null }>>
+		saveQQPlaylistCache: (params: { userKey: string; playlistId: number; total: number; songs: import('./api').OnlineSong[] }) => Promise<IpcResult>
+		deleteQQPlaylistCache: (params: { userKey: string; playlistId?: number }) => Promise<IpcResult>
+		getQQUserPlaylistsCache: (params: { userKey: string }) => Promise<IpcResult<{ payload?: QQUserPlaylistsCachePayload | null }>>
+		saveQQUserPlaylistsCache: (params: { userKey: string; playlists: import('./api').QMPlaylistItem[]; total?: number }) => Promise<IpcResult>
+		clearQQOnlineCache: (params: { userKey: string }) => Promise<IpcResult>
 
 		// ── 音乐库 ──
 		getLibraries: () => Promise<IpcResult<{ libraries: import('./api').Library[] }>>

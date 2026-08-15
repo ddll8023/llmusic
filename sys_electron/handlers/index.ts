@@ -16,6 +16,7 @@ import { createLyricsHandlers } from "./audio/lyricsHandlers"
 import { createPlaylistHandlers } from "./data/playlistHandlers"
 import { createLibraryHandlers } from "./data/libraryHandlers"
 import { createTagHandlers } from "./audio/tagHandlers"
+import { createOnlinePlaylistCacheHandlers } from "./data/onlinePlaylistCacheHandlers"
 
 // 下载相关处理器
 import { createDownloadHandlers } from "./download/downloadHandlers"
@@ -39,6 +40,7 @@ function setupIpcHandlers(
 		createPlaylistHandlers(),
 		createLibraryHandlers(),
 		createTagHandlers(),
+		createOnlinePlaylistCacheHandlers(),
 		createDownloadHandlers(mainWindow),
 		createDesktopLyricHandlers(),
 	]
