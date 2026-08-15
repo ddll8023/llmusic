@@ -5,10 +5,9 @@ import os
 from pydantic import ValidationError
 from qqmusic_api.models.request import Credential
 
+from app.core.paths import CREDENTIAL_PATH
 from app.schemas.common import ErrorCode
 from app.utils.exception import ServiceException
-
-CREDENTIAL_PATH = os.path.join(os.path.dirname(__file__), "credential.json")
 
 _cached_credential: Credential | None = None
 _cached_mtime: float | None = None

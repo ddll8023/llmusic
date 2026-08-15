@@ -1,0 +1,129 @@
+name: Desktop release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            platform: mac
+            arch: arm64
+            electron_args: "--mac --arm64"
+          - os: macos-13
+            platform: mac
+            arch: x64
+            electron_args: "--mac --x64"
+          - os: windows-latest
+            platform: win
+            arch: x64
+            electron_args: "--win --x64"
+    env:
+      # 未配置 Developer ID/Windows 证书时，明确生成未签名产物。
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            sys_vue/package-lock.json
+            sys_electron/package-lock.json
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install Python
+        run: uv python install 3.12
+
+      - name: Install frontend dependencies
+        run: npm ci --prefix sys_vue
+
+      - name: Install Electron dependencies
+        run: npm ci --prefix sys_electron
+
+      - name: Sync backend build dependencies
+        run: uv sync --locked --directory backend --group build --python 3.12
+
+      - name: Build frontend
+        run: npm --prefix sys_vue run build
+
+      - name: Build native backend
+        run: npm --prefix sys_electron run build:backend
+
+      - name: Verify native backend
+        env:
+          BACKEND_NAME: ${{ matrix.platform == 'win' && 'backend.exe' || 'backend' }}
+        run: node -e "const fs = require('fs'); const p = 'backend/dist/' + process.env.BACKEND_NAME; if (!fs.existsSync(p) || fs.statSync(p).size === 0) throw new Error('Missing backend artifact: ' + p); console.log(p);"
+
+      - name: Compile Electron
+        run: npm --prefix sys_electron run tsc
+
+      - name: Package desktop application
+        run: npm --prefix sys_electron run pack -- ${{ matrix.electron_args }}
+
+      - name: Verify package output
+        run: node -e "const fs = require('fs'); const files = fs.readdirSync('release').filter(name => !name.startsWith('.')); if (!files.length) throw new Error('No release artifacts found'); console.log(files.join('\\n'));"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LLMusic-${{ matrix.platform }}-${{ matrix.arch }}
+          path: release/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify tag matches package version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          version="${RELEASE_TAG#v}"
+          package_version="$(node -p "require('./package.json').version")"
+          test "$version" = "$package_version"
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release
+          pattern: LLMusic-*
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: |
+          cd release
+          find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          generate_release_notes: true

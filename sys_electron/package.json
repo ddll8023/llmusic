@@ -2,7 +2,7 @@
 	"name": "llmusic-electron",
 	"productName": "LLMusic",
 	"version": "1.0.0",
-	"description": "",
+	"description": "LLMusic 本地音乐播放器",
 	"main": "dist-ts/main.js",
 	"private": true,
 	"scripts": {
@@ -14,17 +14,21 @@
 		"tsc:watch": "tsc --watch",
 		"type-check": "tsc --noEmit",
 		"build": "npm --prefix ../sys_vue run build",
-		"build:backend": "uv run --directory ../backend pyinstaller --onefile --name backend --distpath ../backend/dist ../backend/entry.py",
-		"pack": "electron-builder",
-		"dist:dir": "npm run build && npm run build:backend && tsc && electron-builder --win dir",
-		"dist:win": "npm run build && npm run build:backend && tsc && electron-builder --win"
+		"clean:backend": "node -e \"require('fs').rmSync('../backend/dist',{recursive:true,force:true})\"",
+		"build:backend": "npm run clean:backend && uv run --directory ../backend --group build pyinstaller --noconfirm --clean --onefile --name backend --distpath dist entry.py",
+		"clean:release": "node -e \"require('fs').rmSync('../release',{recursive:true,force:true})\"",
+		"postinstall": "electron-builder install-app-deps",
+		"pack": "node scripts/pack.cjs",
+		"dist": "npm run build && npm run build:backend && npm run tsc && npm run pack",
+		"dist:dir": "npm run build && npm run build:backend && npm run tsc && npm run pack -- --win --dir",
+		"dist:mac": "npm run build && npm run build:backend && npm run tsc && npm run pack -- --mac",
+		"dist:win": "npm run build && npm run build:backend && npm run tsc && npm run pack -- --win"
 	},
 	"dependencies": {
 		"better-sqlite3": "^12.2.0",
 		"ffmpeg-static": "^5.2.0",
 		"ffprobe-static": "^3.1.0",
 		"fluent-ffmpeg": "^2.1.3",
-		"llmusic": "file:..",
 		"music-metadata": "^11.2.3",
 		"node-id3": "^0.2.9",
 		"uuid": "^11.1.0"
@@ -45,16 +49,15 @@
 			"output": "../release"
 		},
 		"files": [
-			"**/*"
+			"dist-ts/**/*"
 		],
 		"extraResources": [
 			{
-				"from": "../backend/dist/backend.exe",
-				"to": "backend/backend.exe"
-			},
-			{
-				"from": "../backend/app/credential/credential.json",
-				"to": "backend/credential/credential.json"
+				"from": "../backend/dist",
+				"to": "backend",
+				"filter": [
+					"backend*"
+				]
 			},
 			{
 				"from": "../sys_vue/src/assets/tray-icon.png",
@@ -73,6 +76,7 @@
 			}
 		],
 		"asarUnpack": [
+			"**/*.node",
 			"**/node_modules/ffmpeg-static/**",
 			"**/node_modules/ffprobe-static/**"
 		],
@@ -114,14 +118,19 @@
 				"role": "Editor"
 			}
 		],
+		"artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
 		"win": {
 			"target": [
-				"dir",
-				"nsis"
+				"nsis",
+				"zip"
 			],
 			"icon": "build/icon.ico"
 		},
 		"mac": {
+			"target": [
+				"dmg",
+				"zip"
+			],
 			"icon": "build/icon.icns"
 		},
 		"nsis": {

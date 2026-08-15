@@ -86,7 +86,6 @@ function getBackendExecutable(): string {
 function spawnBackend(): void {
 	const backendRoot = path.join(REPO_ROOT, "backend")
 	const executablePath = getBackendExecutable()
-	const appDataDir = app.getPath("appData")
 
 	backendState.status = "starting"
 	backendState.host = BACKEND_HOST
@@ -101,15 +100,21 @@ function spawnBackend(): void {
 	console.log(`[Backend] 启动中... 路径: ${executablePath}`)
 	console.log(`[Backend] 参数: ${spawnArgs.join(" ") || "(无 - 打包模式)"}`)
 
+	const backendEnv: NodeJS.ProcessEnv = {
+		...process.env,
+		APP_HOST: BACKEND_HOST,
+		APP_PORT: String(BACKEND_PORT),
+		PYTHONUNBUFFERED: "1",
+	}
+
+	if (app.isPackaged) {
+		// 打包后写入 Electron userData，避免把凭证和操作日志写进只读的应用资源目录。
+		backendEnv.APP_DATA_DIR = app.getPath("userData")
+	}
+
 	backendProcess = spawn(executablePath, spawnArgs, {
 		cwd: app.isPackaged ? undefined : backendRoot,
-		env: {
-			...process.env,
-			APP_HOST: BACKEND_HOST,
-			APP_PORT: String(BACKEND_PORT),
-			APP_DATA_DIR: path.join(appDataDir, "LLMusic"),
-			PYTHONUNBUFFERED: "1",
-		},
+		env: backendEnv,
 		stdio: ["ignore", "pipe", "pipe"],
 		windowsHide: true,
 	})
@@ -167,7 +172,7 @@ function requestBackendHealth(baseUrl: string): Promise<boolean> {
 /**
  * 等待后端就绪（健康检查轮询）
  */
-async function waitForBackendReady(baseUrl: string, timeoutMs = 15000): Promise<boolean> {
+async function waitForBackendReady(baseUrl: string, timeoutMs = 45000): Promise<boolean> {
 	const deadline = Date.now() + timeoutMs
 	console.log(`[Backend] 等待就绪... (超时: ${timeoutMs}ms)`)
 

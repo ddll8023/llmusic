@@ -12,6 +12,7 @@ from qqmusic_api.models.login import QRCodeLoginEvents, QRLoginType
 from qqmusic_api.models.request import Credential
 from qqmusic_api.modules.login_utils import QRCodeLoginSession
 
+from app.core.paths import CREDENTIAL_DIR, CREDENTIAL_PATH
 from app.qqmusic.client import get_client, refresh_client, reset_client
 from app.schemas.common import ErrorCode
 from app.services.operation_log import log_operation
@@ -19,9 +20,6 @@ from app.utils.exception import ServiceException
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
-
-CREDENTIAL_DIR = os.path.join(os.path.dirname(__file__), "..", "credential")
-CREDENTIAL_PATH = os.path.join(CREDENTIAL_DIR, "credential.json")
 
 QR_SESSION_TIMEOUT_SECONDS = 180
 CREDENTIAL_REFRESH_AHEAD_SECONDS = 21600

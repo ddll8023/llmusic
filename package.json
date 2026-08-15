@@ -3,14 +3,19 @@
 	"productName": "LLMusic",
 	"version": "1.0.0",
 	"private": true,
-	"description": "",
+	"description": "LLMusic 本地音乐播放器",
 	"scripts": {
 		"dev": "npm --prefix sys_electron run dev-runner",
 		"dev:backend": "uv run --directory backend python -m app.main",
 		"dev:frontend": "npm --prefix sys_vue run dev",
 		"dev:electron": "npm --prefix sys_electron run dev",
 		"build": "npm --prefix sys_vue run build",
-		"pack": "npm --prefix sys_electron run pack"
+		"build:backend": "npm --prefix sys_electron run build:backend",
+		"build:electron": "npm --prefix sys_electron run tsc",
+		"pack": "npm --prefix sys_electron run pack",
+		"dist": "npm --prefix sys_electron run dist",
+		"dist:mac": "npm --prefix sys_electron run dist:mac",
+		"dist:win": "npm --prefix sys_electron run dist:win"
 	},
 	"keywords": [],
 	"author": "",

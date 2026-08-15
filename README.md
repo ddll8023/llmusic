@@ -104,8 +104,35 @@ npm run dev:electron
 
 ## 打包构建
 
+先安装两端 Node 依赖和后端构建依赖：
+
 ```bash
-build.bat
+npm ci --prefix sys_vue
+npm ci --prefix sys_electron
+uv sync --directory backend --group build
 ```
 
-执行流水线：前端 Vite 构建 → 后端 PyInstaller 打包 → Electron Builder 打包，产物输出到 `release/` 目录。
+在目标平台执行原生构建，避免把错误架构的 PyInstaller 后端带入安装包：
+
+```bash
+# 当前 macOS 架构（本机为 arm64）
+npm run dist:mac
+
+# Windows x64（在 Windows x64 runner 或本机执行）
+npm run dist:win
+```
+
+`build.bat` 等价于 `npm run dist:win`。macOS x64 应在 x64 runner 上执行：
+
+```bash
+npm --prefix sys_electron run dist:mac -- --x64
+```
+
+产物输出到 `release/`：
+
+| 平台 | 架构 | 产物 |
+|---|---|---|
+| macOS | arm64 / x64 | DMG、ZIP |
+| Windows | x64 | NSIS 安装包、ZIP |
+
+打包默认不上传 Release，也不启用签名或公证。仓库提供 `.github/workflows/release.yml`，推送 `v*` 标签后由 macOS/Windows 原生 runner 构建并创建 GitHub Release；签名凭据需通过 CI Secrets 单独配置。

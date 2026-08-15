@@ -5,6 +5,7 @@ import os
 import tempfile
 from datetime import datetime, timedelta, timezone
 
+from app.core.paths import LOG_DIR, LOG_PATH
 from app.schemas.common import ErrorCode
 from app.schemas.operation_log import OperationLogCleanupResult, OperationLogItem
 from app.utils.exception import ServiceException
@@ -12,8 +13,6 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
-LOG_PATH = os.path.join(LOG_DIR, "operation.log")
 CLEANUP_INTERVAL_SECONDS = 24 * 60 * 60
 
 _lock = asyncio.Lock()
