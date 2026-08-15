@@ -14,6 +14,7 @@ CLAUDE.md
 backend/.conda
 backend/.venv
 backend/app/credential/credential.json
+backend/logs/
 
 sys_vue/node_modules
 sys_vue/dist

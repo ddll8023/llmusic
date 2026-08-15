@@ -27,16 +27,30 @@ export class ApiError extends Error {
 }
 
 qqmusicClient.interceptors.response.use(
-  (response) => {
+  async (response) => {
     const res = response.data as ApiResponse
     if (res.code === 0) return res as never
-    // 凭证失效：同步登录状态，引导用户重新扫码
+
+    // 凭证失效：先向后端查询一次登录状态（后端会尝试自动刷新），成功则重试原请求一次
+    const config = response.config as typeof response.config & { _retried?: boolean }
+    if ((res.code === CODE_NOT_LOGGED_IN || res.code === CODE_TOKEN_EXPIRED) && !config._retried) {
+      config._retried = true
+      try {
+        const statusRes = await getLoginStatus()
+        if (statusRes.data.is_logged_in && !statusRes.data.is_expired) {
+          return qqmusicClient.request(config) as never
+        }
+      } catch {
+        // 刷新状态失败时继续走失效处理
+      }
+    }
+
+    // 仍然失效：同步登录状态，引导用户重新扫码
     if (res.code === CODE_NOT_LOGGED_IN || res.code === CODE_TOKEN_EXPIRED) {
-      import('@/store/auth').then(({ useAuthStore }) => {
-        const authStore = useAuthStore()
-        authStore.isLoggedIn = false
-        authStore.isExpired = res.code === CODE_TOKEN_EXPIRED
-      })
+      const { useAuthStore } = await import('@/store/auth')
+      const authStore = useAuthStore()
+      authStore.isLoggedIn = false
+      authStore.isExpired = res.code === CODE_TOKEN_EXPIRED
     }
     return Promise.reject(new ApiError(res.code, res.message || '请求失败'))
   },

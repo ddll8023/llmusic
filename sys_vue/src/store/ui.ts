@@ -10,10 +10,12 @@ interface UiState {
 	isPlaylistVisible: boolean
 	currentView: string
 	lyricsAnimationStyle: string
+	lyricsSpectrumEnabled: boolean
 	closeBehavior: string
 	playerBarCollapsed: boolean
 	playerBarAutoHide: boolean
 	performanceMode: boolean
+	developerMode: boolean
 }
 
 type CloseBehavior = 'exit' | 'minimize'
@@ -21,23 +23,30 @@ type CloseBehavior = 'exit' | 'minimize'
 const loadState = () => {
 	try {
 		const savedLyricsAnimation = localStorage.getItem('lyricsAnimationStyle')
+		const savedLyricsSpectrum = localStorage.getItem('lyricsSpectrumEnabled')
 		const savedCloseBehavior = localStorage.getItem('closeBehavior')
 		const savedSidebarVisible = localStorage.getItem('sidebarVisible')
 		const savedPerformanceMode = localStorage.getItem('performanceMode')
+		const savedDeveloperMode = localStorage.getItem('developerMode')
 
 		return {
 			lyricsAnimationStyle: savedLyricsAnimation || 'fade',
+			// 未显式关闭时默认开启频谱可视化
+			lyricsSpectrumEnabled: savedLyricsSpectrum !== 'false',
 			closeBehavior: savedCloseBehavior || 'exit',
 			// 尊重用户设置：显式存为 'false' 时保持隐藏
 			isSidebarVisible: savedSidebarVisible !== 'false',
 			performanceMode: savedPerformanceMode === 'true',
+			developerMode: savedDeveloperMode === 'true',
 		}
 	} catch {
 		return {
 			lyricsAnimationStyle: 'fade' as const,
+			lyricsSpectrumEnabled: true,
 			closeBehavior: 'exit' as const,
 			isSidebarVisible: true,
 			performanceMode: false,
+			developerMode: false,
 		}
 	}
 }
@@ -54,10 +63,12 @@ export const useUiStore = defineStore('ui', {
 			isPlaylistVisible: false,
 			currentView: 'main',
 			lyricsAnimationStyle: saved.lyricsAnimationStyle,
+			lyricsSpectrumEnabled: saved.lyricsSpectrumEnabled,
 			closeBehavior: saved.closeBehavior,
 			playerBarCollapsed: false,
 			playerBarAutoHide: false,
 			performanceMode: saved.performanceMode,
+			developerMode: saved.developerMode,
 		}
 	},
 
@@ -183,12 +194,30 @@ export const useUiStore = defineStore('ui', {
 			}
 		},
 
+		setLyricsSpectrumEnabled(enabled: boolean) {
+			this.lyricsSpectrumEnabled = enabled
+			try {
+				localStorage.setItem('lyricsSpectrumEnabled', String(enabled))
+			} catch (e) {
+				console.error('保存设置失败:', e)
+			}
+		},
+
 		setPerformanceMode(enabled: boolean) {
 			this.performanceMode = enabled
 			try {
 				localStorage.setItem('performanceMode', String(enabled))
 			} catch (e) {
 				console.error('保存设置失败:', e)
+			}
+		},
+
+		setDeveloperMode(enabled: boolean) {
+			this.developerMode = enabled
+			try {
+				localStorage.setItem('developerMode', String(enabled))
+			} catch (e) {
+				console.error('保存开发者模式失败:', e)
 			}
 		},
 

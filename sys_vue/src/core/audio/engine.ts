@@ -23,6 +23,8 @@ class AudioEngine {
 	private timer: ReturnType<typeof setInterval> | null = null
 	private volume = 0.7
 	private muted = false
+	private audioContext: AudioContext | null = null
+	private analyser: AnalyserNode | null = null
 
 	setCallbacks(callbacks: EngineCallbacks): void {
 		this.callbacks = callbacks
@@ -32,6 +34,9 @@ class AudioEngine {
 	load(url: string, autoPlay = true): void {
 		const audio = this.ensureAudio()
 		if (audio.src !== url) {
+			// 本地 llmusic:// 流需开启 CORS 才能被 Web Audio 频谱分析；
+			// 在线 CDN 通常无 CORS 头，保持默认（不影响播放，仅分析数据不可用）
+			audio.crossOrigin = url.startsWith('llmusic://') ? 'anonymous' : ''
 			audio.src = url
 		}
 		if (autoPlay) {
@@ -39,9 +44,47 @@ class AudioEngine {
 		}
 	}
 
+	/**
+	 * 获取频谱分析器（懒创建）。
+	 * 通过 MediaElementSource 将音频接入 AudioContext，供可视化读取频域数据；
+	 * 跨域且无 CORS 头的音源（部分在线 CDN）分析数据恒为 0，调用方需自行兜底。
+	 */
+	getAnalyser(): AnalyserNode | null {
+		try {
+			const audio = this.ensureAudio()
+			if (!this.analyser) {
+				const Ctor =
+					window.AudioContext ||
+					(window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+				if (!Ctor) return null
+				const ctx = new Ctor()
+				const source = ctx.createMediaElementSource(audio)
+				const analyser = ctx.createAnalyser()
+				analyser.fftSize = 256
+				analyser.smoothingTimeConstant = 0.82
+				source.connect(analyser)
+				analyser.connect(ctx.destination)
+				this.audioContext = ctx
+				this.analyser = analyser
+			}
+			return this.analyser
+		} catch (e) {
+			console.warn('[audio] 频谱分析器创建失败:', e)
+			return null
+		}
+	}
+
+	/** 恢复 AudioContext（浏览器自动播放策略要求，需在用户交互后调用） */
+	resumeAudioContext(): void {
+		if (this.audioContext && this.audioContext.state === 'suspended') {
+			this.audioContext.resume().catch(() => {})
+		}
+	}
+
 	async play(): Promise<void> {
 		const audio = this.audio
 		if (!audio || !audio.src) return
+		this.resumeAudioContext()
 		try {
 			await audio.play()
 			this.startTimer()
@@ -101,6 +144,12 @@ class AudioEngine {
 		if (this.audio) {
 			this.audio.onended = null
 			this.audio = null
+		}
+		this.analyser?.disconnect()
+		this.analyser = null
+		if (this.audioContext) {
+			this.audioContext.close().catch(() => {})
+			this.audioContext = null
 		}
 		this.callbacks = {}
 	}

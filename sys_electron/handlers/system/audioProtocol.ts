@@ -32,6 +32,10 @@ const TRANSCODE_TIMEOUT_MS = 120000
 
 function registerAudioProtocol(): void {
 	protocol.handle("llmusic", async (request) => {
+		// 渲染进程 MediaElementSource 频谱分析需要 CORS 预检响应
+		if (request.method === "OPTIONS") {
+			return new Response(null, { status: 204, headers: CORS_HEADERS })
+		}
 		try {
 			const url = new URL(request.url)
 			if (url.host !== "audio") {
@@ -59,6 +63,14 @@ function registerAudioProtocol(): void {
 	})
 }
 
+// 渲染进程 Web Audio 频谱分析要求响应携带 CORS 头（本地流为跨源自定义协议）
+const CORS_HEADERS: Record<string, string> = {
+	"Access-Control-Allow-Origin": "*",
+	"Access-Control-Allow-Headers": "Range",
+	"Access-Control-Allow-Methods": "GET, OPTIONS",
+	"Access-Control-Expose-Headers": "Content-Range, Accept-Ranges, Content-Length",
+}
+
 /**
  * 按 HTTP Range 语义响应文件流（HTML5 Audio seek 依赖 206 分段响应）
  */
@@ -70,6 +82,7 @@ async function respondWithRange(request: Request, filePath: string, mime: string
 	const baseHeaders: Record<string, string> = {
 		"Content-Type": mime,
 		"Accept-Ranges": "bytes",
+		...CORS_HEADERS,
 	}
 
 	if (rangeHeader) {

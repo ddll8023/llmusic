@@ -462,6 +462,10 @@ onMounted(() => {
         <img :src="coverImage || defaultCoverImage"
           :class="['rcover-img', isLoadingCover ? 'animate-pulse' : '']"
           alt="cover" @error="onCoverImageError" />
+        <!-- 播放中迷你均衡器 -->
+        <div class="n-eq" v-if="playerStore.playing && hasValidSong" aria-hidden="true">
+          <span v-for="n in 3" :key="n"></span>
+        </div>
       </div>
 
       <!-- 歌曲信息（始终存在，过渡宽度） -->
@@ -669,6 +673,37 @@ onMounted(() => {
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+/* ===== 播放中迷你均衡器（封面右下角） ===== */
+.n-eq {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  z-index: 2;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+  padding: 2px 3px;
+  border-radius: 7px;
+  background: rgba(0,0,0,.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  pointer-events: none;
+}
+.n-eq span {
+  width: 2.5px;
+  border-radius: 2px;
+  background: linear-gradient(to top, var(--color-accent-green), #a5d6a7);
+  animation: eqBounce 0.9s ease-in-out infinite;
+}
+.n-eq span:nth-child(1) { animation-delay: 0s; }
+.n-eq span:nth-child(2) { animation-delay: 0.22s; }
+.n-eq span:nth-child(3) { animation-delay: 0.44s; }
+@keyframes eqBounce {
+  0%, 100% { height: 3px; }
+  50% { height: 10px; }
 }
 .ribbon-wrap:hover .n-cover {
   transform: scale(1.05);

@@ -14,6 +14,7 @@ from qqmusic_api.modules.login_utils import QRCodeLoginSession
 
 from app.qqmusic.client import get_client, refresh_client, reset_client
 from app.schemas.common import ErrorCode
+from app.services.operation_log import log_operation
 from app.utils.exception import ServiceException
 from app.utils.logger import setup_logger
 
@@ -53,6 +54,7 @@ class _LoginSession:
 
 
 _active_sessions: dict[str, _LoginSession] = {}
+_refresh_lock = asyncio.Lock()
 
 
 # ========== 公共入口函数 ==========
@@ -118,16 +120,46 @@ async def ensure_credential_fresh():
     if now < expires_at - CREDENTIAL_REFRESH_AHEAD_SECONDS:
         return
 
-    client = await get_client()
-    try:
-        new_credential = await client.login.refresh_credential(credential)
-    except Exception as exc:
-        logger.warning(f"凭证自动刷新失败，请重新扫码登录: error={exc}")
-        return
+    async with _refresh_lock:
+        # 双检：等待锁期间可能已被其他请求刷新，避免并发重复刷新
+        try:
+            with open(CREDENTIAL_PATH, "r", encoding="utf-8") as f:
+                credential = Credential.model_validate(json.load(f))
+        except Exception:
+            return
 
-    _write_credential_file(new_credential.model_dump())
-    await refresh_client(new_credential)
-    logger.info(f"凭证自动刷新成功: musicid={new_credential.musicid}")
+        if not credential.musickey_create_time or not credential.key_expires_in:
+            return
+
+        now = int(time.time())
+        expires_at = credential.musickey_create_time + credential.key_expires_in
+        if now < expires_at - CREDENTIAL_REFRESH_AHEAD_SECONDS:
+            return
+
+        client = await get_client()
+        try:
+            new_credential = await client.login.refresh_credential(credential)
+        except Exception as exc:
+            logger.warning(f"凭证自动刷新失败，请重新扫码登录: error={exc}")
+            await log_operation(
+                level="WARNING",
+                log_type="auth",
+                action="credential_refresh",
+                message="凭证自动刷新失败，需要重新扫码登录",
+                error_code=ErrorCode.TOKEN_EXPIRED,
+            )
+            return
+
+        _write_credential_file(new_credential.model_dump())
+        await refresh_client(new_credential)
+        logger.info(f"凭证自动刷新成功: musicid={new_credential.musicid}")
+        await log_operation(
+            level="INFO",
+            log_type="auth",
+            action="credential_refresh",
+            message="凭证自动刷新成功",
+            detail={"musicid": new_credential.musicid},
+        )
 
 
 async def create_qrcode_session(login_type: str):
@@ -185,6 +217,13 @@ async def check_qrcode_status(session_id: str):
     if session.latest_event == "done" and session.credential_dict:
         logger.info(f"扫码登录成功: session_id={session_id} musicid={session.credential_dict.get('musicid', 0)}")
         await _persist_credential(session.credential_dict)
+        await log_operation(
+            level="INFO",
+            log_type="auth",
+            action="login_success",
+            message="扫码登录成功",
+            detail={"login_type": session.login_type, "musicid": session.credential_dict.get("musicid", 0)},
+        )
         _cleanup_all_sessions()
 
     return result
@@ -202,6 +241,12 @@ async def logout():
 
     await reset_client()
     logger.info("已退出登录并重置客户端")
+    await log_operation(
+        level="INFO",
+        log_type="auth",
+        action="logout",
+        message="已退出登录",
+    )
 
 
 """辅助函数"""

@@ -1,4 +1,6 @@
 """FastAPI 应用入口"""
+import json
+import time
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -7,12 +9,14 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.api.operation_log import router as operation_log_router
 from app.api.qqmusic import router as qqmusic_router
 from app.core.config import settings
 from app.qqmusic.client import reset_client
 from app.schemas.common import ErrorCode
 from app.schemas.response import error
 from app.services import auth as services_auth
+from app.services import operation_log as services_operation_log
 from app.utils.exception import ServiceException
 from app.utils.logger import setup_logger
 
@@ -37,6 +41,42 @@ app.add_middleware(
 )
 
 app.include_router(qqmusic_router, prefix="/api/v1/qqmusic")
+app.include_router(operation_log_router, prefix="/api/v1/operation-log")
+
+
+@app.middleware("http")
+async def operation_log_middleware(request: Request, call_next):
+    """业务请求前自动刷新凭证，并记录重要网络请求"""
+    path = request.url.path
+
+    if path.startswith("/api/v1/qqmusic"):
+        await services_auth.ensure_credential_fresh()
+
+    if path.startswith("/api/v1/qqmusic") and not path.startswith("/api/v1/operation-log"):
+        start = time.perf_counter()
+        response = await call_next(request)
+        duration_ms = int((time.perf_counter() - start) * 1000)
+
+        error_code = 0
+        try:
+            body = json.loads(response.body) if getattr(response, "body", None) else {}
+            if isinstance(body, dict):
+                error_code = body.get("code", 0)
+        except Exception:
+            error_code = 0
+
+        await services_operation_log.log_operation(
+            level="ERROR" if response.status_code >= 400 or error_code else "INFO",
+            log_type="request",
+            action=f"{request.method} {path}",
+            message="请求完成" if response.status_code < 400 and not error_code else "请求异常",
+            status=response.status_code,
+            duration_ms=duration_ms,
+            error_code=error_code,
+        )
+        return response
+
+    return await call_next(request)
 
 
 @app.get("/health")

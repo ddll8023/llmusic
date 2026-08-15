@@ -319,7 +319,8 @@ function togglePlatformVisibility(platformId: string) {
             :options="[
               { value: 'fade', label: '淡入淡出' },
               { value: 'slide', label: '上滑动画' },
-              { value: 'elastic', label: '弹性缩放 ✨' }
+              { value: 'elastic', label: '弹性缩放 ✨' },
+              { value: 'blur', label: '模糊浮现 ✨' }
             ]"
             @change="setLyricsAnimation"
             @update:model-value="setLyricsAnimation"
@@ -328,6 +329,20 @@ function togglePlatformVisibility(platformId: string) {
       </div>
       <div class="text-[10px] text-content-secondary -mt-2 pb-4 leading-normal max-md:mt-0 max-md:pb-3">
         选择歌词页面显示和隐藏时的动画效果。
+      </div>
+
+      <div class="flex justify-between items-center py-3 max-md:flex-col max-md:items-start max-md:gap-2">
+        <span class="text-xs text-content-base max-md:text-[10px]">频谱可视化</span>
+        <div>
+          <CustomCheckbox
+            :model-value="uiStore.lyricsSpectrumEnabled"
+            label="播放时显示实时频谱"
+            @update:model-value="uiStore.setLyricsSpectrumEnabled"
+          />
+        </div>
+      </div>
+      <div class="text-[10px] text-content-secondary -mt-2 pb-4 leading-normal max-md:mt-0 max-md:pb-3">
+        在歌词页封面周围显示随音频实时跳动的频谱环（本地歌曲为真实频谱，在线歌曲为模拟频谱）。
       </div>
 
       <div class="flex justify-between items-center py-3 max-md:flex-col max-md:items-start max-md:gap-2">
@@ -342,6 +357,20 @@ function togglePlatformVisibility(platformId: string) {
       </div>
       <div class="text-[10px] text-content-secondary -mt-2 pb-4 leading-normal max-md:mt-0 max-md:pb-3">
         关闭歌词页面的粒子、波纹、扫光等装饰动画，降低低配置设备的资源占用。
+      </div>
+
+      <div class="flex justify-between items-center py-3 max-md:flex-col max-md:items-start max-md:gap-2">
+        <span class="text-xs text-content-base max-md:text-[10px]">开发者模式</span>
+        <div>
+          <CustomCheckbox
+            :model-value="uiStore.developerMode"
+            label="显示开发者日志入口"
+            @update:model-value="uiStore.setDeveloperMode"
+          />
+        </div>
+      </div>
+      <div class="text-[10px] text-content-secondary -mt-2 pb-4 leading-normal max-md:mt-0 max-md:pb-3">
+        开启后在侧边栏显示开发者日志入口，用于查看操作日志。
       </div>
 
       <div class="flex justify-between items-center py-3 max-md:flex-col max-md:items-start max-md:gap-2">

@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import SideBar from './components/system/SideBar.vue';
 import MusicLibrary from './components/pages/MusicLibrary.vue';
 import Settings from './components/pages/Settings.vue';
+import OperationLog from './components/pages/OperationLog.vue';
 import MetadataManager from './components/pages/MetadataManager.vue';
 import PlayerBar from './components/system/PlayerBar.vue';
 import Playlist from './components/common/Playlist.vue';
@@ -140,6 +141,7 @@ onUnmounted(() => {
                 <DiscoverMusic v-else-if="uiStore.currentView === 'discover'" />
                 <MetadataManager v-else-if="uiStore.currentView === 'metadata'" />
                 <Settings v-else-if="uiStore.currentView === 'settings'" />
+                <OperationLog v-else-if="uiStore.currentView === 'operation-log'" />
                 <PlaylistContent v-else-if="uiStore.currentView === 'playlist'"
                     :navigate-to-main="() => uiStore.setView('main')" />
                 <QQMusicPlaylistDetail v-else-if="uiStore.currentView === 'qq-playlist-detail'" />

@@ -276,6 +276,31 @@ const handlePlatformNav = (view: string) => {
       </div>
     </template>
 
+    <template v-if="uiStore.developerMode">
+      <div
+        class="mt-4 mb-3 text-[10px] font-bold text-content-base uppercase tracking-wider leading-normal"
+        :class="isCollapsed ? 'text-center mb-3' : 'flex items-center justify-between pl-2'"
+      >
+        <span v-if="!isCollapsed">开发者</span>
+      </div>
+
+      <div
+        @click="uiStore.setView('operation-log')"
+        :class="[
+          'flex items-center rounded cursor-pointer whitespace-nowrap overflow-hidden text-sm leading-normal relative transition-[background-color,color] duration-150',
+          isCollapsed ? 'justify-center px-1 py-2.5' : 'px-2 py-2.5',
+          uiStore.currentView === 'operation-log' ? 'bg-surface-overlay text-content-base' : '',
+          'hover:bg-surface-overlay hover:text-content-base'
+        ]"
+      >
+        <FAIcon
+          name="bug" size="medium" color="primary" :clickable="true"
+          :style="{ marginRight: isCollapsed ? '0' : '16px' }"
+        />
+        <span v-if="!isCollapsed">开发者日志</span>
+      </div>
+    </template>
+
     <div class="flex-grow min-h-5"></div>
 
     <div v-if="!isCollapsed && !playerStore.showLyrics" class="text-[10px] text-content-disabled text-center py-2 select-none leading-normal border-t border-line-base pt-3 mt-1">

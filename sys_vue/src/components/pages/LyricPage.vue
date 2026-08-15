@@ -4,23 +4,33 @@
 		{ 'lyric-page--show': playerStore.showLyrics,
 		  'lyric-page--perf': uiStore.performanceMode,
 		  'playerbar-collapsed': uiStore.playerBarCollapsed }
-	]" @click="handleBackgroundClick">
-		<!-- 动态背景光晕 -->
+	]" :style="{ '--album-glow-color': albumGlowColor, '--album-accent-color': albumAccentColor, '--album-soft-color': albumSoftColor }" @click="handleBackgroundClick">
+		<!-- 封面模糊沉浸背景（压暗处理，保证文字可读；随播放缓慢漂移） -->
+		<div class="lyric-page__bg-cover" aria-hidden="true"
+			:class="{ 'lyric-page__bg-cover--active': albumCoverUrl && playerStore.playing }"
+			:style="{ '--cover-url': albumCoverUrl ? `url(${albumCoverUrl})` : 'none' }"></div>
+
+		<!-- 动态背景光晕（随封面主色联动） -->
 		<div class="lyric-page__bg-blobs" aria-hidden="true">
 			<div class="lyric-page__bg-blob lyric-page__bg-blob--1"></div>
 			<div class="lyric-page__bg-blob lyric-page__bg-blob--2"></div>
 			<div class="lyric-page__bg-blob lyric-page__bg-blob--3"></div>
 		</div>
 
-		<div class="lyric-page__container flex w-full max-w-[1400px] h-full mx-auto px-8 box-border items-stretch max-md:flex-col max-md:px-4">
+		<div class="lyric-page__container flex w-full max-w-[1400px] h-full mx-auto px-10 box-border items-stretch max-md:flex-col max-md:px-4">
 			<!-- 左侧专辑封面区域 — 增强版炫酷动画 -->
-			<div class="lyric-page__album-section w-[38%] h-full flex flex-col items-center justify-center p-4 px-6 box-border relative max-md:w-full max-md:h-auto max-md:min-h-[200px] max-md:p-4"
-				:style="{ '--album-glow-color': albumGlowColor, '--album-accent-color': albumAccentColor }">
+			<div ref="albumSectionRef" class="lyric-page__album-section w-[38%] h-full flex flex-col items-center justify-center p-6 box-border relative max-md:w-full max-md:h-auto max-md:min-h-[200px] max-md:p-4">
 
 				<!-- 声波波纹环 → 从封面扩散 -->
 				<div class="lyric-page__ripple-ring lyric-page__ripple-ring--1" aria-hidden="true"></div>
 				<div class="lyric-page__ripple-ring lyric-page__ripple-ring--2" aria-hidden="true"></div>
 				<div class="lyric-page__ripple-ring lyric-page__ripple-ring--3" aria-hidden="true"></div>
+
+				<!-- 真实音频频谱可视化（环绕封面一周） -->
+				<canvas v-if="uiStore.lyricsSpectrumEnabled" ref="spectrumCanvasRef" class="lyric-page__spectrum" aria-hidden="true"></canvas>
+
+				<!-- 低音能量光晕（随频谱低频实时呼吸） -->
+				<div v-if="uiStore.lyricsSpectrumEnabled" class="lyric-page__bass-halo" aria-hidden="true"></div>
 
 				<!-- 黑胶唱盘 → 深色圆盘 + 同心槽纹 -->
 				<div class="lyric-page__vinyl-disc" aria-hidden="true" :class="{ 'lyric-page__vinyl-disc--spin': playerStore.playing }">
@@ -61,21 +71,15 @@
 					<div v-for="n in 8" :key="n" class="lyric-page__particle"
 						:style="getParticleStyle(n)"></div>
 				</div>
-
-				<!-- 声波可视化条 -->
-				<div class="lyric-page__wave-bars" :key="'wave-' + songKey"
-					:class="{ 'lyric-page__wave-bars--active': playerStore.playing && hasLyricsToShow }"
-					aria-hidden="true">
-					<div v-for="n in 20" :key="n" class="lyric-page__wave-bar" :style="{ animationDelay: (n * 0.07) + 's' }"></div>
-				</div>
 			</div>
 
 			<!-- 右侧歌词内容区域 -->
-			<div class="lyric-page__content-section w-[62%] h-full flex flex-col py-0 px-4 pl-6 box-border max-md:w-full max-md:flex-1 max-md:p-0 max-md:border-t max-md:border-line-base/50">
-				<div class="lyric-page__header p-5 flex items-center justify-center relative mb-4 max-md:p-4">
+			<div class="lyric-page__content-section w-[62%] h-full flex flex-col py-0 px-6 pl-8 box-border max-md:w-full max-md:flex-1 max-md:p-0 max-md:border-t max-md:border-line-base/50">
+				<div class="lyric-page__header pt-3 px-5 pb-6 flex items-center justify-center relative mb-2 max-md:p-4">
 					<div class="lyric-page__song-info text-center">
 						<h2 class="lyric-page__song-title text-xl m-0 font-medium mb-2">{{ songTitle }}</h2>
 						<p class="lyric-page__song-artist text-sm m-0 text-content-secondary">{{ songArtist }}</p>
+						<p v-if="songAlbum" class="lyric-page__song-album text-xs m-0 mt-1 text-content-tertiary">{{ songAlbum }}</p>
 					</div>
 					<!-- 分隔线 -->
 					<div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-[60px] h-0.5 bg-gradient-to-r from-transparent via-accent-green to-transparent max-md:w-[40px]"></div>
@@ -85,11 +89,12 @@
 					:class="{ 'lyric-page__content--manual-scroll': !lyricsStore.isAutoScrolling }"
 					@wheel="handleManualScroll">
 					<div v-if="hasLyricsToShow" class="lyric-page__lyrics w-full h-full overflow-y-scroll overflow-x-hidden text-center" :class="fontSizeClass">
-						<div class="lyric-page__lyrics-wrapper py-[50%]">
+						<div class="lyric-page__lyrics-wrapper py-[50%]" :key="'lyrics-' + songKey">
 							<div v-for="(line, index) in displayLines" :key="index"
-								class="lyric-page__lyric-line group/line text-lg font-medium p-3 px-8 rounded transition-all duration-200 leading-relaxed cursor-pointer text-content-disabled relative text-center my-1 hover:bg-overlay-light hover:text-content-secondary"
+								class="lyric-page__lyric-line group/line text-lg font-medium p-3 px-10 rounded-xl leading-relaxed cursor-pointer text-content-disabled relative text-center my-1.5"
 								:class="[
-									index === lyricsStore.currentIndex ? 'lyric-page__lyric-line--active' : ''
+									index === lyricsStore.currentIndex ? 'lyric-page__lyric-line--active' : '',
+									lineDistanceClass(index)
 								]"
 								:ref="el => setLyricLineRef(el, index)"
 								@click="seekToLyric(index)">
@@ -131,38 +136,29 @@
 					</div>
 					<div v-else class="lyric-page__no-lyrics flex items-center justify-center flex-col h-full w-full opacity-80 text-lg">
 						<div class="lyric-page__no-lyrics-content flex flex-col items-center justify-center text-center">
+							<FAIcon name="music" size="xl" color="secondary" class="opacity-60 mb-4" />
 							<p>当前歌曲暂无歌词</p>
+							<p class="text-xs text-content-tertiary mt-2">播放歌曲后，歌词将随旋律滚动</p>
 						</div>
 					</div>
 				</div>
 
-				<div class="lyric-page__controls py-4 flex justify-between items-center relative mt-4 max-md:flex-wrap max-md:gap-4 max-md:py-4">
+				<div class="lyric-page__controls py-4 flex justify-between items-center relative mt-4 max-md:flex-wrap max-md:gap-3 max-md:py-4">
 					<!-- 分隔线 -->
 					<div class="absolute top-0 left-1/2 -translate-x-1/2 w-[60px] h-0.5 bg-gradient-to-r from-transparent via-accent-green/50 to-transparent"></div>
-					<div class="lyric-page__progress text-sm text-content-secondary">
-						<span>{{ formattedCurrentTime }}</span>
-					</div>
-					<div class="lyric-page__font-size-controls flex gap-2.5">
-						<CustomButton type="secondary" size="small" @click="decreaseFontSize" title="减小字体">
-							A-
-						</CustomButton>
-						<CustomButton type="secondary" size="small" @click="resetFontSize" title="重置字体">
-							A
-						</CustomButton>
-						<CustomButton type="secondary" size="small" @click="increaseFontSize" title="增大字体">
-							A+
-						</CustomButton>
-					</div>
-					<div class="lyric-page__sync-controls flex gap-2.5">
-						<CustomButton type="secondary" size="small" @click="adjustSync(-500)" title="歌词提前 0.5 秒">
-							-0.5s
-						</CustomButton>
-						<CustomButton type="secondary" size="small" @click="adjustSync(0)" title="重置同步">
-							重置
-						</CustomButton>
-						<CustomButton type="secondary" size="small" @click="adjustSync(500)" title="歌词延后 0.5 秒">
-							+0.5s
-						</CustomButton>
+					<span class="lyric-page__time text-sm text-content-tertiary">{{ formattedCurrentTime }}</span>
+					<div class="lyric-page__control-groups flex items-center gap-3">
+						<div class="lyric-page__font-size-controls flex gap-1">
+							<button class="lyric-page__ghost-btn" @click="decreaseFontSize" title="减小字体">A−</button>
+							<button class="lyric-page__ghost-btn" @click="resetFontSize" title="重置字体">A</button>
+							<button class="lyric-page__ghost-btn" @click="increaseFontSize" title="增大字体">A+</button>
+						</div>
+						<span class="lyric-page__control-divider" aria-hidden="true"></span>
+						<div class="lyric-page__sync-controls flex gap-1">
+							<button class="lyric-page__ghost-btn" @click="adjustSync(-500)" title="歌词提前 0.5 秒">−0.5s</button>
+							<button class="lyric-page__ghost-btn" @click="adjustSync(0)" title="重置同步">重置</button>
+							<button class="lyric-page__ghost-btn" @click="adjustSync(500)" title="歌词延后 0.5 秒">+0.5s</button>
+						</div>
 					</div>
 				</div>
 			</div>
@@ -181,6 +177,7 @@ import { usePlayerStore } from '../../store/player'
 import { useLyricsStore } from '../../store/lyrics'
 import { useUiStore } from '../../store/ui'
 import { useAlbumColors } from '../../composables/useAlbumColors'
+import { audioEngine } from '../../core/audio/engine'
 import type { LyricWord } from '../../types'
 import FAIcon from '../common/FAIcon.vue'
 import CustomButton from '../custom/CustomButton.vue'
@@ -193,6 +190,13 @@ const lyricLineRefs = ref<any[]>([])
 const manualScrollTimer = ref<any>(null)
 const fontSizeClass = ref('normal') // 'small', 'normal', 'large'
 const albumCoverUrl = ref('')
+
+// 频谱可视化
+const spectrumCanvasRef = ref<HTMLCanvasElement | null>(null)
+const albumSectionRef = ref<HTMLElement | null>(null)
+let analyser: AnalyserNode | null = null
+let freqData: Uint8Array<ArrayBuffer> | null = null
+let spectrumRaf = 0
 
 // 封面加载状态
 const coverLoaded = ref(false)
@@ -209,6 +213,12 @@ const albumAccentColor = computed(() => {
 	const m = albumColors.value.gradient.match(/rgba\((\d+),\s*(\d+),\s*(\d+)/)
 	if (m) return `rgba(${m[1]},${m[2]},${m[3]},1)`
 	return 'rgba(76,175,80,1)'
+})
+// 封面主色半透明版 → 背景光斑 / 光晕联动
+const albumSoftColor = computed(() => {
+	const m = albumColors.value.gradient.match(/rgba\((\d+),\s*(\d+),\s*(\d+)/)
+	if (m) return `rgba(${m[1]},${m[2]},${m[3]},0.28)`
+	return 'rgba(76,175,80,0.28)'
 })
 
 // 粒子随机样式生成（在 mounted 时固定位置，避免每次渲染变化）
@@ -236,6 +246,144 @@ function getParticleStyle(index: number) {
 		animationDuration: p.duration + 's'
 	}
 }
+
+// ===== 真实音频频谱可视化（Web Audio Analyser 驱动，跨域源退化为伪频谱） =====
+
+// 伪频谱兜底：在线 CDN 无 CORS 头 / 暂停时也有轻微呼吸感
+function pseudoLevel(index: number, bars: number, playing: boolean, t: number): number {
+	const base = playing ? 0.22 : 0.1
+	const amp = playing ? 0.72 : 0.16
+	const wave = Math.abs(Math.sin(t * (1.6 + (index % 7) * 0.21) + index * 1.9))
+	const swell = 0.6 + 0.4 * Math.sin(t * 0.8 + index * 0.35)
+	return Math.min(1, base + wave * amp * swell)
+}
+
+const SPECTRUM_BARS = 64
+
+function drawSpectrum(): void {
+	spectrumRaf = requestAnimationFrame(drawSpectrum)
+	const canvas = spectrumCanvasRef.value
+	const section = albumSectionRef.value
+	if (!canvas || !section) return
+	const ctx = canvas.getContext('2d')
+	if (!ctx) return
+
+	const rect = section.getBoundingClientRect()
+	const size = Math.max(120, Math.min(rect.width, rect.height) * 0.78)
+	const dpr = Math.min(window.devicePixelRatio || 1, 2)
+	const px = Math.round(size * dpr)
+	if (canvas.width !== px || canvas.height !== px) {
+		canvas.width = px
+		canvas.height = px
+	}
+	ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+	ctx.clearRect(0, 0, size, size)
+
+	const playing = playerStore.playing
+	const now = performance.now() / 1000
+	const levels: number[] = []
+	const analyserNode = analyser
+
+	if (analyserNode && freqData && playing) {
+		analyserNode.getByteFrequencyData(freqData)
+		let sum = 0
+		for (let i = 0; i < freqData.length; i++) sum += freqData[i]
+		// 数据全为 0 → 跨域音源不可分析，走伪频谱
+		if (sum > 64) {
+			const perBin = Math.max(1, Math.floor(freqData.length / SPECTRUM_BARS))
+			for (let i = 0; i < SPECTRUM_BARS; i++) {
+				let v = 0
+				const end = Math.min(freqData.length, (i + 1) * perBin)
+				for (let j = i * perBin; j < end; j++) v += freqData[j]
+				levels.push(Math.min(1, v / (perBin * 255)))
+			}
+		}
+	}
+	if (levels.length === 0) {
+		for (let i = 0; i < SPECTRUM_BARS; i++) {
+			levels.push(pseudoLevel(i, SPECTRUM_BARS, playing, now))
+		}
+	}
+
+	// 低频能量 → 驱动光晕与封面呼吸
+	let bass = 0
+	if (analyserNode && freqData && playing) {
+		for (let i = 0; i < Math.min(6, freqData.length); i++) bass += freqData[i]
+		bass = Math.min(1, bass / (6 * 255))
+	} else {
+		bass = playing ? 0.35 + 0.3 * Math.sin(now * 4) : 0.12 + 0.06 * Math.sin(now * 2)
+	}
+	section.style.setProperty('--bass-energy', bass.toFixed(3))
+
+	// 环绕频谱环
+	const cx = size / 2
+	const cy = size / 2
+	const innerR = size * 0.3
+	const outerR = size * 0.475
+	const accent = albumAccentColor.value
+
+	ctx.lineCap = 'round'
+	// 底环
+	ctx.lineWidth = Math.max(1, size * 0.004)
+	ctx.strokeStyle = 'rgba(255,255,255,0.07)'
+	ctx.beginPath()
+	ctx.arc(cx, cy, outerR, 0, Math.PI * 2)
+	ctx.stroke()
+
+	const gap = (Math.PI * 2) / SPECTRUM_BARS
+	const barLen = (outerR - innerR) * 0.55
+	for (let i = 0; i < SPECTRUM_BARS; i++) {
+		const v = Math.pow(levels[i], 1.3)
+		const r0 = innerR + (outerR - innerR) * v * 0.82
+		const angle = i * gap - Math.PI / 2
+		const cos = Math.cos(angle)
+		const sin = Math.sin(angle)
+		ctx.lineWidth = Math.max(1.5, size * 0.012)
+		ctx.strokeStyle = i % 2 === 0 ? accent : 'rgba(255,255,255,0.4)'
+		ctx.globalAlpha = 0.25 + v * 0.75
+		ctx.beginPath()
+		ctx.moveTo(cx + cos * r0, cy + sin * r0)
+		ctx.lineTo(cx + cos * (r0 + barLen), cy + sin * (r0 + barLen))
+		ctx.stroke()
+	}
+	ctx.globalAlpha = 1
+}
+
+function startSpectrum(): void {
+	if (spectrumRaf) return
+	if (!analyser) {
+		analyser = audioEngine.getAnalyser()
+		if (analyser) {
+			freqData = new Uint8Array(analyser.frequencyBinCount)
+			audioEngine.resumeAudioContext()
+		}
+	}
+	drawSpectrum()
+}
+
+function stopSpectrum(): void {
+	cancelAnimationFrame(spectrumRaf)
+	spectrumRaf = 0
+}
+
+// 页面可见且非性能模式且频谱开关开启时运行；暂停时保留轻微呼吸动画
+watch(() => playerStore.showLyrics, (show) => {
+	if (show && !uiStore.performanceMode && uiStore.lyricsSpectrumEnabled) startSpectrum()
+	else stopSpectrum()
+}, { immediate: true })
+
+watch(() => uiStore.performanceMode, (perf) => {
+	if (perf) stopSpectrum()
+	else if (playerStore.showLyrics && uiStore.lyricsSpectrumEnabled) startSpectrum()
+})
+
+watch(() => uiStore.lyricsSpectrumEnabled, (enabled) => {
+	if (enabled) {
+		if (playerStore.showLyrics && !uiStore.performanceMode) startSpectrum()
+	} else {
+		stopSpectrum()
+	}
+})
 
 // 动画样式
 const animationStyle = computed(() => uiStore.lyricsAnimationStyle)
@@ -352,6 +500,11 @@ const songArtist = computed(() => {
 	return playerStore.currentSong?.artist || '未知艺术家'
 })
 
+const songAlbum = computed(() => {
+	if (playerStore.isOnlineSong) return ''
+	return playerStore.currentSong?.album || ''
+})
+
 // 判断逐字歌词中的某个字是否应高亮
 const isWordActive = (word: LyricWord): boolean => {
 	const adjustedTime = playerStore.currentTime * 1000 + lyricsStore.syncOffset
@@ -360,6 +513,18 @@ const isWordActive = (word: LyricWord): boolean => {
 
 // 用于展示的歌词行（复用 store 的过滤结果，避免重复计算）
 const displayLines = computed(() => lyricsStore.displayLines)
+
+// 与当前行的距离 → 淡化类名（Apple Music 式纵深留白 + 3D 透视）
+const lineDistanceClass = (index: number): string => {
+	const current = lyricsStore.currentIndex
+	if (current < 0) return '' // 尚未定位到当前行时保持全亮
+	const diff = Math.abs(index - current)
+	if (diff === 1) return 'lyric-page__lyric-line--near'
+	const above = index < current
+	if (diff === 2) return above ? 'lyric-page__lyric-line--away-up' : 'lyric-page__lyric-line--away-down'
+	if (diff > 2) return above ? 'lyric-page__lyric-line--far-up' : 'lyric-page__lyric-line--far-down'
+	return ''
+}
 
 // 检查是否有歌词可显示
 const hasLyricsToShow = computed(() => {
@@ -444,15 +609,46 @@ watch(() => uiStore.lyricsAnimationStyle, () => {
 onMounted(() => {
 	initParticles()
 	scrollToCurrentLine('auto')
+	if (playerStore.showLyrics && !uiStore.performanceMode && uiStore.lyricsSpectrumEnabled) {
+		startSpectrum()
+	}
 })
 
 onUnmounted(() => {
 	clearTimeout(manualScrollTimer.value)
+	stopSpectrum()
 })
 </script>
 
 <style scoped>
-/* ===== 1. 动态背景光晕 ===== */
+/* ===== 1. 封面模糊沉浸背景 ===== */
+.lyric-page__bg-cover {
+	position: fixed;
+	inset: -8%;
+	z-index: 0;
+	background-size: cover;
+	background-position: center;
+	/* 封面图下层 + 暗色渐变叠加层（保证歌词/按钮文字可读） */
+	background-image:
+		linear-gradient(rgba(10, 10, 12, 0.62), rgba(10, 10, 12, 0.62)),
+		var(--cover-url, none);
+	filter: blur(70px) saturate(1.15) brightness(0.52);
+	transform: scale(1.04);
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.9s ease;
+}
+.lyric-page__bg-cover--active {
+	opacity: 0.6;
+	animation: coverDrift 36s ease-in-out infinite alternate;
+}
+@keyframes coverDrift {
+	0% { transform: scale(1.04) translate(0, 0) rotate(0deg); }
+	50% { transform: scale(1.12) translate(-1.5%, 1.2%) rotate(1.2deg); }
+	100% { transform: scale(1.08) translate(1.2%, -1%) rotate(-1deg); }
+}
+
+/* ===== 1b. 动态背景光晕 ===== */
 .lyric-page__bg-blobs {
 	position: fixed;
 	inset: 0;
@@ -471,7 +667,7 @@ onUnmounted(() => {
 	left: -5%;
 	width: 500px;
 	height: 500px;
-	background: radial-gradient(circle, rgba(76, 175, 80, 0.35), transparent 70%);
+	background: radial-gradient(circle, var(--album-soft-color, rgba(76, 175, 80, 0.28)), transparent 70%);
 	animation: blobFloat 25s ease-in-out infinite;
 }
 .lyric-page__bg-blob--2 {
@@ -552,6 +748,22 @@ onUnmounted(() => {
 	transition: all 0.55s cubic-bezier(0.34, 1.56, 0.64, 1), visibility 0s;
 	pointer-events: all;
 }
+
+/* 模糊浮现入场 */
+.lyric-page--blur {
+	opacity: 0;
+	transform: scale(1.08);
+	filter: blur(18px);
+	transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s 0.5s;
+}
+.lyric-page--blur.lyric-page--show {
+	opacity: 1;
+	transform: scale(1);
+	filter: blur(0);
+	visibility: visible;
+	transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s;
+	pointer-events: all;
+}
 /* 弹性入场子元素交错延迟 */
 .lyric-page--elastic.lyric-page--show .lyric-page__album-section {
 	animation: elasticIn 0.55s 0.05s both cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -591,20 +803,43 @@ onUnmounted(() => {
 	border-radius: 12px;
 	margin-top: 6px;
 	margin-bottom: 6px;
-	transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+	transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1), transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), color 0.4s ease, text-shadow 0.4s ease, background 0.3s ease;
 	transform-origin: center center;
-	animation: lineFadeIn 0.4s ease-out both;
 }
 
-@keyframes lineFadeIn {
-	0% { opacity: 0; transform: translateY(8px); }
+/* 切歌时歌词整体淡入 */
+.lyric-page__lyrics-wrapper {
+	animation: lyricsFadeIn 0.55s ease-out both;
+}
+@keyframes lyricsFadeIn {
+	0% { opacity: 0; transform: translateY(18px); }
 	100% { opacity: 1; transform: translateY(0); }
+}
+
+/* 与当前行距离越远越淡，并带 3D 透视纵深（Apple Music 风格） */
+.lyric-page__lyric-line--near { opacity: 0.6; transform: scale(0.97); }
+.lyric-page__lyric-line--away-up { opacity: 0.42; transform: perspective(600px) rotateX(10deg) scale(0.94); }
+.lyric-page__lyric-line--away-down { opacity: 0.42; transform: perspective(600px) rotateX(-10deg) scale(0.94); }
+.lyric-page__lyric-line--far-up { opacity: 0.26; transform: perspective(600px) rotateX(22deg) scale(0.9); }
+.lyric-page__lyric-line--far-down { opacity: 0.26; transform: perspective(600px) rotateX(-22deg) scale(0.9); }
+
+/* 统一 hover 表现：无拉伸动画、平面圆角背景；所有行（含当前行）完全同风格 */
+.lyric-page__lyric-line:hover {
+	background: var(--color-overlay-light);
+	color: var(--color-content-secondary);
+	opacity: 1;
+	transform: none;
+	text-shadow: none;
+	border-radius: 12px;
+	z-index: 3;
+	transition: transform 0.15s ease, background 0.2s ease, color 0.2s ease, opacity 0.2s ease;
 }
 
 .lyric-page__lyric-line--active {
 	color: var(--color-accent-green);
 	font-weight: 600;
-	transform: scale(1.04);
+	opacity: 1;
+	transform: scale(1.05);
 	text-shadow:
 		0 0 20px rgba(76, 175, 80, 0.3),
 		0 0 40px rgba(76, 175, 80, 0.15),
@@ -640,10 +875,6 @@ onUnmounted(() => {
 .lyric-page__lyric-line--active .lyric-page__lyric-time,
 .lyric-page__lyric-line--active .lyric-page__play-icon {
 	color: var(--color-accent-green);
-}
-
-.lyric-page__lyric-line--active:hover {
-	background: rgba(76, 175, 80, 0.08);
 }
 
 /* ===== 6. 逐字歌词高亮 ===== */
@@ -687,10 +918,13 @@ onUnmounted(() => {
 	color: var(--color-content-tertiary);
 }
 
-/* ===== 8. 歌词滚动条 ===== */
+/* ===== 8. 歌词滚动条 + 上下边缘渐隐 ===== */
 .lyric-page__lyrics {
 	scrollbar-width: thin;
 	scrollbar-color: transparent transparent;
+	/* 沉浸式边缘渐隐：歌词进出视口时柔化 */
+	-webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 9%, #000 91%, transparent 100%);
+	mask-image: linear-gradient(to bottom, transparent 0, #000 9%, #000 91%, transparent 100%);
 }
 .lyric-page__lyrics::-webkit-scrollbar { width: 8px; }
 .lyric-page__lyrics::-webkit-scrollbar-track { background: transparent; }
@@ -705,6 +939,39 @@ onUnmounted(() => {
 /* ===== 9. 字体大小调整 ===== */
 .lyric-page__lyrics.small .lyric-page__lyric-line { font-size: 14px; padding: 8px 24px; }
 .lyric-page__lyrics.large .lyric-page__lyric-line { font-size: 20px; padding: 16px 32px; }
+
+/* ===== 9b. 控制区低调工具按钮（幽灵样式） ===== */
+.lyric-page__time {
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+	color: var(--color-content-tertiary);
+	letter-spacing: 0.4px;
+}
+.lyric-page__ghost-btn {
+	background: transparent;
+	border: none;
+	padding: 3px 8px;
+	border-radius: 6px;
+	font-size: 11px;
+	line-height: 1.4;
+	color: var(--color-content-tertiary);
+	font-variant-numeric: tabular-nums;
+	cursor: pointer;
+	transition: color 0.25s ease, background 0.25s ease, transform 0.15s ease;
+}
+.lyric-page__ghost-btn:hover {
+	color: var(--color-accent-green);
+	background: rgba(255, 255, 255, 0.06);
+}
+.lyric-page__ghost-btn:active {
+	transform: scale(0.94);
+}
+.lyric-page__control-divider {
+	width: 1px;
+	height: 14px;
+	background: rgba(255, 255, 255, 0.08);
+	flex-shrink: 0;
+}
 
 /* ===== 10. 响应式 ===== */
 @media (max-width: 768px) {
@@ -723,7 +990,8 @@ onUnmounted(() => {
 	.lyric-page__ripple-ring--2 { width: 240px; height: 240px; }
 	.lyric-page__ripple-ring--3 { width: 280px; height: 280px; }
 	.lyric-page__particles { display: none; }
-	.lyric-page__wave-bars { display: none; }
+	.lyric-page__spectrum { width: 86%; max-width: none; }
+	.lyric-page__bg-cover { filter: blur(40px) saturate(1.15) brightness(0.52); }
 }
 
 /* ======== 11. 封面增强 — 黑胶唱盘 ======== */
@@ -800,6 +1068,15 @@ onUnmounted(() => {
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	/* 低音能量驱动轻微呼吸 */
+	transform: scale(calc(1 + var(--bass-energy, 0) * 0.025));
+	transition: transform 0.12s linear;
+	/* 切歌时封面淡入（仅动画 opacity，避免覆盖低音呼吸 transform） */
+	animation: coverFadeIn 0.6s ease-out both;
+}
+@keyframes coverFadeIn {
+	0% { opacity: 0; }
+	100% { opacity: 1; }
 }
 
 .lyric-page__album-cover-container {
@@ -979,6 +1256,40 @@ onUnmounted(() => {
 	100% { transform: translate(-50%, -50%) scale(1.2); opacity: 0; }
 }
 
+/* ======== 15b. 真实音频频谱画布（环绕封面） ======== */
+
+.lyric-page__spectrum {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	width: 92%;
+	aspect-ratio: 1;
+	max-width: 560px;
+	z-index: 1;
+	pointer-events: none;
+	opacity: 0.9;
+}
+
+/* ======== 15c. 低音能量光晕 ======== */
+
+.lyric-page__bass-halo {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	width: 96%;
+	aspect-ratio: 1;
+	max-width: 600px;
+	border-radius: 50%;
+	background: radial-gradient(circle, var(--album-soft-color, rgba(76,175,80,0.28)) 0%, transparent 62%);
+	filter: blur(30px);
+	opacity: calc(0.35 + var(--bass-energy, 0) * 0.65);
+	z-index: 1;
+	pointer-events: none;
+	transition: opacity 0.1s linear;
+}
+
 /* ======== 16. 浮动粒子 ======== */
 
 .lyric-page__particles {
@@ -1004,40 +1315,7 @@ onUnmounted(() => {
 	100% { transform: translateY(-120px) scale(0.5); opacity: 0; }
 }
 
-/* ======== 17. 声波可视化条 ======== */
-
-.lyric-page__wave-bars {
-	position: absolute;
-	bottom: 28px;
-	left: 50%;
-	transform: translateX(-50%);
-	display: flex;
-	align-items: flex-end;
-	gap: 3px;
-	z-index: 3;
-	height: 28px;
-	opacity: 0;
-	transition: opacity 0.5s ease;
-}
-.lyric-page__wave-bars--active {
-	opacity: 0.7;
-}
-.lyric-page__wave-bar {
-	width: 3px;
-	border-radius: 2px;
-	background: linear-gradient(to top, var(--album-accent-color, #4caf50), rgba(100,180,255,0.6));
-	height: 3px;
-	animation: none;
-}
-.lyric-page__wave-bars--active .lyric-page__wave-bar {
-	animation: waveBounce 1.2s ease-in-out infinite alternate;
-}
-@keyframes waveBounce {
-	0% { height: 3px; }
-	100% { height: 24px; }
-}
-
-/* ======== 18. 封面区域响应式微调 ======== */
+/* ======== 17. 封面区域响应式微调 ======== */
 
 @media (max-width: 768px) {
 	.lyric-page__album-section {
@@ -1054,12 +1332,16 @@ onUnmounted(() => {
 	animation-play-state: paused !important;
 }
 
-/* 性能模式：关闭装饰性动画元素（粒子/声波条/扫光/波纹环/背景光斑） */
+/* 性能模式：关闭装饰性动画元素（粒子/频谱/扫光/波纹环/背景光斑/模糊背景） */
 .lyric-page--perf .lyric-page__particles,
-.lyric-page--perf .lyric-page__wave-bars,
+.lyric-page--perf .lyric-page__spectrum,
+.lyric-page--perf .lyric-page__bass-halo,
 .lyric-page--perf .lyric-page__cover-shine,
 .lyric-page--perf .lyric-page__ripple-ring,
 .lyric-page--perf .lyric-page__bg-blobs {
+	display: none !important;
+}
+.lyric-page--perf .lyric-page__bg-cover {
 	display: none !important;
 }
 .lyric-page--perf .lyric-page__cover-border-ring,
