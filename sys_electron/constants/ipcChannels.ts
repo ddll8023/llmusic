@@ -88,4 +88,22 @@ export const CHANNELS = {
 	// --- 外部文件打开（主进程 → 渲染进程） ---
 	OPEN_AUDIO_FILE: "open-audio-file",
 
+	// --- 桌面歌词 ---
+	DESKTOP_LYRIC_SET_ENABLED: "desktop-lyric-set-enabled",
+	DESKTOP_LYRIC_GET_STATE: "desktop-lyric-get-state",
+	DESKTOP_LYRIC_UPDATE_CONFIG: "desktop-lyric-update-config",
+	DESKTOP_LYRIC_CONFIG_CHANGED: "desktop-lyric-config-changed",
+	DESKTOP_LYRIC_REQUEST_SNAPSHOT: "desktop-lyric-request-snapshot",
+	DESKTOP_LYRIC_NOW_PLAYING_CHANGED: "desktop-lyric-now-playing-changed",
+	DESKTOP_LYRIC_POSITION_SYNC: "desktop-lyric-position-sync",
+	DESKTOP_LYRIC_CURSOR_INSIDE: "desktop-lyric-cursor-inside",
+	DESKTOP_LYRIC_MOVE: "desktop-lyric-move",
+	DESKTOP_LYRIC_SAVE_STATE: "desktop-lyric-save-state",
+	DESKTOP_LYRIC_CLOSE: "desktop-lyric-close",
+	DESKTOP_LYRIC_SET_UNLOCK_BUTTON_BOUNDS: "desktop-lyric-set-unlock-button-bounds",
+
+	// --- 播放状态同步 ---
+	NOW_PLAYING_UPDATE: "now-playing-update",
+	NOW_PLAYING_POSITION: "now-playing-position",
+
 } as const

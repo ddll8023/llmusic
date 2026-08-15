@@ -3,6 +3,7 @@ import { ref, nextTick, onMounted, onUnmounted, watch, computed } from 'vue';
 import { usePlayerStore, PlayMode } from '../../store/player';
 import { useMediaStore } from '../../store/media';
 import { useLyricsStore } from '../../store/lyrics';
+import { useDesktopLyricsStore } from '../../store/desktopLyrics';
 import { useUiStore } from '../../store/ui';
 import { audioEngine } from '../../core/audio/engine';
 import defaultCoverImage from '../../assets/default_img.jpg';
@@ -14,6 +15,7 @@ import { useDraggable } from '../../composables/useDraggable';
 const playerStore = usePlayerStore();
 const mediaStore = useMediaStore();
 const uiStore = useUiStore();
+const desktopLyricsStore = useDesktopLyricsStore();
 
 // ── 音量弹层 ──
 const timelineRef = ref<HTMLElement | null>(null);
@@ -308,6 +310,10 @@ watch(() => colors.value.gradient, (gradient) => {
   document.documentElement.style.setProperty('--album-glow', gradient || defaultGlow);
 });
 
+const toggleDesktopLyrics = async () => {
+    await desktopLyricsStore.setEnabled(!desktopLyricsStore.enabled);
+};
+
 const showLyrics = async () => {
     if (!playerStore.isOnlineSong && !playerStore.currentSong) return;
     try {
@@ -509,6 +515,7 @@ onMounted(() => {
           <button class="rbtn" title="收藏" :class="{ 'active': false }"><i class="fa fa-heart-o"></i></button>
           <button class="rbtn" title="播放模式" :class="{ 'active': playerStore.playMode !== 'sequence' }" @click="togglePlayMode"><i class="fa" :class="'fa-' + playModeIconName"></i></button>
           <button class="rbtn" title="歌词" @click="showLyrics"><i class="fa fa-file-text-o"></i></button>
+          <button class="rbtn" title="桌面歌词" :class="{ 'active': desktopLyricsStore.enabled }" @click="toggleDesktopLyrics"><i class="fa fa-desktop"></i></button>
           <button class="rbtn" title="播放列表" :class="{ 'active': uiShowPlaylist }" @click="uiStore.togglePlaylist()"><i class="fa fa-bars"></i></button>
         </div>
 

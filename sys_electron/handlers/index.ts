@@ -2,6 +2,7 @@ import { registerIPC, unregisterAll } from "../utils/ipc/ipcWrapper"
 
 // 系统相关处理器
 import { createWindowHandlers, type CloseBehaviorAccessor } from "./system/windowHandlers"
+import { createDesktopLyricHandlers } from "./system/desktopLyricHandlers"
 
 // 扫描相关处理器
 import { createScanHandlers } from "./scan/scanHandlers"
@@ -39,6 +40,7 @@ function setupIpcHandlers(
 		createLibraryHandlers(),
 		createTagHandlers(),
 		createDownloadHandlers(mainWindow),
+		createDesktopLyricHandlers(),
 	]
 
 	modules.forEach((m) => {

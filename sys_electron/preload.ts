@@ -63,6 +63,22 @@ const CHANNELS = {
 	GET_CLOSE_BEHAVIOR: "get-close-behavior",
 	// --- 外部文件打开 ---
 	OPEN_AUDIO_FILE: "open-audio-file",
+	// --- 桌面歌词 ---
+	DESKTOP_LYRIC_SET_ENABLED: "desktop-lyric-set-enabled",
+	DESKTOP_LYRIC_GET_STATE: "desktop-lyric-get-state",
+	DESKTOP_LYRIC_UPDATE_CONFIG: "desktop-lyric-update-config",
+	DESKTOP_LYRIC_CONFIG_CHANGED: "desktop-lyric-config-changed",
+	DESKTOP_LYRIC_REQUEST_SNAPSHOT: "desktop-lyric-request-snapshot",
+	DESKTOP_LYRIC_NOW_PLAYING_CHANGED: "desktop-lyric-now-playing-changed",
+	DESKTOP_LYRIC_POSITION_SYNC: "desktop-lyric-position-sync",
+	DESKTOP_LYRIC_CURSOR_INSIDE: "desktop-lyric-cursor-inside",
+	DESKTOP_LYRIC_MOVE: "desktop-lyric-move",
+	DESKTOP_LYRIC_SAVE_STATE: "desktop-lyric-save-state",
+	DESKTOP_LYRIC_CLOSE: "desktop-lyric-close",
+	DESKTOP_LYRIC_SET_UNLOCK_BUTTON_BOUNDS: "desktop-lyric-set-unlock-button-bounds",
+	// --- 播放状态同步 ---
+	NOW_PLAYING_UPDATE: "now-playing-update",
+	NOW_PLAYING_POSITION: "now-playing-position",
 } as const
 
 /**
@@ -181,6 +197,30 @@ const compatAPI: Record<string, unknown> = {
 	// 批量下载（选择目录, 不弹保存对话框）
 	downloadSongToDir: (options: Record<string, unknown>) =>
 		ipcRenderer.invoke(CHANNELS.DOWNLOAD_SONG_TO_DIR, options),
+
+	// 桌面歌词
+	setDesktopLyricEnabled: (enabled: boolean) => ipcRenderer.invoke(CHANNELS.DESKTOP_LYRIC_SET_ENABLED, enabled),
+	getDesktopLyricState: () => ipcRenderer.invoke(CHANNELS.DESKTOP_LYRIC_GET_STATE),
+	updateDesktopLyricConfig: (config: Record<string, unknown>) =>
+		ipcRenderer.invoke(CHANNELS.DESKTOP_LYRIC_UPDATE_CONFIG, config),
+	onDesktopLyricConfigChange: (callback: (...args: unknown[]) => void) =>
+		createListener(CHANNELS.DESKTOP_LYRIC_CONFIG_CHANGED, callback),
+	requestDesktopLyricSnapshot: () => ipcRenderer.invoke(CHANNELS.DESKTOP_LYRIC_REQUEST_SNAPSHOT),
+	onDesktopLyricNowPlaying: (callback: (...args: unknown[]) => void) =>
+		createListener(CHANNELS.DESKTOP_LYRIC_NOW_PLAYING_CHANGED, callback),
+	onDesktopLyricPositionSync: (callback: (...args: unknown[]) => void) =>
+		createListener(CHANNELS.DESKTOP_LYRIC_POSITION_SYNC, callback),
+	onDesktopLyricCursorInside: (callback: (...args: unknown[]) => void) =>
+		createListener(CHANNELS.DESKTOP_LYRIC_CURSOR_INSIDE, callback),
+	desktopLyricMove: (x: number, y: number) => ipcRenderer.invoke(CHANNELS.DESKTOP_LYRIC_MOVE, x, y),
+	desktopLyricSaveState: () => ipcRenderer.invoke(CHANNELS.DESKTOP_LYRIC_SAVE_STATE),
+	desktopLyricClose: () => ipcRenderer.invoke(CHANNELS.DESKTOP_LYRIC_CLOSE),
+	setDesktopLyricUnlockButtonBounds: (bounds: Record<string, unknown>) =>
+		ipcRenderer.invoke(CHANNELS.DESKTOP_LYRIC_SET_UNLOCK_BUTTON_BOUNDS, bounds),
+
+	// 播放状态同步（桌面歌词等消费）
+	updateNowPlaying: (payload: Record<string, unknown>) => ipcRenderer.invoke(CHANNELS.NOW_PLAYING_UPDATE, payload),
+	syncNowPlayingPosition: (payload: Record<string, unknown>) => ipcRenderer.invoke(CHANNELS.NOW_PLAYING_POSITION, payload),
 }
 
 // 安全地暴露主进程的API给渲染进程

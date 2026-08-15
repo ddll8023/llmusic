@@ -41,10 +41,22 @@ export interface OperationLogQuery {
   keyword?: string
 }
 
+export interface OperationLogCleanupResult {
+  retention_days: number
+  cutoff_time: string
+  deleted_count: number
+  retained_count: number
+  invalid_count: number
+}
+
 function post<T>(url: string, body?: unknown): Promise<ApiResponse<T>> {
   return operationLogClient.post(url, body) as unknown as Promise<ApiResponse<T>>
 }
 
 export function getOperationLogs(params: OperationLogQuery) {
   return post<PaginatedResponse<OperationLogItem>>('/list', params)
+}
+
+export function cleanupOperationLogs(retentionDays: 7 | 30) {
+  return post<OperationLogCleanupResult>('/cleanup', { retention_days: retentionDays })
 }

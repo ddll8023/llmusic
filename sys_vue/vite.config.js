@@ -27,6 +27,12 @@ export default defineConfig({
 	build: {
 		outDir: resolve(__dirname, "dist"),
 		emptyOutDir: true,
+		rollupOptions: {
+			input: {
+				main: resolve(__dirname, "index.html"),
+				desktopLyric: resolve(__dirname, "desktop-lyric.html"),
+			},
+		},
 	},
 	// SCSS 配置已移除 — 项目已从 SCSS 迁移到 Tailwind CSS
 });

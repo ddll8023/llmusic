@@ -22,6 +22,7 @@ import { closeDb } from "./handlers/data/db"
 import { setupIpcHandlers } from "./handlers"
 import { terminateScan } from "./handlers/scan/MusicScanner"
 import { registerAudioProtocol } from "./handlers/system/audioProtocol"
+import { initDesktopLyricWindow } from "./handlers/system/desktopLyricWindow"
 import { CHANNELS } from "./constants/ipcChannels"
 import { SUPPORTED_AUDIO_EXTENSIONS } from "./constants/formats"
 import { BACKEND_HOST, BACKEND_PORT } from "./constants/backend"
@@ -462,6 +463,8 @@ async function initializeApp(): Promise<void> {
 			set: setCloseWindowBehavior,
 		})
 
+		void initDesktopLyricWindow()
+
 		if (appState.pendingFileToOpen) {
 			appState.mainWindow.webContents.once("did-finish-load", () => {
 				setTimeout(() => {
@@ -528,6 +531,8 @@ function recreateWindow(): void {
 		get: () => appState.closeWindowBehavior,
 		set: setCloseWindowBehavior,
 	})
+
+	void initDesktopLyricWindow()
 }
 
 // 应用激活事件（macOS）：窗口存活（含隐藏态）直接显示，销毁时才重建

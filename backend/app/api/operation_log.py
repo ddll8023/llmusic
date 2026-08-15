@@ -4,7 +4,12 @@ import math
 from fastapi import APIRouter
 
 from app.schemas.common import ApiResponse, PaginatedResponse, PaginationInfo
-from app.schemas.operation_log import OperationLogItem, OperationLogListRequest
+from app.schemas.operation_log import (
+    OperationLogCleanupRequest,
+    OperationLogCleanupResult,
+    OperationLogItem,
+    OperationLogListRequest,
+)
 from app.schemas.response import success
 from app.services import operation_log as services_operation_log
 
@@ -33,3 +38,10 @@ async def list_operation_logs(req: OperationLogListRequest):
             ),
         )
     )
+
+
+@router.post("/cleanup", response_model=ApiResponse[OperationLogCleanupResult])
+async def cleanup_operation_logs(req: OperationLogCleanupRequest):
+    """清理超过保留期限的操作日志。"""
+    result = await services_operation_log.cleanup_operation_logs(req.retention_days)
+    return success(data=result)

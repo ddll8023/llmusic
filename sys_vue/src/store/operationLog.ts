@@ -1,6 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { getOperationLogs, type OperationLogItem } from '@/api/operationLog'
+import {
+	cleanupOperationLogs,
+	getOperationLogs,
+	type OperationLogCleanupResult,
+	type OperationLogItem,
+} from '@/api/operationLog'
 
 export const useOperationLogStore = defineStore('operationLog', () => {
 	const logs = ref<OperationLogItem[]>([])
@@ -9,6 +14,7 @@ export const useOperationLogStore = defineStore('operationLog', () => {
 	const total = ref(0)
 	const totalPages = ref(0)
 	const loading = ref(false)
+	const cleaning = ref(false)
 	const level = ref<'INFO' | 'WARNING' | 'ERROR' | ''>('')
 	const logType = ref<'request' | 'auth' | ''>('')
 	const keyword = ref('')
@@ -54,6 +60,18 @@ export const useOperationLogStore = defineStore('operationLog', () => {
 		return loadLogs()
 	}
 
+	async function cleanupLogs(retentionDays: 7 | 30): Promise<OperationLogCleanupResult> {
+		cleaning.value = true
+		try {
+			const res = await cleanupOperationLogs(retentionDays)
+			page.value = 1
+			await loadLogs()
+			return res.data
+		} finally {
+			cleaning.value = false
+		}
+	}
+
 	return {
 		logs,
 		page,
@@ -61,6 +79,7 @@ export const useOperationLogStore = defineStore('operationLog', () => {
 		total,
 		totalPages,
 		loading,
+		cleaning,
 		level,
 		logType,
 		keyword,
@@ -69,5 +88,6 @@ export const useOperationLogStore = defineStore('operationLog', () => {
 		setLevel,
 		setLogType,
 		setKeyword,
+		cleanupLogs,
 	}
 })

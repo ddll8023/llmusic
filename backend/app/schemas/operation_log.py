@@ -13,6 +13,11 @@ class OperationLogListRequest(BaseModel):
     keyword: str | None = Field(default=None, max_length=200, description="关键词筛选")
 
 
+class OperationLogCleanupRequest(BaseModel):
+    """操作日志清理请求"""
+    retention_days: int = Field(default=30, ge=7, le=30, description="保留天数")
+
+
 class OperationLogItem(BaseModel):
     """单条操作日志"""
     time: str = Field(default="", description="ISO 8601 时间")
@@ -24,5 +29,16 @@ class OperationLogItem(BaseModel):
     duration_ms: int | None = Field(default=None, description="请求耗时毫秒")
     error_code: int | None = Field(default=None, description="业务错误码")
     detail: dict = Field(default_factory=dict, description="补充信息")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class OperationLogCleanupResult(BaseModel):
+    """操作日志清理结果"""
+    retention_days: int = Field(description="保留天数")
+    cutoff_time: str = Field(description="清理截止时间")
+    deleted_count: int = Field(default=0, description="删除日志条数")
+    retained_count: int = Field(default=0, description="保留日志条数")
+    invalid_count: int = Field(default=0, description="无法解析但保留的日志条数")
 
     model_config = ConfigDict(from_attributes=True)

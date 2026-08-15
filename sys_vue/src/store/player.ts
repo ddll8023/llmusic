@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import type { Song } from '@/types'
+import type { LyricLine, Song } from '@/types'
 import { audioEngine, localSongUrl } from '@/core/audio/engine'
 import { useMediaStore } from './media'
 import { useLyricsStore } from './lyrics'
@@ -58,6 +58,7 @@ export const usePlayerStore = defineStore('player', {
 		onlinePlayIndex: -1,
 		onlineShuffleQueue: [] as number[],
 		onlineShuffleIndex: -1,
+		lastNowPlayingPushAt: 0,
 	}),
 
 	getters: {
@@ -79,6 +80,52 @@ export const usePlayerStore = defineStore('player', {
 			})
 			audioEngine.setVolume(this.volume)
 			audioEngine.setMuted(this.muted)
+		},
+
+		/** 推送完整播放快照给主进程（桌面歌词等消费） */
+		syncNowPlayingToMain() {
+			const lyricsStore = useLyricsStore()
+			const track = this.isOnlineSong
+				? {
+						id: this.onlineSongMid || '',
+						title: this.onlineSongName,
+						artist: this.onlineSinger,
+						album: '',
+						isOnline: true,
+					}
+				: this.currentSong
+					? {
+							id: this.currentSong.id,
+							title: this.currentSong.title,
+							artist: this.currentSong.artist,
+							album: this.currentSong.album || '',
+							isOnline: false,
+						}
+					: null
+			// 转成纯 JSON 数据再走 IPC，避免 Vue 响应式 Proxy 无法被 Electron 结构化克隆
+			const plainLyric = JSON.parse(JSON.stringify(lyricsStore.displayLines)) as LyricLine[]
+			void window.electronAPI.updateNowPlaying({
+				track,
+				lyric: plainLyric,
+				position: Math.round(this.currentTime * 1000),
+				playing: this.playing,
+				speed: 1,
+				lyricOffsetMs: lyricsStore.syncOffset,
+				showTranslation: lyricsStore.showTranslation,
+				showRoma: lyricsStore.showRoma,
+			})
+		},
+
+		/** 推送播放位置锚点给主进程（约 5Hz 节流） */
+		syncNowPlayingPosition() {
+			const now = Date.now()
+			if (now - this.lastNowPlayingPushAt < 200) return
+			this.lastNowPlayingPushAt = now
+			void window.electronAPI.syncNowPlayingPosition({
+				position: Math.round(this.currentTime * 1000),
+				playing: this.playing,
+				speed: 1,
+			})
 		},
 
 		/** 恢复会话后按暂停状态装载上次的歌曲与进度 */
@@ -158,6 +205,8 @@ export const usePlayerStore = defineStore('player', {
 			const lyricsStore = useLyricsStore()
 			lyricsStore.loadLyrics(song.id)
 			lyricsStore.setCurrentIndex(-1)
+			this.syncNowPlayingToMain()
+			this.syncNowPlayingPosition()
 
 			if (this.playMode === PlayMode.RANDOM) {
 				const posInQueue = this.shuffleQueue.indexOf(song.id)
@@ -192,6 +241,7 @@ export const usePlayerStore = defineStore('player', {
 			} else {
 				audioEngine.pause()
 			}
+			this.syncNowPlayingPosition()
 		},
 
 		stop() {
@@ -206,6 +256,8 @@ export const usePlayerStore = defineStore('player', {
 			this.onlineShuffleQueue = []
 			this.onlineShuffleIndex = -1
 			audioEngine.stop()
+			this.syncNowPlayingToMain()
+			this.syncNowPlayingPosition()
 		},
 
 		seek(time: number) {
@@ -213,6 +265,7 @@ export const usePlayerStore = defineStore('player', {
 			this.currentTime = t
 			this._updateLyricsIndex(t)
 			audioEngine.seek(t)
+			this.syncNowPlayingPosition()
 		},
 
 		playNext(auto = false) {
@@ -439,6 +492,7 @@ export const usePlayerStore = defineStore('player', {
 		updateCurrentTime(time: number) {
 			this.currentTime = time
 			this._updateLyricsIndex(time)
+			this.syncNowPlayingPosition()
 		},
 
 		_updateLyricsIndex(time: number) {
@@ -526,6 +580,8 @@ export const usePlayerStore = defineStore('player', {
 			audioEngine.load(info.url, true)
 			const lyricsStore = useLyricsStore()
 			lyricsStore.loadOnlineLyricsByMid(this.onlineSongMid)
+			this.syncNowPlayingToMain()
+			this.syncNowPlayingPosition()
 		},
 
 		_generateOnlineShuffleQueue() {

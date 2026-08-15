@@ -4,6 +4,56 @@ declare global {
 	// ---- IPC 通用返回格式 ----
 	type IpcResult<T = Record<string, never>> = { success: boolean; error?: string; canceled?: boolean } & T
 
+	// ---- 桌面歌词类型 ----
+	interface DesktopLyricConfig {
+		enabled: boolean
+		locked: boolean
+		alwaysOnTop: boolean
+		fontSize: number
+		x: number | null
+		y: number | null
+		width: number
+		height: number
+		showTranslation: boolean
+		doubleLine: boolean
+		currentLineColor: string
+		nextLineColor: string
+	}
+
+	interface NowPlayingTrack {
+		id?: string
+		title: string
+		artist: string
+		album: string
+		isOnline?: boolean
+	}
+
+	interface NowPlayingSnapshot {
+		track: NowPlayingTrack | null
+		lyric: import('./api').LyricLine[]
+		position: number
+		playing: boolean
+		speed: number
+		lyricOffsetMs: number
+		sendTimestamp: number
+		showTranslation: boolean
+		showRoma: boolean
+	}
+
+	interface NowPlayingPositionSync {
+		position: number
+		playing: boolean
+		speed: number
+		sendTimestamp: number
+	}
+
+	interface DesktopLyricUnlockButtonBounds {
+		x: number
+		y: number
+		width: number
+		height: number
+	}
+
 	interface ElectronAPI {
 		// ── 窗口控制 ──
 		windowMinimize: () => Promise<IpcResult>
@@ -102,6 +152,33 @@ declare global {
 		updateLibrary: (data: { libraryId: string; updates: Record<string, unknown> }) => Promise<IpcResult<{ library: import('./api').Library }>>
 		removeLibrary: (id: string) => Promise<IpcResult>
 		selectDirectory: () => Promise<IpcResult<{ path?: string }>>
+
+		// ── 桌面歌词 ──
+		setDesktopLyricEnabled: (enabled: boolean) => Promise<IpcResult<{ enabled?: boolean }>>
+		getDesktopLyricState: () => Promise<IpcResult<{ config?: DesktopLyricConfig }>>
+		updateDesktopLyricConfig: (config: Partial<DesktopLyricConfig>) => Promise<IpcResult>
+		onDesktopLyricConfigChange: (callback: (config: Partial<DesktopLyricConfig>) => void) => () => void
+		requestDesktopLyricSnapshot: () => Promise<IpcResult<{ snapshot?: NowPlayingSnapshot }>>
+		onDesktopLyricNowPlaying: (callback: (snapshot: NowPlayingSnapshot) => void) => () => void
+		onDesktopLyricPositionSync: (callback: (position: NowPlayingPositionSync) => void) => () => void
+		onDesktopLyricCursorInside: (callback: (inside: boolean) => void) => () => void
+		desktopLyricMove: (x: number, y: number) => Promise<IpcResult>
+		desktopLyricSaveState: () => Promise<IpcResult>
+		desktopLyricClose: () => Promise<IpcResult>
+		setDesktopLyricUnlockButtonBounds: (bounds: DesktopLyricUnlockButtonBounds | null) => Promise<IpcResult>
+
+		// ── 播放状态同步（桌面歌词等消费） ──
+		updateNowPlaying: (payload: {
+			track: NowPlayingTrack | null
+			lyric: import('./api').LyricLine[]
+			position: number
+			playing: boolean
+			speed: number
+			lyricOffsetMs: number
+			showTranslation: boolean
+			showRoma: boolean
+		}) => Promise<IpcResult>
+		syncNowPlayingPosition: (payload: { position: number; playing: boolean; speed: number }) => Promise<IpcResult>
 	}
 
 	interface Window {

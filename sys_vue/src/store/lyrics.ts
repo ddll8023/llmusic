@@ -59,6 +59,7 @@ export const useLyricsStore = defineStore("lyrics", {
 		 * 供 playerStore.playSong 调用
 		 */
 		async loadLyrics(songId: string) {
+			this.reset()
 			try {
 				const result = await window.electronAPI.getLyrics(songId)
 				if (result && "success" in result && result.success && result.lyrics) {
@@ -70,6 +71,7 @@ export const useLyricsStore = defineStore("lyrics", {
 					this.metadata = _r.metadata ?? {}
 					this.currentIndex = -1
 					this.isAutoScrolling = true
+					usePlayerStore().syncNowPlayingToMain()
 					return
 				}
 				this.reset()
@@ -138,6 +140,7 @@ export const useLyricsStore = defineStore("lyrics", {
 			this.isAutoScrolling = true
 			this.source = 'online'
 			this.format = 'lrc'
+			usePlayerStore().syncNowPlayingToMain()
 		},
 
 		/**
@@ -146,6 +149,7 @@ export const useLyricsStore = defineStore("lyrics", {
 		 */
 		async loadOnlineLyricsByMid(songMid: string) {
 			if (!songMid) return
+			this.reset()
 			try {
 				const res = await getSongDownloadBundle(String(Date.now()), songMid)
 				const playerStore = usePlayerStore()

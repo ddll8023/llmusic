@@ -18,20 +18,47 @@ import ToastContainer from './components/custom/ToastContainer.vue';
 import { useUiStore } from './store/ui';
 import { usePlaylistStore } from './store/playlist';
 import { usePlayerStore } from './store/player';
+import { useLyricsStore } from './store/lyrics';
+import { useDesktopLyricsStore } from './store/desktopLyrics';
 import { useMediaStore } from './store/media';
 import { useSidebarResize } from './composables/useSidebarResize';
 
 const uiStore = useUiStore();
 const playlistStore = usePlaylistStore();
 const playerStore = usePlayerStore();
+const lyricsStore = useLyricsStore();
+const desktopLyricsStore = useDesktopLyricsStore();
 const mediaStore = useMediaStore();
 
 // 初始化窗口关闭行为
 uiStore.initCloseBehavior();
 
+// 桌面歌词状态初始化
+desktopLyricsStore.init();
+
+// 播放/歌词状态变化时推送完整快照给主进程（桌面歌词窗口消费）
+watch(
+    () => [
+        lyricsStore.lines,
+        lyricsStore.syncOffset,
+        lyricsStore.showTranslation,
+        lyricsStore.showRoma,
+        playerStore.currentSong,
+        playerStore.isOnlineSong,
+        playerStore.onlineSongName,
+        playerStore.onlineSinger,
+        playerStore.onlineSongMid,
+    ],
+    () => {
+        playerStore.syncNowPlayingToMain();
+    },
+    { deep: false }
+);
+
 
 // 存储IPC事件监听器的引用
 let removeFileOpenListener: (() => void) | null = null;
+let nowPlayingSyncTimer: ReturnType<typeof setInterval> | null = null;
 
 onMounted(async () => {
     // 初始化CSS变量
@@ -79,6 +106,13 @@ onMounted(async () => {
             console.error('处理文件打开失败:', error);
         }
     });
+
+    // 兜底周期推送：确保主进程 NowPlaying 快照始终包含最新歌词/进度
+    nowPlayingSyncTimer = setInterval(() => {
+        if (playerStore.currentSong || playerStore.isOnlineSong) {
+            playerStore.syncNowPlayingToMain();
+        }
+    }, 2000);
 });
 
 
@@ -118,6 +152,10 @@ watch([
 onUnmounted(() => {
     if (removeFileOpenListener) {
         removeFileOpenListener();
+    }
+    if (nowPlayingSyncTimer) {
+        clearInterval(nowPlayingSyncTimer);
+        nowPlayingSyncTimer = null;
     }
 });
 </script>

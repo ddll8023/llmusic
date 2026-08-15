@@ -1,7 +1,8 @@
 """FastAPI 应用入口"""
+import asyncio
 import json
 import time
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 import uvicorn
 from fastapi import FastAPI, Request
@@ -26,8 +27,16 @@ logger = setup_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await services_auth.ensure_credential_fresh()
-    yield
-    await reset_client()
+    cleanup_task = asyncio.create_task(
+        services_operation_log.operation_log_cleanup_loop(settings.operation_log_retention_days)
+    )
+    try:
+        yield
+    finally:
+        cleanup_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await cleanup_task
+        await reset_client()
 
 
 app = FastAPI(title="LLMusic API", version="1.0.0", lifespan=lifespan)

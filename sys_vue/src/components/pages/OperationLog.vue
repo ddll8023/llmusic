@@ -4,12 +4,15 @@ import { useOperationLogStore } from '../../store/operationLog';
 import { useNotificationStore } from '../../store/notification';
 import CustomButton from '../custom/CustomButton.vue';
 import CustomInput from '../custom/CustomInput.vue';
+import CustomModal from '../custom/CustomModal.vue';
 import CustomSelect from '../custom/CustomSelect.vue';
 
 const operationLogStore = useOperationLogStore();
 const notification = useNotificationStore();
 
 const keywordInput = ref('');
+const cleanupDialogVisible = ref(false);
+const cleanupRetentionDays = ref<7 | 30>(30);
 
 const levelOptions = [
   { value: '', label: '全部级别' },
@@ -22,6 +25,11 @@ const typeOptions = [
   { value: '', label: '全部类型' },
   { value: 'request', label: '网络请求' },
   { value: 'auth', label: '认证操作' },
+];
+
+const cleanupOptions = [
+  { value: 7, label: '保留最近 7 天' },
+  { value: 30, label: '保留最近 30 天' },
 ];
 
 onMounted(async () => {
@@ -46,6 +54,29 @@ function onTypeChange(value: string | number) {
 
 function onSearch() {
   operationLogStore.setKeyword(keywordInput.value).catch(notification.notifyError);
+}
+
+function openCleanupDialog() {
+  cleanupDialogVisible.value = true;
+}
+
+function closeCleanupDialog() {
+  if (!operationLogStore.cleaning) cleanupDialogVisible.value = false;
+}
+
+function onCleanupRetentionChange(value: string | number) {
+  const days = Number(value);
+  if (days === 7 || days === 30) cleanupRetentionDays.value = days;
+}
+
+async function confirmCleanup() {
+  try {
+    const result = await operationLogStore.cleanupLogs(cleanupRetentionDays.value);
+    cleanupDialogVisible.value = false;
+    notification.success(`已清理 ${result.deleted_count} 条过期日志`);
+  } catch (e) {
+    notification.notifyError(e);
+  }
 }
 
 function prevPage() {
@@ -93,6 +124,21 @@ function levelClass(level: string) {
       />
       <CustomButton type="secondary" size="small" @click="onSearch">搜索</CustomButton>
       <CustomButton type="secondary" size="small" @click="refresh">刷新</CustomButton>
+      <CustomSelect
+        :model-value="cleanupRetentionDays"
+        :options="cleanupOptions"
+        customClass="w-40!"
+        @update:model-value="onCleanupRetentionChange"
+      />
+      <CustomButton
+        type="danger"
+        size="small"
+        :loading="operationLogStore.cleaning"
+        :disabled="operationLogStore.cleaning"
+        @click="openCleanupDialog"
+      >
+        清理过期日志
+      </CustomButton>
     </div>
 
     <div class="bg-surface-overlay rounded-lg overflow-x-auto">
@@ -153,5 +199,22 @@ function levelClass(level: string) {
         </CustomButton>
       </div>
     </div>
+
+    <CustomModal
+      :show="cleanupDialogVisible"
+      title="清理过期日志"
+      confirm-text="确认清理"
+      confirm-type="danger"
+      :confirm-loading="operationLogStore.cleaning"
+      :confirm-disabled="operationLogStore.cleaning"
+      :closable="!operationLogStore.cleaning"
+      :close-on-overlay="!operationLogStore.cleaning"
+      @close="closeCleanupDialog"
+      @cancel="closeCleanupDialog"
+      @confirm="confirmCleanup"
+    >
+      <p>将删除早于 {{ cleanupRetentionDays }} 天的操作日志，最近 {{ cleanupRetentionDays }} 天的日志会保留。</p>
+      <p class="mt-3 text-accent-danger">删除后无法恢复，请确认后继续。</p>
+    </CustomModal>
   </div>
 </template>
