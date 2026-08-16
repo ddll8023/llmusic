@@ -7,8 +7,10 @@ import { spawn, type ChildProcess } from "child_process"
 import path from "path"
 import http from "http"
 import electron from "electron"
+import { getStableAppDataPath } from "./utils/appDataPath"
 
 const ROOT_DIR = path.resolve(__dirname, "..", "..")
+const APP_DATA_DIR = getStableAppDataPath()
 const BACKEND_DIR = path.join(ROOT_DIR, "backend")
 const FRONTEND_DIR = path.join(ROOT_DIR, "sys_vue")
 import { BACKEND_PORT } from "./constants/backend"
@@ -92,7 +94,13 @@ async function main(): Promise<void> {
 		"--port",
 		String(BACKEND_PORT),
 		"--reload",
-	], { cwd: BACKEND_DIR })
+	], {
+		cwd: BACKEND_DIR,
+		env: {
+			...process.env,
+			APP_DATA_DIR,
+		},
+	})
 
 	try {
 		await waitForReady(`http://127.0.0.1:${BACKEND_PORT}/health`, "Backend")
@@ -127,6 +135,7 @@ async function main(): Promise<void> {
 		env: {
 			...process.env,
 			LLMUSIC_BACKEND_MANAGED: "1",
+			APP_DATA_DIR,
 		},
 	})
 

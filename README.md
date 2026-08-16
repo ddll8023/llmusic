@@ -7,7 +7,7 @@
 - **桌面端**：Electron
 - **前端**：Vue 3、Vite、Pinia、Tailwind CSS v4、TypeScript
 - **后端**：Python、FastAPI、Uvicorn、Pydantic
-- **本地数据**：lowdb（JSON 文件数据库）
+- **本地数据**：SQLite（better-sqlite3，统一存储在 Electron userData）
 - **在线音乐**：QQ Music SDK（搜索、获取链接、二维码登录）
 - **音频处理**：music-metadata、fluent-ffmpeg、ffmpeg-static、ffprobe-static
 
@@ -29,6 +29,20 @@
 | **后端**   | `backend/`      | FastAPI 服务，提供 QQ 音乐搜索、歌曲链接、封面、二维码登录等 API                                              |
 | **前端**   | `sys_vue/`      | Vue 3 渲染进程，负责界面、播放器、歌单、本地音乐库、在线发现和歌词展示                                        |
 | **主进程** | `sys_electron/` | Electron 主进程，负责窗口管理、IPC 桥接、本地文件扫描与音频解析、歌词提取、播放转码以及后端子进程生命周期管理 |
+
+## 本地数据与开发/打包路径
+
+开发模式和打包模式统一使用 Electron `userData` 作为数据根目录：
+
+```text
+<userData>/
+├── llmusic.db
+├── credential/credential.json
+├── logs/operation.log
+└── transcode-cache/
+```
+
+首次启动时会探测旧版 lowdb `db.json`（包括旧 Electron userData 和开发目录候选路径），在 SQLite 事务迁移并逐表校验成功后删除旧文件；迁移失败会保留原文件并停止继续启动。开发模式遗留的凭证和日志在目标文件不存在时移动到统一目录，不覆盖已有数据。
 
 ## 项目结构
 

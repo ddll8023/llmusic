@@ -94,7 +94,7 @@ QQ 音乐登录 ──凭证──> 在线音乐搜索
 
 ### 凭证文件
 
-- 路径：后端 `credential/credential.json`（相对服务层上溯两级），已被 .gitignore 排除
+- 路径：统一数据目录 `<userData>/credential/credential.json`，开发/打包模式一致；旧开发目录文件在目标不存在时启动迁移
 - 内容：SDK 凭证模型序列化（含 musicid、encrypt_uin、musickey 及有效期字段）
 - 写入：原子写盘（先写 `.tmp` 再 `os.replace`）
 - 读取：进程内缓存 + 文件 mtime 校验，文件未变不重复解析

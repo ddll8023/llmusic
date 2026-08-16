@@ -1,13 +1,13 @@
 // 数据库连接层：better-sqlite3 单例、WAL 模式、建表 DDL、prepared statement 缓存
 import path from "path"
-import fs from "fs"
 import { app } from "electron"
 import DatabaseConstructor from "better-sqlite3"
 import type { Database as SqliteDatabase, Statement } from "better-sqlite3"
+import { LegacyDataMigrationError, migrateLegacyDatabase } from "./legacyMigration"
 
-// 数据库文件路径（与旧 db.json 同目录）
-const dbPath = path.join(app.getPath("userData"), "llmusic.db")
-const legacyDbPath = path.join(app.getPath("userData"), "db.json")
+function getDbPath(): string {
+	return path.join(app.getPath("userData"), "llmusic.db")
+}
 
 // 建表 DDL
 const DDL = `
@@ -89,25 +89,25 @@ CREATE TABLE IF NOT EXISTS qq_user_playlists_cache (
 let db: SqliteDatabase | null = null
 
 /**
- * 获取数据库单例（首次调用时创建连接、清理旧 db.json 并建表）
+ * 获取数据库单例（首次调用时建表，并安全迁移旧 lowdb 数据）
  */
 function getDb(): SqliteDatabase {
 	if (db) return db
 
-	// 存在旧的 lowdb 数据文件时直接删除（不做迁移）
-	if (fs.existsSync(legacyDbPath)) {
-		try {
-			fs.unlinkSync(legacyDbPath)
-			console.log("已删除旧的 lowdb 数据文件:", legacyDbPath)
-		} catch (error) {
-			console.warn("删除旧的 lowdb 数据文件失败:", error)
+	const database = new DatabaseConstructor(getDbPath())
+	try {
+		database.pragma("journal_mode = WAL")
+		database.exec(DDL)
+		migrateLegacyDatabase(database)
+		db = database
+		return database
+	} catch (error) {
+		database.close()
+		if (error instanceof LegacyDataMigrationError) {
+			console.error("[Migration] 数据库迁移失败，旧数据未删除:", error.message)
 		}
+		throw error
 	}
-
-	db = new DatabaseConstructor(dbPath)
-	db.pragma("journal_mode = WAL")
-	db.exec(DDL)
-	return db
 }
 
 // prepared statement 缓存，按 SQL 文本复用
@@ -128,7 +128,7 @@ function stmt(sql: string): Statement {
 async function initDb(): Promise<SqliteDatabase> {
 	try {
 		const database = getDb()
-		console.log("数据库初始化完成:", dbPath)
+		console.log("数据库初始化完成:", getDbPath())
 		return database
 	} catch (error) {
 		console.error("数据库初始化错误:", error)

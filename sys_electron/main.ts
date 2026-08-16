@@ -19,6 +19,7 @@ import http from "http"
 import { spawn, type ChildProcess } from "child_process"
 import { initDb, validateSongFiles } from "./handlers/data/Database"
 import { closeDb } from "./handlers/data/db"
+import { LegacyDataMigrationError } from "./handlers/data/legacyMigration"
 import { setupIpcHandlers } from "./handlers"
 import { terminateScan } from "./handlers/scan/MusicScanner"
 import { registerAudioProtocol } from "./handlers/system/audioProtocol"
@@ -28,6 +29,7 @@ import { SUPPORTED_AUDIO_EXTENSIONS } from "./constants/formats"
 import { BACKEND_HOST, BACKEND_PORT } from "./constants/backend"
 import type { BackendState, AppState } from "./types"
 import { initializeAppUpdater, setUpdaterWindow } from "./services/appUpdater"
+import { configureAppDataPath } from "./utils/appData"
 
 // 全局异常兜底：仅记录日志，不主动退出
 process.on("uncaughtException", (err: Error) => {
@@ -106,11 +108,8 @@ function spawnBackend(): void {
 		APP_HOST: BACKEND_HOST,
 		APP_PORT: String(BACKEND_PORT),
 		PYTHONUNBUFFERED: "1",
-	}
-
-	if (app.isPackaged) {
-		// 打包后写入 Electron userData，避免把凭证和操作日志写进只读的应用资源目录。
-		backendEnv.APP_DATA_DIR = app.getPath("userData")
+		// 开发/打包模式统一使用 Electron userData 保存凭证和操作日志。
+		APP_DATA_DIR: app.getPath("userData"),
 	}
 
 	backendProcess = spawn(executablePath, spawnArgs, {
@@ -463,6 +462,8 @@ function cleanup(): void {
  */
 async function initializeApp(): Promise<void> {
 	try {
+		configureAppDataPath()
+
 		if (process.env.LLMUSIC_BACKEND_MANAGED) {
 			console.log("[Backend] 由 dev-runner 管理，跳过自动启动。")
 		} else {
@@ -507,6 +508,15 @@ async function initializeApp(): Promise<void> {
 		}
 	} catch (error) {
 		console.error("应用初始化失败:", error)
+		if (error instanceof LegacyDataMigrationError) {
+			await dialog.showMessageBox({
+				type: "error",
+				title: "数据迁移失败",
+				message: "旧数据库未被删除，应用暂未继续启动。",
+				detail: error.message,
+			})
+			app.quit()
+		}
 	}
 }
 
