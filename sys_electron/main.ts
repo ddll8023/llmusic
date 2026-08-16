@@ -230,6 +230,11 @@ const appState: AppState = {
 	pendingFileToOpen: null,
 }
 
+// 启动期间后端和数据库尚未就绪时，macOS activate 事件只能延迟处理，
+// 避免 activate 与 initializeApp 并发创建两个主窗口。
+let appInitializationDone = false
+let activatePending = false
+
 /**
  * 创建并配置主窗口
  */
@@ -528,7 +533,7 @@ if (!gotTheLock) {
 		}
 	})
 
-	app.whenReady().then(() => {
+	app.whenReady().then(async () => {
 		setMacDockIcon()
 
 		const filePath = extractAudioFilePath(process.argv)
@@ -537,7 +542,21 @@ if (!gotTheLock) {
 			appState.pendingFileToOpen = filePath
 		}
 
-		initializeApp()
+		try {
+			await initializeApp()
+		} finally {
+			appInitializationDone = true
+
+			// 初始化期间收到的 activate 只负责显示已经创建好的主窗口。
+			// initializeApp 内部已完成唯一一次主窗口创建，不再从这里重建。
+			if (activatePending) {
+				activatePending = false
+				if (appState.mainWindow && !appState.mainWindow.isDestroyed()) {
+					appState.mainWindow.show()
+					appState.mainWindow.focus()
+				}
+			}
+		}
 	})
 }
 
@@ -566,12 +585,19 @@ function recreateWindow(): void {
 	void initDesktopLyricWindow()
 }
 
-// 应用激活事件（macOS）：窗口存活（含隐藏态）直接显示，销毁时才重建
+// 应用激活事件（macOS）：初始化期间不创建窗口，等待 initializeApp 完成。
 app.on("activate", () => {
 	if (appState.mainWindow && !appState.mainWindow.isDestroyed()) {
 		appState.mainWindow.show()
+		appState.mainWindow.focus()
 		return
 	}
+
+	if (!appInitializationDone) {
+		activatePending = true
+		return
+	}
+
 	recreateWindow()
 })
 
