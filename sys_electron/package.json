@@ -1,7 +1,7 @@
 {
 	"name": "llmusic-electron",
 	"productName": "LLMusic",
-	"version": "1.0.2",
+	"version": "0.1.0",
 	"description": "LLMusic 本地音乐播放器",
 	"main": "dist-ts/main.js",
 	"private": true,
@@ -50,9 +50,14 @@
 			"output": "../release"
 		},
 		"files": [
-			"dist-ts/**/*"
+			"dist-ts/**/*",
+			"!dist-ts/services/updateHelper.js"
 		],
 		"extraResources": [
+			{
+				"from": "dist-ts/services/updateHelper.js",
+				"to": "update-helper/main.js"
+			},
 			{
 				"from": "../backend/dist",
 				"to": "backend",

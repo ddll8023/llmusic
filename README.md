@@ -152,4 +152,9 @@ npm --prefix sys_electron run dist:mac -- --x64
 
 ### 自动更新
 
-Electron 主进程使用 `electron-updater` 检查 GitHub Release，设置页可手动检查、下载并重启安装。发布新版本时需同步更新根目录和 `sys_electron/package.json` 的版本号，并推送同名 `v<version>` 标签；CI 会生成 Windows `latest.yml` 和合并后的 macOS `latest-mac.yml` 更新元数据。正式启用自动更新前应配置 macOS Developer ID/公证和 Windows 代码签名。
+设置页可手动检查、下载并重启安装。发布新版本时需同步更新根目录和 `sys_electron/package.json` 的版本号，并推送同名 `v<version>` 标签；CI 会生成 Windows `latest.yml` 和合并后的 macOS `latest-mac.yml` 更新元数据（需同时包含 arm64 与 x64 两套资产）。
+
+- **Windows**：使用 `electron-updater` + NSIS，未配置发布者签名时不校验签名，可正常更新未签名产物。
+- **macOS**：发布包未做 Apple 代码签名，不使用 Squirrel.Mac，改为自定义更新链路——通过 GitHub Releases API 检查版本、下载对应架构的 ZIP 并校验 SHA-512，然后由独立更新助手（`Resources/update-helper/main.js`）等待主进程退出、解压、原子替换 `.app` 并重启，失败自动回滚。应用位于 `/Applications` 等不可写目录时，替换会弹出 macOS 管理员授权；旧版本备份保留在 userData 的 `update-backups/` 下，历史备份与下载包会自动清理（保留 7 天）。
+
+macOS 未签名应用首次启动仍可能触发 Gatekeeper 提示，属于 macOS 安全策略，更新链路无法绕过。
