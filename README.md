@@ -136,3 +136,7 @@ npm --prefix sys_electron run dist:mac -- --x64
 | Windows | x64 | NSIS 安装包、ZIP |
 
 打包默认不上传 Release，也不启用签名或公证。仓库提供 `.github/workflows/release.yml`，推送 `v*` 标签后由 macOS/Windows 原生 runner 构建并创建 GitHub Release；签名凭据需通过 CI Secrets 单独配置。
+
+### 自动更新
+
+Electron 主进程使用 `electron-updater` 检查 GitHub Release，设置页可手动检查、下载并重启安装。发布新版本时需同步更新根目录和 `sys_electron/package.json` 的版本号，并推送同名 `v<version>` 标签；CI 会生成 Windows `latest.yml` 和合并后的 macOS `latest-mac.yml` 更新元数据。正式启用自动更新前应配置 macOS Developer ID/公证和 Windows 代码签名。

@@ -27,6 +27,7 @@ import { CHANNELS } from "./constants/ipcChannels"
 import { SUPPORTED_AUDIO_EXTENSIONS } from "./constants/formats"
 import { BACKEND_HOST, BACKEND_PORT } from "./constants/backend"
 import type { BackendState, AppState } from "./types"
+import { initializeAppUpdater, setUpdaterWindow } from "./services/appUpdater"
 
 // 全局异常兜底：仅记录日志，不主动退出
 process.on("uncaughtException", (err: Error) => {
@@ -490,6 +491,7 @@ async function initializeApp(): Promise<void> {
 			set: setCloseWindowBehavior,
 		})
 
+		initializeAppUpdater(appState.mainWindow)
 		void initDesktopLyricWindow()
 
 		if (appState.pendingFileToOpen) {
@@ -561,6 +563,7 @@ function recreateWindow(): void {
 		set: setCloseWindowBehavior,
 	})
 
+	setUpdaterWindow(appState.mainWindow)
 	void initDesktopLyricWindow()
 }
 

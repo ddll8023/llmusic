@@ -79,8 +79,18 @@ jobs:
       - name: Package desktop application
         run: npm --prefix sys_electron run pack -- ${{ matrix.electron_args }}
 
+      - name: Preserve macOS update metadata
+        if: matrix.platform == 'mac'
+        env:
+          MAC_ARCH: ${{ matrix.arch }}
+        run: |
+          node -e "const fs = require('fs'); const src = 'release/latest-mac.yml'; const dst = 'release/latest-mac-' + process.env.MAC_ARCH + '.yml'; if (!fs.existsSync(src)) throw new Error('Missing macOS update metadata: ' + src); fs.renameSync(src, dst);"
+
       - name: Verify package output
-        run: node -e "const fs = require('fs'); const files = fs.readdirSync('release').filter(name => !name.startsWith('.')); if (!files.length) throw new Error('No release artifacts found'); console.log(files.join('\\n'));"
+        env:
+          UPDATE_METADATA: ${{ matrix.platform == 'win' && 'latest.yml' || format('latest-mac-{0}.yml', matrix.arch) }}
+        run: |
+          node -e "const fs = require('fs'); const files = fs.readdirSync('release').filter(name => !name.startsWith('.')); if (!files.length) throw new Error('No release artifacts found'); if (!fs.existsSync('release/' + process.env.UPDATE_METADATA)) throw new Error('Missing update metadata: ' + process.env.UPDATE_METADATA); console.log(files.join('\\n'));"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -102,13 +112,18 @@ jobs:
         with:
           node-version: 22
 
+      - name: Install release metadata tooling
+        run: npm ci --ignore-scripts --prefix sys_electron
+
       - name: Verify tag matches package version
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           version="${RELEASE_TAG#v}"
           package_version="$(node -p "require('./package.json').version")"
+          electron_version="$(node -p "require('./sys_electron/package.json').version")"
           test "$version" = "$package_version"
+          test "$version" = "$electron_version"
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
@@ -116,6 +131,11 @@ jobs:
           path: release
           pattern: LLMusic-*
           merge-multiple: true
+
+      - name: Prepare update metadata
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: node sys_electron/scripts/prepare-release-metadata.cjs release "$RELEASE_TAG"
 
       - name: Generate checksums
         run: |

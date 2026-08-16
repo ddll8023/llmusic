@@ -54,6 +54,25 @@ declare global {
 		height: number
 	}
 
+	// ---- 应用更新 ----
+	type AppUpdateStatusName =
+		| 'idle'
+		| 'checking'
+		| 'not-available'
+		| 'available'
+		| 'downloading'
+		| 'downloaded'
+		| 'error'
+
+	interface AppUpdateStatus {
+		status: AppUpdateStatusName
+		currentVersion: string
+		version?: string
+		progress?: number
+		error?: string
+		releaseNotes?: string
+	}
+
 	// ---- QQ 在线歌单缓存 ----
 	interface QQPlaylistCachePayload {
 		version: number
@@ -80,6 +99,13 @@ declare global {
 		showWindow: () => Promise<IpcResult>
 		setCloseBehavior: (behavior: string) => Promise<IpcResult<{ behavior?: string }>>
 		getCloseBehavior: () => Promise<IpcResult<{ behavior?: string }>>
+
+		// ── 应用更新 ──
+		getUpdateStatus: () => Promise<IpcResult<AppUpdateStatus>>
+		checkForUpdates: () => Promise<IpcResult<AppUpdateStatus>>
+		downloadUpdate: () => Promise<IpcResult<AppUpdateStatus>>
+		installUpdate: () => Promise<IpcResult<AppUpdateStatus>>
+		onUpdateStatus: (callback: (status: AppUpdateStatus) => void) => () => void
 
 		// ── 导航 ──
 		onOpenAudioFile: (callback: (filePath: string) => void) => () => void

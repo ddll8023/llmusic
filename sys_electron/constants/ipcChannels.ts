@@ -114,4 +114,11 @@ export const CHANNELS = {
 	NOW_PLAYING_UPDATE: "now-playing-update",
 	NOW_PLAYING_POSITION: "now-playing-position",
 
+	// --- 应用更新 ---
+	UPDATE_GET_STATUS: "update-get-status",
+	UPDATE_CHECK: "update-check",
+	UPDATE_DOWNLOAD: "update-download",
+	UPDATE_INSTALL: "update-install",
+	UPDATE_STATUS_CHANGED: "update-status-changed",
+
 } as const

@@ -4,7 +4,7 @@ import { usePlayerStore } from '../../store/player';
 import { useUiStore } from '../../store/ui';
 import { useAuthStore } from '../../store/auth';
 import { useNotificationStore } from '../../store/notification';
-import { ref, reactive, onMounted } from 'vue';
+import { computed, ref, reactive, onBeforeUnmount, onMounted } from 'vue';
 import FAIcon from '../common/FAIcon.vue';
 import CustomButton from '../custom/CustomButton.vue';
 import CustomInput from '../custom/CustomInput.vue';
@@ -37,9 +37,66 @@ const showInfoModal = ref(false);
 const infoModalTitle = ref("");
 const infoModalMessage = ref("");
 
-onMounted(() => {
+const updateStatus = ref<AppUpdateStatus>({
+  status: 'idle',
+  currentVersion: '',
+});
+let removeUpdateStatusListener: (() => void) | null = null;
+
+const updateStatusMessage = computed(() => {
+  switch (updateStatus.value.status) {
+    case 'checking': return '正在检查更新...';
+    case 'not-available': return '当前已是最新版本';
+    case 'available': return `发现新版本 v${updateStatus.value.version || ''}`;
+    case 'downloading': return `正在下载更新（${updateStatus.value.progress || 0}%）`;
+    case 'downloaded': return `v${updateStatus.value.version || ''} 已下载完成，可重启安装`;
+    case 'error': return updateStatus.value.error || '更新检查失败';
+    default: return '可手动检查新版本';
+  }
+});
+
+const handleCheckForUpdates = async () => {
+  const result = await window.electronAPI.checkForUpdates();
+  if (!result.success) {
+    notification.error(result.error || '检查更新失败');
+    return;
+  }
+  updateStatus.value = result;
+  if (result.status === 'not-available') {
+    notification.info('当前已是最新版本');
+  } else if (result.status === 'error') {
+    notification.error(result.error || '检查更新失败');
+  }
+};
+
+const handleDownloadUpdate = async () => {
+  const result = await window.electronAPI.downloadUpdate();
+  if (!result.success) {
+    notification.error(result.error || '下载更新失败');
+    return;
+  }
+  updateStatus.value = result;
+};
+
+const handleInstallUpdate = () => {
+  void window.electronAPI.installUpdate();
+};
+
+onMounted(async () => {
   mediaStore.loadLibraries();
   authStore.initAuth();
+  removeUpdateStatusListener = window.electronAPI.onUpdateStatus((status) => {
+    updateStatus.value = status;
+  });
+  const result = await window.electronAPI.getUpdateStatus();
+  if (result.success) {
+    updateStatus.value = result;
+  }
+});
+
+onBeforeUnmount(() => {
+  removeUpdateStatusListener?.();
+  removeUpdateStatusListener = null;
 });
 
 
@@ -304,6 +361,48 @@ function togglePlatformVisibility(platformId: string) {
               </CustomButton>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 应用更新 -->
+    <div class="mb-6 max-md:mb-4">
+      <h3 class="text-sm text-content-secondary mb-4 border-b border-line-base pb-2 font-medium max-md:text-[13px]">应用更新</h3>
+      <div class="flex justify-between items-center gap-4 py-3 max-md:flex-col max-md:items-start">
+        <div>
+          <span class="text-xs text-content-base">当前版本 v{{ updateStatus.currentVersion || '...' }}</span>
+          <div class="text-[10px] text-content-secondary mt-1 leading-normal">{{ updateStatusMessage }}</div>
+          <div v-if="updateStatus.status === 'downloading'" class="w-56 max-w-full h-1.5 rounded-full bg-surface-overlay mt-2 overflow-hidden">
+            <div class="h-full rounded-full bg-accent-green transition-all duration-300" :style="{ width: `${updateStatus.progress || 0}%` }" />
+          </div>
+        </div>
+        <div class="flex gap-2 shrink-0">
+          <CustomButton
+            v-if="updateStatus.status === 'available'"
+            type="primary"
+            size="small"
+            @click="handleDownloadUpdate"
+          >
+            下载更新
+          </CustomButton>
+          <CustomButton
+            v-else-if="updateStatus.status === 'downloaded'"
+            type="primary"
+            size="small"
+            @click="handleInstallUpdate"
+          >
+            重启安装
+          </CustomButton>
+          <CustomButton
+            v-else
+            type="secondary"
+            size="small"
+            :loading="updateStatus.status === 'checking'"
+            :disabled="updateStatus.status === 'downloading'"
+            @click="handleCheckForUpdates"
+          >
+            {{ updateStatus.status === 'downloading' ? '下载中...' : '检查更新' }}
+          </CustomButton>
         </div>
       </div>
     </div>

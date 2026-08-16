@@ -86,6 +86,12 @@ const CHANNELS = {
 	// --- 播放状态同步 ---
 	NOW_PLAYING_UPDATE: "now-playing-update",
 	NOW_PLAYING_POSITION: "now-playing-position",
+	// --- 应用更新 ---
+	UPDATE_GET_STATUS: "update-get-status",
+	UPDATE_CHECK: "update-check",
+	UPDATE_DOWNLOAD: "update-download",
+	UPDATE_INSTALL: "update-install",
+	UPDATE_STATUS_CHANGED: "update-status-changed",
 } as const
 
 /**
@@ -242,6 +248,14 @@ const compatAPI: Record<string, unknown> = {
 	// 播放状态同步（桌面歌词等消费）
 	updateNowPlaying: (payload: Record<string, unknown>) => ipcRenderer.invoke(CHANNELS.NOW_PLAYING_UPDATE, payload),
 	syncNowPlayingPosition: (payload: Record<string, unknown>) => ipcRenderer.invoke(CHANNELS.NOW_PLAYING_POSITION, payload),
+
+	// 应用更新
+	getUpdateStatus: () => ipcRenderer.invoke(CHANNELS.UPDATE_GET_STATUS),
+	checkForUpdates: () => ipcRenderer.invoke(CHANNELS.UPDATE_CHECK),
+	downloadUpdate: () => ipcRenderer.invoke(CHANNELS.UPDATE_DOWNLOAD),
+	installUpdate: () => ipcRenderer.invoke(CHANNELS.UPDATE_INSTALL),
+	onUpdateStatus: (callback: (...args: unknown[]) => void) =>
+		createListener(CHANNELS.UPDATE_STATUS_CHANGED, callback),
 }
 
 // 安全地暴露主进程的API给渲染进程
