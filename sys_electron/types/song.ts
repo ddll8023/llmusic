@@ -1,7 +1,5 @@
 /** 本地歌曲 */
 export interface Song {
-	/** @deprecated 兼容旧数据中的 path 字段，优先使用 filePath */
-	path?: string
 	id: string
 	libraryId?: string
 	title: string

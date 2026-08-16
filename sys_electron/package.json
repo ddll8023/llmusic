@@ -10,7 +10,6 @@
 		"dev:electron": "electron ./dist-ts",
 		"dev-runner": "tsc && node ./dist-ts/dev-runner.js",
 		"tsc": "tsc",
-		"build:assets": "node -e \"console.log('build:assets: no assets to copy')\"",
 		"tsc:watch": "tsc --watch",
 		"type-check": "tsc --noEmit",
 		"build": "npm --prefix ../sys_vue run build",

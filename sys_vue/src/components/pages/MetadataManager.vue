@@ -87,16 +87,6 @@ const handleActionClick = ({ action, song }: { action: string; song: SongItem })
     }
 };
 
-// 选择歌曲（保留原有方法供兼容）
-const toggleSelectSong = (song: SongItem) => {
-    const index = selectedSongs.value.findIndex(s => s.id === song.id);
-    if (index >= 0) {
-        selectedSongs.value.splice(index, 1);
-    } else {
-        selectedSongs.value.push(song);
-    }
-};
-
 // 编辑单首歌曲（工作区模式）
 const editSong = (song: SongItem) => {
     if (tagEditorRef.value) {

@@ -22,16 +22,4 @@ async function setSetting(key: string, value: unknown): Promise<void> {
 	)
 }
 
-/**
- * 读取全部设置项
- */
-async function getAllSettings(): Promise<Record<string, unknown>> {
-	const rows = stmt("SELECT key, value FROM settings").all() as Array<{ key: string; value: string | null }>
-	const settings: Record<string, unknown> = {}
-	for (const row of rows) {
-		settings[row.key] = row.value === null ? null : JSON.parse(row.value)
-	}
-	return settings
-}
-
-export { getSetting, setSetting, getAllSettings }
+export { getSetting, setSetting }

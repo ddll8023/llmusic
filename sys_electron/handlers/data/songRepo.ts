@@ -12,7 +12,6 @@ interface SongRow {
 	id: string
 	filePath: string
 	libraryId: string | null
-	path: string | null
 	title: string
 	artist: string
 	album: string
@@ -38,15 +37,15 @@ interface SongRow {
 }
 
 const SONG_COLUMNS =
-	"id, filePath, libraryId, path, title, artist, album, albumArtist, year, duration, fileSize, hasCover, hasLyrics, lyrics, modifiedAt, format, bitrate, sampleRate, channels, playCount, cover, fileExists, genre, trackNumber, discNumber, addedAt"
+	"id, filePath, libraryId, title, artist, album, albumArtist, year, duration, fileSize, hasCover, hasLyrics, lyrics, modifiedAt, format, bitrate, sampleRate, channels, playCount, cover, fileExists, genre, trackNumber, discNumber, addedAt"
 
 const SONG_PARAMS =
-	"@id, @filePath, @libraryId, @path, @title, @artist, @album, @albumArtist, @year, @duration, @fileSize, @hasCover, @hasLyrics, @lyrics, @modifiedAt, @format, @bitrate, @sampleRate, @channels, @playCount, @cover, @fileExists, @genre, @trackNumber, @discNumber, @addedAt"
+	"@id, @filePath, @libraryId, @title, @artist, @album, @albumArtist, @year, @duration, @fileSize, @hasCover, @hasLyrics, @lyrics, @modifiedAt, @format, @bitrate, @sampleRate, @channels, @playCount, @cover, @fileExists, @genre, @trackNumber, @discNumber, @addedAt"
 
 const INSERT_SONG_SQL = `INSERT INTO songs (${SONG_COLUMNS}) VALUES (${SONG_PARAMS})`
 
 const UPDATE_SONG_SQL = `UPDATE songs SET
-	filePath = @filePath, libraryId = @libraryId, path = @path, title = @title, artist = @artist,
+	filePath = @filePath, libraryId = @libraryId, title = @title, artist = @artist,
 	album = @album, albumArtist = @albumArtist, year = @year, duration = @duration, fileSize = @fileSize,
 	hasCover = @hasCover, hasLyrics = @hasLyrics, lyrics = @lyrics, modifiedAt = @modifiedAt, format = @format,
 	bitrate = @bitrate, sampleRate = @sampleRate, channels = @channels, playCount = @playCount, cover = @cover,
@@ -59,7 +58,6 @@ function songToParams(song: Song): Record<string, unknown> {
 		id: song.id,
 		filePath: song.filePath,
 		libraryId: song.libraryId ?? null,
-		path: song.path ?? null,
 		title: song.title,
 		artist: song.artist,
 		album: song.album,
@@ -91,7 +89,6 @@ function rowToSong(row: SongRow): Song {
 		id: row.id,
 		filePath: row.filePath,
 		libraryId: row.libraryId ?? undefined,
-		path: row.path ?? undefined,
 		title: row.title,
 		artist: row.artist,
 		album: row.album,
@@ -416,11 +413,6 @@ async function deleteSong(songId: string): Promise<DeleteSongResult> {
 	}
 }
 
-/**
- * 索引重建（SQLite 由数据库索引保证查询性能，保留为空操作以兼容调用方）
- */
-function rebuildIndices(): void {}
-
 export {
 	parseSongFromFile,
 	getSongById,
@@ -432,5 +424,4 @@ export {
 	incrementPlayCount,
 	updateSong,
 	deleteSong,
-	rebuildIndices,
 }

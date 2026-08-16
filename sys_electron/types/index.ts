@@ -1,16 +1,4 @@
 import type { BrowserWindow } from "electron"
-import type { Song } from "../types/song"
-
-// ---- IPC 通用返回格式 ----
-export type IpcResultSuccess<T = Record<string, never>> = { success: true } & T
-
-export interface IpcResultError {
-	success: false
-	error?: string
-	canceled?: boolean
-}
-
-export type IpcResult<T = Record<string, never>> = IpcResultSuccess<T> | IpcResultError
 
 // ---- IPC 处理器注册格式 ----
 export interface IpcHandlerDef {
@@ -61,13 +49,6 @@ export interface Playlist {
 	updateTime: number
 }
 
-export interface DbData {
-	songs: Song[]
-	libraries: Library[]
-	playlists: Playlist[]
-	settings: Record<string, unknown>
-}
-
 // ---- 扫描相关 ----
 export interface ScanProgress {
 	phase: string
@@ -78,17 +59,6 @@ export interface ScanProgress {
 }
 
 export type ProgressCallback = (progress: ScanProgress) => void
-
-// ---- 音乐库管理 ----
-export interface LibraryData {
-	name: string
-	dirPath: string
-}
-
-export interface LibraryUpdate {
-	libraryId: string
-	updates: Record<string, unknown>
-}
 
 // ---- 下载 ----
 export interface SongDownloadMetadata {
@@ -101,30 +71,4 @@ export interface SongDownloadMetadata {
 	lyrics: string
 	coverUrl: string
 	format: string
-}
-
-export interface DownloadWithMetadataOptions {
-	url: string
-	filename: string
-	metadata: SongDownloadMetadata
-}
-
-export interface DownloadWithMetadataRequest {
-	url: string
-	filename: string
-	metadata: SongDownloadMetadata
-}
-
-// ---- 歌曲管理 ----
-export interface SongQueryParams {
-	libraryId?: string
-}
-
-export interface ImportMusicResult {
-	success: boolean
-	importedCount?: number
-	updatedCount?: number
-	failedFiles?: string[]
-	error?: string
-	message?: string
 }

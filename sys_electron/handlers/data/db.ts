@@ -3,7 +3,6 @@ import path from "path"
 import { app } from "electron"
 import DatabaseConstructor from "better-sqlite3"
 import type { Database as SqliteDatabase, Statement } from "better-sqlite3"
-import { LegacyDataMigrationError, migrateLegacyDatabase } from "./legacyMigration"
 
 function getDbPath(): string {
 	return path.join(app.getPath("userData"), "llmusic.db")
@@ -15,7 +14,6 @@ CREATE TABLE IF NOT EXISTS songs (
 	id TEXT PRIMARY KEY,
 	filePath TEXT NOT NULL UNIQUE,
 	libraryId TEXT,
-	path TEXT,
 	title TEXT NOT NULL,
 	artist TEXT NOT NULL,
 	album TEXT NOT NULL,
@@ -89,7 +87,7 @@ CREATE TABLE IF NOT EXISTS qq_user_playlists_cache (
 let db: SqliteDatabase | null = null
 
 /**
- * 获取数据库单例（首次调用时建表，并安全迁移旧 lowdb 数据）
+ * 获取数据库单例（首次调用时建表）
  */
 function getDb(): SqliteDatabase {
 	if (db) return db
@@ -98,14 +96,10 @@ function getDb(): SqliteDatabase {
 	try {
 		database.pragma("journal_mode = WAL")
 		database.exec(DDL)
-		migrateLegacyDatabase(database)
 		db = database
 		return database
 	} catch (error) {
 		database.close()
-		if (error instanceof LegacyDataMigrationError) {
-			console.error("[Migration] 数据库迁移失败，旧数据未删除:", error.message)
-		}
 		throw error
 	}
 }

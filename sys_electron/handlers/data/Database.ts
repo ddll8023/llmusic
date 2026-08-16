@@ -11,7 +11,6 @@ export {
 	incrementPlayCount,
 	updateSong,
 	deleteSong,
-	rebuildIndices,
 } from "./songRepo"
 export { getLibraries, getLibraryById, addLibrary, updateLibrary, removeLibrary } from "./libraryRepo"
 export {
@@ -23,7 +22,7 @@ export {
 	addSongsToPlaylist,
 	removeSongsFromPlaylist,
 } from "./playlistRepo"
-export { getSetting, setSetting, getAllSettings } from "./settingsRepo"
+export { getSetting, setSetting } from "./settingsRepo"
 export {
 	getPlaylistCache,
 	savePlaylistCache,

@@ -77,7 +77,7 @@ const handleContextMenuAction = async ({ action, song }: { action: string; song:
 
         case 'show-in-folder':
             try {
-                // 使用filePath而不是path
+                // 使用歌曲文件路径
                 if (song.filePath) {
                     const result = await window.electronAPI.showItemInFolder(song.filePath);
                     if (!result.success) {

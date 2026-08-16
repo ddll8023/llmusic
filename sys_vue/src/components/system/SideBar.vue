@@ -12,7 +12,6 @@ import { useAuthStore } from '../../store/auth';
 import { usePlayerStore } from '../../store/player';
 import { useNotificationStore } from '../../store/notification';
 import { musicPlatforms, PLATFORM_VISIBILITY_PREFIX } from '../../config/platforms';
-import type { MusicPlatform } from '../../config/platforms';
 import FAIcon from '../common/FAIcon.vue';
 import CustomButton from '../custom/CustomButton.vue';
 

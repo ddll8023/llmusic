@@ -94,7 +94,7 @@ declare global {
 		windowMaximize: () => Promise<IpcResult>
 		windowRestore: () => Promise<IpcResult>
 		windowClose: () => Promise<IpcResult>
-		/** 实际返回 IpcResult<{ maximized: boolean }>；TitleBar 仍按 boolean 读取（历史遗留，初始态以 onWindowMaximizedChange 为准） */
+		/** 查询当前窗口是否处于最大化状态 */
 		isWindowMaximized: () => Promise<IpcResult<{ maximized?: boolean }>>
 		showWindow: () => Promise<IpcResult>
 		setCloseBehavior: (behavior: string) => Promise<IpcResult<{ behavior?: string }>>

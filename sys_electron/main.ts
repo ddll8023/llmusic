@@ -11,7 +11,6 @@ import {
 	protocol,
 	session,
 	shell,
-	dialog,
 } from "electron"
 import path from "path"
 import fs from "fs"
@@ -19,7 +18,6 @@ import http from "http"
 import { spawn, type ChildProcess } from "child_process"
 import { initDb, validateSongFiles } from "./handlers/data/Database"
 import { closeDb } from "./handlers/data/db"
-import { LegacyDataMigrationError } from "./handlers/data/legacyMigration"
 import { setupIpcHandlers } from "./handlers"
 import { terminateScan } from "./handlers/scan/MusicScanner"
 import { registerAudioProtocol } from "./handlers/system/audioProtocol"
@@ -508,15 +506,6 @@ async function initializeApp(): Promise<void> {
 		}
 	} catch (error) {
 		console.error("应用初始化失败:", error)
-		if (error instanceof LegacyDataMigrationError) {
-			await dialog.showMessageBox({
-				type: "error",
-				title: "数据迁移失败",
-				message: "旧数据库未被删除，应用暂未继续启动。",
-				detail: error.message,
-			})
-			app.quit()
-		}
 	}
 }
 
